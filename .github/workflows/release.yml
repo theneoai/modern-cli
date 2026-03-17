@@ -151,6 +151,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Used by scripts/generate-release-notes.mjs to enhance release body with Claude
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npx semantic-release
 
   # ─── Post-release notification ────────────────────────────────────────────
