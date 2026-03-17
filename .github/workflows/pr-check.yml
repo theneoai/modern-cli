@@ -1,0 +1,147 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Label PR based on files changed ─────────────────────────────────────
+  label:
+    name: Auto Label
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          sync-labels: true
+
+  # ─── PR size check ───────────────────────────────────────────────────────
+  size-check:
+    name: PR Size
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Count changed lines
+        id: diff
+        run: |
+          LINES=$(git diff --stat origin/${{ github.base_ref }}...HEAD -- 'src/**' | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+          echo "lines=$LINES" >> $GITHUB_OUTPUT
+          echo "Changed lines: $LINES"
+
+      - name: Comment on large PR
+        if: fromJSON(steps.diff.outputs.lines) > 500
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Large PR detected** (${{ steps.diff.outputs.lines }} lines changed). Consider splitting into smaller, focused PRs.'
+            })
+
+  # ─── Bundle size diff ────────────────────────────────────────────────────
+  bundle-size:
+    name: Bundle Size
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install & build PR branch
+        run: |
+          npm ci
+          npm run build
+          PR_SIZE=$(du -sh dist/index.js | cut -f1)
+          echo "PR bundle size: $PR_SIZE"
+          echo "pr_size=$PR_SIZE" >> $GITHUB_ENV
+
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Install & build base branch
+        run: |
+          cd base
+          npm ci
+          npm run build
+          BASE_SIZE=$(du -sh dist/index.js | cut -f1)
+          echo "Base bundle size: $BASE_SIZE"
+          echo "base_size=$BASE_SIZE" >> $GITHUB_ENV
+
+      - name: Comment bundle size comparison
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              '## 📦 Bundle Size Report',
+              '',
+              '| | Size |',
+              '|---|---|',
+              `| Base (\`${{ github.base_ref }}\`) | \`${{ env.base_size }}\` |`,
+              `| PR (\`${{ github.head_ref }}\`) | \`${{ env.pr_size }}\` |`,
+              '',
+              '_Built with tsup, single ESM bundle_',
+            ].join('\n');
+
+            // Find existing comment to update
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.data.find(c => c.body.startsWith('## 📦 Bundle Size'));
+
+            if (existing) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  # ─── Full CI check ───────────────────────────────────────────────────────
+  ci-check:
+    name: CI Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test -- --coverage
+      - run: npm run build
+      - run: node dist/index.js --version

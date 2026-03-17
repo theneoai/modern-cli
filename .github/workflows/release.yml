@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false   # never cancel an in-flight release
+
+permissions:
+  contents: write       # create GitHub releases & tags
+  issues: write         # comment on issues
+  pull-requests: write  # comment on PRs
+  id-token: write       # npm provenance (SLSA)
+
+jobs:
+  # ─── Gate: must pass CI first ────────────────────────────────────────────
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  # ─── Cross-platform binaries ─────────────────────────────────────────────
+  binaries:
+    name: Build binary (${{ matrix.target }})
+    needs: ci-gate
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-latest
+            asset: modern-ai-cli-linux-x64
+          - target: linux-arm64
+            runner: ubuntu-latest
+            asset: modern-ai-cli-linux-arm64
+          - target: macos-x64
+            runner: macos-13
+            asset: modern-ai-cli-macos-x64
+          - target: macos-arm64
+            runner: macos-latest
+            asset: modern-ai-cli-macos-arm64
+          - target: win-x64
+            runner: windows-latest
+            asset: modern-ai-cli-win-x64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Package binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          npx pkg \
+            --target node20-${{ matrix.target }} \
+            --output ${{ matrix.asset }} \
+            dist/index.js
+          chmod +x ${{ matrix.asset }}
+
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          npx pkg `
+            --target node20-${{ matrix.target }} `
+            --output ${{ matrix.asset }} `
+            dist/index.js
+
+      - name: Compress binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          tar -czf ${{ matrix.asset }}.tar.gz ${{ matrix.asset }}
+          sha256sum ${{ matrix.asset }}.tar.gz > ${{ matrix.asset }}.tar.gz.sha256
+
+      - name: Compress binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path ${{ matrix.asset }} -DestinationPath ${{ matrix.asset }}.zip
+          Get-FileHash ${{ matrix.asset }}.zip -Algorithm SHA256 | Select-Object Hash | Out-File -FilePath ${{ matrix.asset }}.zip.sha256
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          path: |
+            ${{ matrix.asset }}*
+          retention-days: 1
+
+  # ─── Semantic Release ────────────────────────────────────────────────────
+  release:
+    name: Semantic Release
+    needs: binaries
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: release-assets/
+          merge-multiple: true
+
+      - name: List release assets
+        run: ls -la release-assets/
+
+      - name: Run semantic-release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
+
+  # ─── Post-release notification ────────────────────────────────────────────
+  notify:
+    name: Notify
+    needs: release
+    runs-on: ubuntu-latest
+    if: needs.release.outputs.released == 'true'
+    steps:
+      - name: Release summary
+        run: |
+          echo "## 🚀 Released v${{ needs.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** \`${{ needs.release.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm:** https://www.npmjs.com/package/modern-ai-cli" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release:** https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY

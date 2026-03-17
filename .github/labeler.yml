@@ -1,0 +1,46 @@
+# Auto-label PRs based on changed files
+# See: https://github.com/actions/labeler
+
+feature:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/commands/**"
+      - "src/ai/**"
+
+ui:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/ui/**"
+
+config:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/utils/config.ts"
+      - ".releaserc.json"
+      - "commitlint.config.js"
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/__tests__/**"
+      - "jest.config.js"
+
+ci/cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/**"
+      - "scripts/**"
+
+build:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "tsconfig.json"
+      - "tsup.config.ts"
+      - "package.json"
+      - "package-lock.json"
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "**/*.md"
+      - "CHANGELOG.md"
