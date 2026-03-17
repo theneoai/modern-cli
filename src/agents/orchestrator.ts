@@ -32,6 +32,7 @@ import type {
 import { resolveCustomSystemPrompt, listCustomAgents } from "./custom.js";
 import type { WorkflowDef } from "./workflow.js";
 import { buildOrgPlan } from "./org.js";
+import { buildMemoryContext, addMemory } from "./memory.js";
 
 // ---------------------------------------------------------------------------
 // System prompt resolution
@@ -133,12 +134,19 @@ async function runAgent(
   client: Anthropic,
   task: AgentTask,
   priorResults: AgentResult[],
-  onDelta: (delta: string) => void
+  onDelta: (delta: string) => void,
+  opts: { useMemory?: boolean } = {}
 ): Promise<AgentResult> {
   const config = getConfig();
   const startMs = Date.now();
   const messages = buildAgentMessage(task.role, task, priorResults);
-  const systemPrompt = resolveSystemPrompt(task.role);
+
+  // Build system prompt with optional memory context
+  let systemPrompt = resolveSystemPrompt(task.role);
+  if (opts.useMemory !== false) {
+    const memCtx = buildMemoryContext(task.role, task.prompt);
+    if (memCtx) systemPrompt = `${systemPrompt}\n\n${memCtx}`;
+  }
 
   let output = "";
   let inputTokens = 0;
@@ -166,13 +174,25 @@ async function runAgent(
     }
   }
 
-  return {
+  const result: AgentResult = {
     taskId: task.id,
     role: task.role,
     output,
     usage: { inputTokens, outputTokens },
     durationMs: Date.now() - startMs,
   };
+
+  // Save task result to agent memory (episodic)
+  if (opts.useMemory !== false && output.trim()) {
+    addMemory(task.role, output.slice(0, 500), "episodic", {
+      tags: ["task-output", task.id],
+      importance: 5,
+      summary: `Task ${task.id}: ${task.prompt.slice(0, 80)}`,
+      sourceTask: task.id,
+    });
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------

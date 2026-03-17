@@ -58,6 +58,29 @@ import { theme, formatHeader, formatError, formatSuccess } from "../ui/theme.js"
 import { renderMarkdown } from "../ui/output.js";
 import { createSpinner } from "../ui/spinner.js";
 import { AgentBoard } from "../ui/agent-board.js";
+import {
+  addMemory,
+  getMemories,
+  clearMemories,
+  distillMemories,
+  getAllMemoryStats,
+  getMemoryStats,
+  listAgentsWithMemory,
+  addSharedMemory,
+  getSharedMemories,
+  clearSharedMemory,
+  MEMORY_TYPE_DESCRIPTIONS,
+} from "../agents/memory.js";
+import type { MemoryType } from "../agents/memory.js";
+import {
+  conductMeeting,
+  createMeetingConfig,
+  listMeetings,
+  removeMeeting,
+  MEETING_MODE_DESCRIPTIONS,
+} from "../agents/meeting.js";
+import type { MeetingMode, MeetingParticipant } from "../agents/meeting.js";
+import { MeetingBoard } from "../ui/meeting-board.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -656,6 +679,344 @@ export function registerAgentCommand(program: Command): void {
       }
     });
 
+  // ── memory ────────────────────────────────────────────────────────────────
+  const memory = agent
+    .command("memory")
+    .description("Manage per-agent and shared memory");
+
+  memory
+    .command("list [agent]")
+    .description("List memories for an agent (or all agents if no name given)")
+    .option("--type <type>", "Filter by type: episodic|semantic|procedural|working")
+    .option("--min-importance <n>", "Minimum importance score (0-10)", "0")
+    .option("--limit <n>", "Max entries to show", "20")
+    .action((agentName: string | undefined, opts: { type?: string; minImportance: string; limit: string }) => {
+      const agents = agentName ? [agentName] : listAgentsWithMemory();
+      if (agents.length === 0) {
+        console.log(theme.muted("  No agent memories found.\n"));
+        return;
+      }
+      for (const name of agents) {
+        const entries = getMemories(name, {
+          type: opts.type as MemoryType | undefined,
+          minImportance: parseInt(opts.minImportance, 10),
+          limit: parseInt(opts.limit, 10),
+        });
+        const stats = getMemoryStats(name);
+        const header = name === "shared" ? "🧠 Shared Memory" : `🧠 ${name} Memory`;
+        console.log(formatHeader(header));
+        console.log(`  ${theme.muted(`${stats.total} total · avg importance ${stats.avgImportance.toFixed(1)}`)}${stats.lastDistilledAt ? ` · distilled ${new Date(stats.lastDistilledAt).toLocaleDateString()}` : ""}\n`);
+        if (entries.length === 0) {
+          console.log(theme.muted("  No memories match the filter.\n"));
+          continue;
+        }
+        for (const e of entries) {
+          const typeTag = `[${e.type}]`;
+          const imp = `★${e.importance}`;
+          console.log(`  ${theme.dim(typeTag)} ${theme.dim(imp)}  ${e.summary ?? e.content.slice(0, 80)}`);
+          if (e.tags.length) console.log(`    ${theme.muted(e.tags.map((t) => `#${t}`).join(" "))}`);
+        }
+        console.log();
+      }
+    });
+
+  memory
+    .command("add <agent> <content>")
+    .description("Manually add a memory entry for an agent")
+    .option("--type <type>", "Memory type: episodic|semantic|procedural|working", "episodic")
+    .option("--importance <n>", "Importance score 0-10", "5")
+    .option("--tags <tags>", "Comma-separated tags")
+    .option("--summary <summary>", "Short one-line summary")
+    .action((agentName: string, content: string, opts: { type: string; importance: string; tags?: string; summary?: string }) => {
+      const entry = addMemory(agentName, content, opts.type as MemoryType, {
+        importance: parseInt(opts.importance, 10),
+        tags: opts.tags ? opts.tags.split(",").map((t) => t.trim()) : [],
+        summary: opts.summary,
+      });
+      console.log(formatSuccess(`Memory added to ${agentName} [${entry.id.slice(0, 8)}]`));
+    });
+
+  memory
+    .command("search <query> [agent]")
+    .description("Search memories by keyword (all agents or specific agent)")
+    .option("--limit <n>", "Max results", "10")
+    .action((query: string, agentName: string | undefined, opts: { limit: string }) => {
+      const agents = agentName ? [agentName] : ["shared", ...listAgentsWithMemory()];
+      let found = 0;
+      for (const name of agents) {
+        const results = getMemories(name, { query, limit: parseInt(opts.limit, 10) });
+        if (results.length === 0) continue;
+        console.log(formatHeader(name === "shared" ? "🧠 Shared Memory" : `🧠 ${name}`));
+        for (const e of results) {
+          console.log(`  ${theme.dim(`[${e.type}]`)} ${e.summary ?? e.content.slice(0, 100)}`);
+          if (e.tags.length) console.log(`    ${theme.muted(e.tags.map((t) => `#${t}`).join(" "))}`);
+        }
+        console.log();
+        found += results.length;
+      }
+      if (found === 0) console.log(theme.muted(`  No memories matching "${query}"\n`));
+    });
+
+  memory
+    .command("distill [agent]")
+    .description("Use AI to compress and distill memories (removes working memories, summarizes old ones)")
+    .action(async (agentName: string | undefined) => {
+      const agents = agentName ? [agentName] : listAgentsWithMemory();
+      if (agents.length === 0) {
+        console.log(theme.muted("  No agents with memories found.\n"));
+        return;
+      }
+      for (const name of agents) {
+        const spinner = createSpinner(`Distilling memories for ${name}...`);
+        spinner.start();
+        try {
+          const result = await distillMemories(name);
+          spinner.succeed(formatSuccess(`${name}: ${result.summary}`));
+        } catch (err) {
+          spinner.fail(formatError(String(err)));
+        }
+      }
+    });
+
+  memory
+    .command("clear [agent]")
+    .description("Clear all memories for an agent (or all agents)")
+    .option("--shared", "Clear the shared memory pool instead")
+    .action(async (agentName: string | undefined, opts: { shared?: boolean }) => {
+      if (opts.shared) {
+        const confirmed = await confirm({ message: "Clear ALL shared memories? This cannot be undone." });
+        if (!confirmed) { console.log(theme.muted("Cancelled.\n")); return; }
+        const n = clearSharedMemory();
+        console.log(formatSuccess(`Cleared ${n} shared memories.`));
+        return;
+      }
+      const agents = agentName ? [agentName] : listAgentsWithMemory();
+      if (agents.length === 0) { console.log(theme.muted("  No agent memories found.\n")); return; }
+      const confirmed = await confirm({
+        message: agentName
+          ? `Clear all memories for "${agentName}"?`
+          : `Clear memories for ALL ${agents.length} agents?`,
+      });
+      if (!confirmed) { console.log(theme.muted("Cancelled.\n")); return; }
+      let total = 0;
+      for (const name of agents) total += clearMemories(name);
+      console.log(formatSuccess(`Cleared ${total} memories.`));
+    });
+
+  memory
+    .command("shared")
+    .description("Show the shared memory pool accessible to all agents")
+    .option("--query <q>", "Filter by keyword")
+    .option("--limit <n>", "Max entries", "20")
+    .action((opts: { query?: string; limit: string }) => {
+      const entries = getSharedMemories({ query: opts.query, limit: parseInt(opts.limit, 10) });
+      const stats = getMemoryStats("shared");
+      console.log(formatHeader("🧠 Shared Memory Pool"));
+      console.log(`  ${theme.muted(`${stats.total} entries · avg importance ${stats.avgImportance.toFixed(1)}`)}\n`);
+      if (entries.length === 0) {
+        console.log(theme.muted("  Shared memory is empty.\n"));
+        return;
+      }
+      for (const e of entries) {
+        const from = e.tags.find((t) => t.startsWith("from:"))?.slice(5) ?? "";
+        console.log(`  ${from ? theme.dim(`[${from}]`) : theme.dim("[shared]")} ${e.summary ?? e.content.slice(0, 100)}`);
+        if (e.tags.filter((t) => !t.startsWith("from:")).length) {
+          console.log(`    ${theme.muted(e.tags.filter((t) => !t.startsWith("from:")).map((t) => `#${t}`).join(" "))}`);
+        }
+      }
+      console.log();
+    });
+
+  memory
+    .command("add-shared <content>")
+    .description("Manually add an entry to the shared memory pool")
+    .option("--importance <n>", "Importance score 0-10", "5")
+    .option("--tags <tags>", "Comma-separated tags")
+    .option("--contributor <name>", "Attribute this memory to an agent")
+    .action((content: string, opts: { importance: string; tags?: string; contributor?: string }) => {
+      const entry = addSharedMemory(content, {
+        importance: parseInt(opts.importance, 10),
+        tags: opts.tags ? opts.tags.split(",").map((t) => t.trim()) : [],
+        contributor: opts.contributor,
+      });
+      console.log(formatSuccess(`Added to shared memory [${entry.id.slice(0, 8)}]`));
+    });
+
+  memory
+    .command("stats")
+    .description("Show memory statistics across all agents")
+    .action(() => {
+      const allStats = getAllMemoryStats();
+      if (allStats.length === 0) {
+        console.log(theme.muted("  No memories stored.\n"));
+        return;
+      }
+      console.log(formatHeader("🧠 Memory Statistics"));
+      const typeKeys = Object.keys(MEMORY_TYPE_DESCRIPTIONS) as MemoryType[];
+      // Header row
+      const col = (s: string, w: number) => s.slice(0, w).padEnd(w);
+      console.log(`  ${col("Agent", 20)} ${col("Total", 6)} ${typeKeys.map((t) => col(t.slice(0, 7), 8)).join(" ")} Avg★`);
+      console.log(`  ${"─".repeat(20)} ${"─".repeat(6)} ${typeKeys.map(() => "─".repeat(8)).join(" ")} ──────`);
+      for (const s of allStats) {
+        console.log(
+          `  ${col(s.agentName, 20)} ${col(String(s.total), 6)} ${typeKeys.map((t) => col(String(s.byType[t]), 8)).join(" ")} ${s.avgImportance.toFixed(1)}`
+        );
+      }
+      console.log();
+    });
+
+  // ── meet ──────────────────────────────────────────────────────────────────
+  const meet = agent
+    .command("meet")
+    .description("Conduct structured multi-agent meetings and dialogues");
+
+  meet
+    .command("start [topic...]")
+    .description("Start a new meeting between agents")
+    .option("--participants <names>", "Comma-separated agent names/roles (default: researcher,planner,synthesizer)")
+    .option("--mode <mode>", "Meeting mode: roundtable|debate|brainstorm|review", "roundtable")
+    .option("--rounds <n>", "Number of discussion rounds", "2")
+    .option("--no-memory", "Disable memory injection")
+    .option("--no-save-memory", "Don't save insights to shared memory after meeting")
+    .action(async (
+      topicWords: string[],
+      opts: { participants?: string; mode: string; rounds: string; memory: boolean; saveMemory: boolean }
+    ) => {
+      let topic = topicWords.join(" ").trim();
+      if (!topic) {
+        const input = await text({ message: "Meeting topic:", placeholder: "What should the agents discuss?" });
+        if (!input || typeof input !== "string") { console.log(theme.muted("Cancelled.\n")); return; }
+        topic = input;
+      }
+
+      const participantNames = opts.participants
+        ? opts.participants.split(",").map((n) => n.trim())
+        : ["researcher", "planner", "synthesizer"];
+
+      const participants: MeetingParticipant[] = participantNames.map((name) => {
+        const customNames = allRoleNames(Object.keys(BUILTIN_ROLE_ICONS));
+        const custom = customNames.includes(name)
+          ? { icon: "🤖" }
+          : { icon: BUILTIN_ROLE_ICONS[name] ?? "🤖" };
+        return { name, role: name, icon: custom.icon };
+      });
+
+      const config = createMeetingConfig({
+        topic,
+        participants,
+        mode: opts.mode as MeetingMode,
+        rounds: parseInt(opts.rounds, 10),
+        useMemory: opts.memory,
+        saveToSharedMemory: opts.saveMemory,
+      });
+
+      const board = new MeetingBoard(config);
+      const handler = board.makeEventHandler();
+
+      try {
+        await conductMeeting(config, handler);
+      } catch (err) {
+        console.error(formatError(String(err)));
+        process.exit(1);
+      }
+    });
+
+  meet
+    .command("list")
+    .description("List past meeting transcripts")
+    .option("--limit <n>", "Max entries to show", "10")
+    .action((opts: { limit: string }) => {
+      const meetings = listMeetings(parseInt(opts.limit, 10));
+      if (meetings.length === 0) {
+        console.log(theme.muted("  No past meetings found.\n"));
+        return;
+      }
+      console.log(formatHeader("Past Meetings"));
+      for (const m of meetings) {
+        const date = new Date(m.startedAt).toLocaleString();
+        const dur = m.endedAt
+          ? `${Math.round((new Date(m.endedAt).getTime() - new Date(m.startedAt).getTime()) / 1000)}s`
+          : "in-progress";
+        const parts = m.config.participants.map((p) => p.name).join(", ");
+        console.log(`  ${theme.dim(m.config.id.slice(0, 8))}  ${theme.bold(m.config.topic.slice(0, 50))}`);
+        console.log(`    ${theme.muted(`${date} · ${m.config.mode} · ${dur} · ${m.totalTokens} tokens`)}`);
+        console.log(`    ${theme.muted(`Participants: ${parts}`)}\n`);
+      }
+    });
+
+  meet
+    .command("show <id>")
+    .description("Show the full transcript of a meeting")
+    .option("--summary", "Show summary only")
+    .action((id: string, opts: { summary?: boolean }) => {
+      // allow short prefix match
+      const all = listMeetings(100);
+      const found = all.find((m) => m.config.id === id || m.config.id.startsWith(id));
+      if (!found) {
+        console.log(formatError(`No meeting found with ID "${id}"`));
+        return;
+      }
+      console.log(formatHeader(`Meeting: ${found.config.topic}`));
+      console.log(`  ${theme.muted(`${found.config.mode} · ${found.config.rounds} rounds · ${found.totalTokens} tokens`)}`);
+      console.log(`  ${theme.muted(`Participants: ${found.config.participants.map((p) => `${p.icon ?? "🤖"} ${p.name}`).join("  ")}\n`)}`);
+
+      if (opts.summary) {
+        if (found.summary) {
+          console.log(theme.bold("Summary:"));
+          renderMarkdown(found.summary);
+        } else {
+          console.log(theme.muted("  No summary available.\n"));
+        }
+        return;
+      }
+
+      // Full transcript
+      for (const turn of found.turns) {
+        const p = found.config.participants.find((x) => x.name === turn.participantName);
+        const icon = p?.icon ?? "🤖";
+        const ts = new Date(turn.timestamp).toLocaleTimeString();
+        console.log(`\n${icon} ${theme.bold(turn.participantName)} ${theme.muted(ts)}`);
+        console.log("─".repeat(50));
+        process.stdout.write(turn.content + "\n");
+        if (turn.tokensUsed) {
+          console.log(theme.muted(`  ${turn.tokensUsed} tokens · ${(turn.durationMs ?? 0) > 1000 ? `${((turn.durationMs ?? 0) / 1000).toFixed(1)}s` : `${turn.durationMs ?? 0}ms`}`));
+        }
+      }
+
+      if (found.summary) {
+        console.log(`\n${"═".repeat(50)}`);
+        console.log(theme.bold("Meeting Summary:"));
+        renderMarkdown(found.summary);
+      }
+    });
+
+  meet
+    .command("remove <id>")
+    .description("Delete a meeting transcript")
+    .action(async (id: string) => {
+      const all = listMeetings(100);
+      const found = all.find((m) => m.config.id === id || m.config.id.startsWith(id));
+      if (!found) {
+        console.log(formatError(`No meeting found with ID "${id}"`));
+        return;
+      }
+      const confirmed = await confirm({ message: `Delete meeting "${found.config.topic.slice(0, 50)}"?` });
+      if (!confirmed) { console.log(theme.muted("Cancelled.\n")); return; }
+      removeMeeting(found.config.id);
+      console.log(formatSuccess("Meeting transcript deleted."));
+    });
+
+  meet
+    .command("modes")
+    .description("List available meeting modes")
+    .action(() => {
+      console.log(formatHeader("Meeting Modes"));
+      for (const [mode, desc] of Object.entries(MEETING_MODE_DESCRIPTIONS)) {
+        console.log(`  ${theme.bold(mode.padEnd(12))}  ${desc}`);
+      }
+      console.log();
+    });
+
   // ── help footer ───────────────────────────────────────────────────────────
   agent.addHelpText(
     "after",
@@ -663,9 +1024,12 @@ export function registerAgentCommand(program: Command): void {
     `  ${theme.secondary("$")} ai agent run "build a REST API with tests"             # auto-plan\n` +
     `  ${theme.secondary("$")} ai agent solo coder "implement LRU cache"              # single agent\n` +
     `  ${theme.secondary("$")} ai agent create data-analyst                           # custom agent\n` +
+    `  ${theme.secondary("$")} ai agent meet start "design a microservices arch"      # meeting\n` +
+    `  ${theme.secondary("$")} ai agent meet start --participants "cto,cfo" --mode debate\n` +
+    `  ${theme.secondary("$")} ai agent memory list                                   # all memories\n` +
+    `  ${theme.secondary("$")} ai agent memory distill researcher                     # compress memories\n` +
+    `  ${theme.secondary("$")} ai agent memory shared                                 # shared pool\n` +
     `  ${theme.secondary("$")} ai agent org show                                      # org chart\n` +
-    `  ${theme.secondary("$")} ai agent org run TechCorp "analyze sales data"         # team run\n` +
-    `  ${theme.secondary("$")} ai agent workflow template research-code-review > wf.json\n` +
     `  ${theme.secondary("$")} ai agent workflow run research-code-review "my task"   # workflow\n` +
     `  ${theme.secondary("$")} ai agent roles                                         # see all agents\n`
   );
