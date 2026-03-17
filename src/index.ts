@@ -7,7 +7,7 @@ import { checkForUpdates, printUpdateNotice } from "./utils/upgrade-notifier.js"
 checkForUpdates();
 
 async function main(): Promise<void> {
-  const program = createCLI();
+  const program = await createCLI();
 
   if (process.argv.length <= 2) {
     program.outputHelp();

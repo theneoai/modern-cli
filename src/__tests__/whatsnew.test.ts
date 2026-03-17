@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+import type { Command } from "commander";
 
 // Mock the upgrade notifier so tests don't trigger network calls
 jest.mock("../utils/upgrade-notifier.js", () => ({
@@ -33,10 +34,10 @@ Initial release.
 `;
 
 describe("whatsnew command registration", () => {
-  let program: ReturnType<typeof createCLI>;
+  let program: Command;
 
-  beforeEach(() => {
-    program = createCLI();
+  beforeEach(async () => {
+    program = await createCLI();
   });
 
   it("registers the 'whatsnew' command", () => {
@@ -68,7 +69,7 @@ describe("changelog parser", () => {
       const m = section.match(/^##\s+\[?([\d.]+(?:-[\w.]+)?)\]?(?:\s+[-–]\s+(\d{4}-\d{2}-\d{2}))?/);
       if (!m) continue;
       releases.push({
-        version: m[1],
+        version: m[1]!,
         date: m[2] ?? "",
         body: section.replace(/^##[^\n]*\n/, "").trim(),
       });
@@ -84,20 +85,20 @@ describe("changelog parser", () => {
   it("respects the count limit", () => {
     const releases = parseChangelog(SAMPLE_CHANGELOG, 2);
     expect(releases).toHaveLength(2);
-    expect(releases[0].version).toBe("1.2.0");
-    expect(releases[1].version).toBe("1.1.0");
+    expect(releases[0]!.version).toBe("1.2.0");
+    expect(releases[1]!.version).toBe("1.1.0");
   });
 
   it("extracts version and date correctly", () => {
     const [latest] = parseChangelog(SAMPLE_CHANGELOG, 1);
-    expect(latest.version).toBe("1.2.0");
-    expect(latest.date).toBe("2026-03-15");
+    expect(latest!.version).toBe("1.2.0");
+    expect(latest!.date).toBe("2026-03-15");
   });
 
   it("extracts body content", () => {
     const [latest] = parseChangelog(SAMPLE_CHANGELOG, 1);
-    expect(latest.body).toContain("dark mode support");
-    expect(latest.body).toContain("Bug Fixes");
+    expect(latest!.body).toContain("dark mode support");
+    expect(latest!.body).toContain("Bug Fixes");
   });
 
   it("returns empty array for empty changelog", () => {

@@ -1,10 +1,11 @@
 import { createCLI } from "../cli.js";
+import type { Command } from "commander";
 
 describe("CLI structure", () => {
-  let program: ReturnType<typeof createCLI>;
+  let program: Command;
 
-  beforeEach(() => {
-    program = createCLI();
+  beforeEach(async () => {
+    program = await createCLI();
   });
 
   it("registers the 'ask' command", () => {
@@ -25,6 +26,21 @@ describe("CLI structure", () => {
   it("registers the 'config' command", () => {
     const cmds = program.commands.map((c) => c.name());
     expect(cmds).toContain("config");
+  });
+
+  it("registers the 'mcp' command", () => {
+    const cmds = program.commands.map((c) => c.name());
+    expect(cmds).toContain("mcp");
+  });
+
+  it("registers the 'agent' command", () => {
+    const cmds = program.commands.map((c) => c.name());
+    expect(cmds).toContain("agent");
+  });
+
+  it("registers the 'plugin' command", () => {
+    const cmds = program.commands.map((c) => c.name());
+    expect(cmds).toContain("plugin");
   });
 
   it("has version set", () => {

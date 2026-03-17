@@ -6,6 +6,10 @@ import { registerChatCommand } from "./commands/chat.js";
 import { registerGenerateCommand } from "./commands/generate.js";
 import { registerConfigCommand } from "./commands/config.js";
 import { registerWhatsnewCommand } from "./commands/whatsnew.js";
+import { registerMcpCommand } from "./commands/mcp.js";
+import { registerPluginCommand } from "./commands/plugin.js";
+import { registerAgentCommand } from "./commands/agent.js";
+import { loadPlugins } from "./plugins/loader.js";
 
 /** Rich version string shown by `ai --version`. */
 const VERSION_STRING =
@@ -13,7 +17,7 @@ const VERSION_STRING =
   (VERSION_META.commitHash ? ` (${VERSION_META.commitHash})` : "") +
   (VERSION_META.isDirty    ? " [dirty]" : "");
 
-export function createCLI(): Command {
+export async function createCLI(): Promise<Command> {
   const program = new Command();
 
   program
@@ -22,7 +26,7 @@ export function createCLI(): Command {
     .description(
       `${theme.primary(icons.sparkle + " Modern AI CLI")} — Powered by Claude\n\n` +
       `  A fast, powerful AI assistant for your terminal.\n` +
-      `  Supports chat, code generation, and more.`
+      `  Supports chat, code generation, plugins, MCP skills, and multi-agent tasks.`
     )
     .addHelpText(
       "after",
@@ -31,18 +35,29 @@ export function createCLI(): Command {
       `  ${theme.secondary("$")} ai ask --mode code "write a binary search function"\n` +
       `  ${theme.secondary("$")} ai chat                    # interactive session\n` +
       `  ${theme.secondary("$")} ai generate --type function "debounce with cancel"\n` +
+      `  ${theme.secondary("$")} ai agent run "build a REST API with tests"\n` +
+      `  ${theme.secondary("$")} ai mcp enable shell        # activate shell skill\n` +
+      `  ${theme.secondary("$")} ai plugin list             # see installed plugins\n` +
       `  ${theme.secondary("$")} ai whatsnew                # release notes\n` +
       `  ${theme.secondary("$")} ai config wizard           # first-time setup\n`
     )
     .configureHelp({ sortSubcommands: true, sortOptions: true })
     .showSuggestionAfterError(true);
 
-  // Register all commands
+  // Core commands
   registerAskCommand(program);
   registerChatCommand(program);
   registerGenerateCommand(program);
   registerConfigCommand(program);
   registerWhatsnewCommand(program);
+
+  // New: MCP skills, plugins, multi-agent
+  registerMcpCommand(program);
+  registerPluginCommand(program);
+  registerAgentCommand(program);
+
+  // Dynamic: load user-installed plugins
+  await loadPlugins(program);
 
   // Global error handler
   program.exitOverride();
