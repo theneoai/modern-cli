@@ -1,8 +1,9 @@
 /**
  * Multi-agent system types.
  *
- * The orchestrator coordinates specialized sub-agents to complete complex tasks.
- * Each agent has a role-specific system prompt and receives targeted sub-tasks.
+ * Built-in roles are the 5 known specializations.
+ * Custom roles (user-defined) are any lowercase-hyphen string.
+ * Both are accepted wherever AgentRoleName appears.
  */
 
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
@@ -11,12 +12,16 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 // Agent roles
 // ---------------------------------------------------------------------------
 
+/** The 5 built-in agent specializations. */
 export type AgentRole =
-  | "researcher"   // Gather context, analyse requirements, fetch relevant info
-  | "planner"      // Break a task into clear steps
-  | "coder"        // Write or modify code
-  | "reviewer"     // Critique output for bugs, quality, completeness
-  | "synthesizer"; // Merge multiple agent outputs into a coherent final answer
+  | "researcher"
+  | "planner"
+  | "coder"
+  | "reviewer"
+  | "synthesizer";
+
+/** Any role name — built-in or user-defined custom agent. */
+export type AgentRoleName = AgentRole | string;
 
 export const AGENT_ROLE_DESCRIPTIONS: Record<AgentRole, string> = {
   researcher:  "Analyze requirements, gather context, identify constraints",
@@ -34,7 +39,8 @@ export type ExecutionMode = "sequential" | "parallel";
 
 export interface AgentTask {
   id: string;
-  role: AgentRole;
+  /** Built-in role OR custom agent name */
+  role: AgentRoleName;
   /** Human-readable description of what this sub-task should accomplish */
   prompt: string;
   /** IDs of tasks that must complete before this one starts */
@@ -53,7 +59,7 @@ export interface AgentPlan {
 
 export interface AgentResult {
   taskId: string;
-  role: AgentRole;
+  role: AgentRoleName;
   output: string;
   usage: { inputTokens: number; outputTokens: number };
   durationMs: number;
@@ -75,8 +81,8 @@ export interface OrchestrationResult {
 
 export type AgentEvent =
   | { type: "plan_ready";    plan: AgentPlan }
-  | { type: "task_start";    taskId: string; role: AgentRole }
-  | { type: "task_delta";    taskId: string; role: AgentRole; delta: string }
+  | { type: "task_start";    taskId: string; role: AgentRoleName }
+  | { type: "task_delta";    taskId: string; role: AgentRoleName; delta: string }
   | { type: "task_done";     result: AgentResult }
   | { type: "final_start" }
   | { type: "final_delta";   delta: string }
@@ -85,7 +91,7 @@ export type AgentEvent =
 export type AgentEventHandler = (event: AgentEvent) => void;
 
 // ---------------------------------------------------------------------------
-// Role system prompts
+// Role system prompts (built-ins)
 // ---------------------------------------------------------------------------
 
 export const ROLE_SYSTEM_PROMPTS: Record<AgentRole, string> = {
@@ -127,7 +133,7 @@ Output clean markdown. Include code only if necessary for the final answer.`,
 
 /** Build the initial message for a sub-agent given its role and context. */
 export function buildAgentMessage(
-  _role: AgentRole,
+  _role: AgentRoleName,
   task: AgentTask,
   priorResults: AgentResult[]
 ): MessageParam[] {

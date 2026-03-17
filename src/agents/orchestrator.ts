@@ -1,10 +1,17 @@
 /**
  * Multi-Agent Orchestrator
  *
- * Coordinates specialized agents to solve complex tasks:
- * 1. Planner decomposes the goal into sub-tasks
- * 2. Sub-agents run in parallel or sequentially based on dependencies
- * 3. Synthesizer produces the final coherent answer
+ * Coordinates specialized agents to solve complex tasks.
+ * Supports three execution modes:
+ *
+ *   1. Auto-plan: planner LLM decomposes the goal into a task graph
+ *   2. Workflow: user-defined fixed task graph (from ai agent workflow)
+ *   3. Solo: single agent, no orchestration overhead
+ *
+ * Role resolution order (for system prompts):
+ *   1. Built-in ROLE_SYSTEM_PROMPTS
+ *   2. User-defined custom agents (agents/custom.ts)
+ *   3. Fallback: generic assistant prompt
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -15,19 +22,49 @@ import {
   buildAgentMessage,
 } from "./types.js";
 import type {
-  AgentRole,
+  AgentRoleName,
   AgentTask,
   AgentPlan,
   AgentResult,
   OrchestrationResult,
   AgentEventHandler,
 } from "./types.js";
+import { resolveCustomSystemPrompt, listCustomAgents } from "./custom.js";
+import type { WorkflowDef } from "./workflow.js";
+import { buildOrgPlan } from "./org.js";
+
+// ---------------------------------------------------------------------------
+// System prompt resolution
+// ---------------------------------------------------------------------------
+
+function resolveSystemPrompt(role: AgentRoleName): string {
+  // 1. Built-in roles
+  if (role in ROLE_SYSTEM_PROMPTS) {
+    return ROLE_SYSTEM_PROMPTS[role as keyof typeof ROLE_SYSTEM_PROMPTS];
+  }
+  // 2. Custom agents
+  const custom = resolveCustomSystemPrompt(role);
+  if (custom) return custom;
+  // 3. Generic fallback
+  return `You are a specialized AI agent with the role: ${role}. Complete the given task thoroughly and accurately.`;
+}
 
 // ---------------------------------------------------------------------------
 // Planner: turn a user goal into a task graph
 // ---------------------------------------------------------------------------
 
-const PLANNER_SYSTEM = `You are a task decomposition agent. Given a user goal, produce a JSON execution plan.
+function buildPlannerPrompt(): string {
+  const builtinRoles = Object.entries(AGENT_ROLE_DESCRIPTIONS)
+    .map(([r, d]) => `  ${r}: ${d}`)
+    .join("\n");
+
+  const customAgents = listCustomAgents();
+  const customSection = customAgents.length > 0
+    ? "\nUser-defined custom agents (also available):\n" +
+      customAgents.map((a) => `  ${a.name}: ${a.description}`).join("\n")
+    : "";
+
+  return `You are a task decomposition agent. Given a user goal, produce a JSON execution plan.
 
 Output ONLY valid JSON (no markdown, no explanation) in this exact schema:
 {
@@ -35,27 +72,30 @@ Output ONLY valid JSON (no markdown, no explanation) in this exact schema:
   "tasks": [
     {
       "id": "t1",
-      "role": "researcher" | "planner" | "coder" | "reviewer" | "synthesizer",
+      "role": "<role name>",
       "prompt": "<specific instruction for this sub-task>",
-      "dependsOn": ["t0"]   // optional: IDs of tasks that must finish first
+      "dependsOn": ["t0"]
     }
   ]
 }
 
 Rules:
-- Use 2-4 tasks. Always end with a "synthesizer" task that depends on all others.
-- "parallel" means all non-dependent tasks run at the same time.
-- "sequential" means tasks run one after another in order.
+- Use 2-5 tasks. Always end with a "synthesizer" task that depends on all others.
+- "parallel" mode: non-dependent tasks run simultaneously in waves.
+- "sequential" mode: tasks run strictly in order.
 - Keep prompts specific and actionable.
-- Available roles and their purpose:
-  ${Object.entries(AGENT_ROLE_DESCRIPTIONS).map(([r, d]) => `  ${r}: ${d}`).join("\n")}`;
+- You may use any of the available roles below.
+
+Built-in roles:
+${builtinRoles}${customSection}`;
+}
 
 async function buildPlan(client: Anthropic, goal: string): Promise<AgentPlan> {
   const config = getConfig();
   const response = await client.messages.create({
     model: config.model,
     max_tokens: 1024,
-    system: PLANNER_SYSTEM,
+    system: buildPlannerPrompt(),
     messages: [{ role: "user", content: `Goal: ${goal}` }],
   });
 
@@ -65,14 +105,12 @@ async function buildPlan(client: Anthropic, goal: string): Promise<AgentPlan> {
     .join("")
     .trim();
 
-  // Strip markdown code fences if present
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
 
   let parsed: { executionMode: string; tasks: AgentTask[] };
   try {
     parsed = JSON.parse(json) as typeof parsed;
   } catch {
-    // Fallback: single synthesizer task
     return {
       goal,
       executionMode: "sequential",
@@ -100,6 +138,7 @@ async function runAgent(
   const config = getConfig();
   const startMs = Date.now();
   const messages = buildAgentMessage(task.role, task, priorResults);
+  const systemPrompt = resolveSystemPrompt(task.role);
 
   let output = "";
   let inputTokens = 0;
@@ -108,7 +147,7 @@ async function runAgent(
   const stream = await client.messages.stream({
     model: config.model,
     max_tokens: config.maxTokens,
-    system: ROLE_SYSTEM_PROMPTS[task.role],
+    system: systemPrompt,
     messages,
   });
 
@@ -140,13 +179,7 @@ async function runAgent(
 // Dependency resolver
 // ---------------------------------------------------------------------------
 
-/**
- * Return tasks that are ready to run (all dependencies completed).
- */
-function getReadyTasks(
-  tasks: AgentTask[],
-  completed: Set<string>
-): AgentTask[] {
+function getReadyTasks(tasks: AgentTask[], completed: Set<string>): AgentTask[] {
   return tasks.filter((t) => {
     if (completed.has(t.id)) return false;
     return (t.dependsOn ?? []).every((dep) => completed.has(dep));
@@ -154,37 +187,23 @@ function getReadyTasks(
 }
 
 // ---------------------------------------------------------------------------
-// Main orchestrator
+// Core execution engine (shared by auto-plan and workflow modes)
 // ---------------------------------------------------------------------------
 
-export async function orchestrate(
-  goal: string,
+async function executePlan(
+  client: Anthropic,
+  plan: AgentPlan,
   onEvent: AgentEventHandler
-): Promise<OrchestrationResult> {
-  const config = getConfig();
-  const apiKey = config.apiKey;
-  if (!apiKey) {
-    throw new Error(
-      "API key not configured. Run: ai config set apiKey YOUR_KEY"
-    );
-  }
-  const client = new Anthropic({ apiKey });
-  const globalStart = Date.now();
-
-  // Step 1: Build execution plan
-  const plan = await buildPlan(client, goal);
-  onEvent({ type: "plan_ready", plan });
-
+): Promise<{ results: AgentResult[]; totalUsage: { inputTokens: number; outputTokens: number } }> {
   const completed = new Set<string>();
   const results: AgentResult[] = [];
   const totalUsage = { inputTokens: 0, outputTokens: 0 };
 
-  // Step 2: Execute tasks respecting dependency graph
   if (plan.executionMode === "parallel") {
     // Wave-based parallel execution
     while (completed.size < plan.tasks.length) {
       const wave = getReadyTasks(plan.tasks, completed);
-      if (wave.length === 0) break; // Prevent infinite loop on bad plan
+      if (wave.length === 0) break;
 
       const wavePromises = wave.map(async (task) => {
         onEvent({ type: "task_start", taskId: task.id, role: task.role });
@@ -207,7 +226,7 @@ export async function orchestrate(
       }
     }
   } else {
-    // Sequential execution in order
+    // Sequential execution in dependency order
     for (const task of plan.tasks) {
       onEvent({ type: "task_start", taskId: task.id, role: task.role });
       const priorResults = results.filter((r) =>
@@ -224,11 +243,33 @@ export async function orchestrate(
     }
   }
 
-  // Step 3: Extract final answer from synthesizer (last task)
+  return { results, totalUsage };
+}
+
+// ---------------------------------------------------------------------------
+// Public API: auto-plan orchestration
+// ---------------------------------------------------------------------------
+
+export async function orchestrate(
+  goal: string,
+  onEvent: AgentEventHandler
+): Promise<OrchestrationResult> {
+  const config = getConfig();
+  if (!config.apiKey) {
+    throw new Error("API key not configured. Run: ai config set apiKey YOUR_KEY");
+  }
+  const client = new Anthropic({ apiKey: config.apiKey });
+  const globalStart = Date.now();
+
+  const plan = await buildPlan(client, goal);
+  onEvent({ type: "plan_ready", plan });
+
+  const { results, totalUsage } = await executePlan(client, plan, onEvent);
+
   const synthResult = [...results].reverse().find((r) => r.role === "synthesizer");
   const finalAnswer = synthResult?.output ?? results.at(-1)?.output ?? "";
 
-  const orchestrationResult: OrchestrationResult = {
+  const result: OrchestrationResult = {
     goal,
     plan,
     results,
@@ -236,17 +277,65 @@ export async function orchestrate(
     totalUsage,
     totalDurationMs: Date.now() - globalStart,
   };
-
-  onEvent({ type: "done", result: orchestrationResult });
-  return orchestrationResult;
+  onEvent({ type: "done", result });
+  return result;
 }
 
 // ---------------------------------------------------------------------------
-// Quick single-agent helper (no orchestration overhead)
+// Public API: workflow-based orchestration
+// ---------------------------------------------------------------------------
+
+export async function runWorkflow(
+  wf: WorkflowDef,
+  goal: string,
+  onEvent: AgentEventHandler
+): Promise<OrchestrationResult> {
+  const config = getConfig();
+  if (!config.apiKey) {
+    throw new Error("API key not configured. Run: ai config set apiKey YOUR_KEY");
+  }
+  const client = new Anthropic({ apiKey: config.apiKey });
+  const globalStart = Date.now();
+
+  // Convert workflow steps → AgentTask[], substituting {{goal}}
+  const tasks: AgentTask[] = wf.steps.map((s) => ({
+    id: s.id,
+    role: s.role,
+    prompt: s.prompt.replace(/\{\{goal\}\}/g, goal),
+    dependsOn: s.dependsOn,
+  }));
+
+  const plan: AgentPlan = {
+    goal,
+    tasks,
+    executionMode: wf.executionMode,
+  };
+
+  onEvent({ type: "plan_ready", plan });
+
+  const { results, totalUsage } = await executePlan(client, plan, onEvent);
+
+  const synthResult = [...results].reverse().find((r) => r.role === "synthesizer");
+  const finalAnswer = synthResult?.output ?? results.at(-1)?.output ?? "";
+
+  const result: OrchestrationResult = {
+    goal,
+    plan,
+    results,
+    finalAnswer,
+    totalUsage,
+    totalDurationMs: Date.now() - globalStart,
+  };
+  onEvent({ type: "done", result });
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Public API: single agent (no orchestration)
 // ---------------------------------------------------------------------------
 
 export async function runSingleAgent(
-  role: AgentRole,
+  role: AgentRoleName,
   prompt: string,
   onDelta: (delta: string) => void
 ): Promise<AgentResult> {
@@ -257,4 +346,53 @@ export async function runSingleAgent(
   const client = new Anthropic({ apiKey: config.apiKey });
   const task: AgentTask = { id: "single", role, prompt };
   return runAgent(client, task, [], onDelta);
+}
+
+// ---------------------------------------------------------------------------
+// Public API: org-level run
+// ---------------------------------------------------------------------------
+
+export async function runOrgUnit(
+  company: string,
+  department: string | undefined,
+  goal: string,
+  onEvent: AgentEventHandler
+): Promise<OrchestrationResult> {
+  const config = getConfig();
+  if (!config.apiKey) {
+    throw new Error("API key not configured. Run: ai config set apiKey YOUR_KEY");
+  }
+  const plan = buildOrgPlan(company, department, goal);
+  if (!plan) {
+    throw new Error(
+      `No agents found for ${department ? `department "${department}" in ` : ""}company "${company}".`
+    );
+  }
+
+  const client = new Anthropic({ apiKey: config.apiKey });
+  const globalStart = Date.now();
+  onEvent({ type: "plan_ready", plan });
+
+  const { results, totalUsage } = await executePlan(client, plan, onEvent);
+  const synthResult = [...results].reverse().find((r) => r.role === "synthesizer");
+  const finalAnswer = synthResult?.output ?? results.at(-1)?.output ?? "";
+
+  const result: OrchestrationResult = {
+    goal,
+    plan,
+    results,
+    finalAnswer,
+    totalUsage,
+    totalDurationMs: Date.now() - globalStart,
+  };
+  onEvent({ type: "done", result });
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Public API: system prompt preview (for ai agent show)
+// ---------------------------------------------------------------------------
+
+export function previewSystemPrompt(role: AgentRoleName): string {
+  return resolveSystemPrompt(role);
 }
