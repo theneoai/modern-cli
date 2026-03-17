@@ -5,11 +5,11 @@ export const VERSION_META = {
   "name": "modern-ai-cli",
   "version": "0.1.0",
   "description": "A modern AI-powered CLI scaffold built with TypeScript, Commander.js, and Claude API",
-  "commitHash": "db7ba06",
-  "commitDate": "2026-03-17 01:55:16 +0000",
-  "branch": "main",
+  "commitHash": "16bb788",
+  "commitDate": "2026-03-17 02:27:20 +0000",
+  "branch": "claude/ai-cli-scaffold-TmtzU",
   "isDirty": true,
-  "buildTime": "2026-03-17T02:25:48.193Z",
+  "buildTime": "2026-03-17T05:31:19.541Z",
   "nodeVersion": "v22.22.0"
 } as const;
 
