@@ -1,0 +1,31 @@
+{
+  "name": "modern-ai-cli",
+  "version": "0.1.0",
+  "publishedAt": "2026-03-17T01:54:53.003Z",
+  "platforms": {
+    "linux-x64": {
+      "file": "modern-ai-cli-linux-x64.tar.gz",
+      "install": "tar -xzf modern-ai-cli-linux-x64.tar.gz && sudo mv modern-ai-cli-linux-x64 /usr/local/bin/ai"
+    },
+    "linux-arm64": {
+      "file": "modern-ai-cli-linux-arm64.tar.gz",
+      "install": "tar -xzf modern-ai-cli-linux-arm64.tar.gz && sudo mv modern-ai-cli-linux-arm64 /usr/local/bin/ai"
+    },
+    "macos-x64": {
+      "file": "modern-ai-cli-macos-x64.tar.gz",
+      "install": "tar -xzf modern-ai-cli-macos-x64.tar.gz && sudo mv modern-ai-cli-macos-x64 /usr/local/bin/ai"
+    },
+    "macos-arm64": {
+      "file": "modern-ai-cli-macos-arm64.tar.gz",
+      "install": "tar -xzf modern-ai-cli-macos-arm64.tar.gz && sudo mv modern-ai-cli-macos-arm64 /usr/local/bin/ai"
+    },
+    "win-x64": {
+      "file": "modern-ai-cli-win-x64.exe.zip",
+      "install": "Expand-Archive modern-ai-cli-win-x64.exe.zip -DestinationPath ."
+    }
+  },
+  "npm": {
+    "install": "npm install -g modern-ai-cli@0.1.0",
+    "registry": "https://registry.npmjs.org"
+  }
+}
