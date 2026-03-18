@@ -4,7 +4,8 @@
 
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join, extname, relative, dirname } from 'path';
-import { glob } from 'fast-glob';
+import fg from 'fast-glob';
+const { glob } = fg;
 import { getApiKey } from '../core/config/index.js';
 import { executeAgent } from '../agents/engine/index.js';
 // import { executeSkill } from '../skills/registry.js';
