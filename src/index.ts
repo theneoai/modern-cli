@@ -322,16 +322,25 @@ import {
   generateOrgChart
 } from './org/index.js';
 
-// Interactive mode (placeholder)
+// TUI interactive mode
+program
+  .command('tui')
+  .alias('ui')
+  .description('Start interactive TUI interface')
+  .action(async () => {
+    const { startTUI } = await import('./tui/index.js');
+    startTUI();
+  });
+
+// Interactive mode (placeholder - now redirects to TUI)
 program
   .command('shell')
   .alias('sh')
-  .description('Start interactive shell')
-  .action(() => {
-    console.log(chalk.cyan('🐚 Interactive shell (coming in v0.3)'));
-    console.log(chalk.gray('For now, use individual commands like:'));
-    console.log(chalk.gray('  hyper agent list'));
-    console.log(chalk.gray('  hyper agent run <id> "your task"'));
+  .description('Start interactive shell (redirects to TUI)')
+  .action(async () => {
+    console.log(chalk.cyan('🚀 Starting TUI...'));
+    const { startTUI } = await import('./tui/index.js');
+    startTUI();
   });
 
 // Main entry
