@@ -322,6 +322,246 @@ import {
   generateOrgChart
 } from './org/index.js';
 
+// Workflow commands
+const workflowCmd = program
+  .command('workflow')
+  .alias('wf')
+  .description('Manage workflows');
+
+workflowCmd
+  .command('list')
+  .description('List all workflows')
+  .action(() => {
+    const { listWorkflows } = require('./workflow/engine.js');
+    const workflows = listWorkflows();
+    console.log(chalk.cyan('\n📊 Workflows:'));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const wf of workflows) {
+      console.log(`${chalk.bold(wf.name)} ${chalk.gray(`(v${wf.version})`)}`);
+      console.log(`  ${wf.description || 'No description'}`);
+      console.log(`  Nodes: ${wf.definition.nodes.length}, Edges: ${wf.definition.edges.length}`);
+      console.log();
+    }
+  });
+
+workflowCmd
+  .command('run <id>')
+  .description('Execute a workflow')
+  .action(async (id) => {
+    const { getWorkflow, executeWorkflow } = await import('./workflow/engine.js');
+    const { initWorkflowTables } = await import('./workflow/engine.js');
+    initWorkflowTables();
+    
+    const workflow = getWorkflow(id);
+    if (!workflow) {
+      console.error(chalk.red(`Workflow not found: ${id}`));
+      process.exit(1);
+    }
+    
+    console.log(chalk.cyan(`\n▶️ Running workflow: ${workflow.name}`));
+    try {
+      const execution = await executeWorkflow(id);
+      console.log(chalk.green(`✓ Completed in ${Date.now() - execution.startedAt.getTime()}ms`));
+    } catch (error) {
+      console.error(chalk.red(`✗ Failed: ${error instanceof Error ? error.message : String(error)}`));
+      process.exit(1);
+    }
+  });
+
+// Skill commands
+const skillCmd = program
+  .command('skill')
+  .description('Manage skills');
+
+skillCmd
+  .command('list')
+  .description('List all skills')
+  .action(() => {
+    const { listSkills, initSkills } = require('./skills/registry.js');
+    initSkills();
+    const skills = listSkills();
+    console.log(chalk.cyan('\n🛠️ Skills:'));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const skill of skills) {
+      const status = skill.enabled ? chalk.green('●') : chalk.gray('○');
+      console.log(`${status} ${chalk.bold(skill.name)} ${chalk.gray(skill.version)}`);
+      console.log(`  ${skill.description}`);
+      console.log(`  Tags: ${skill.tags.join(', ')}`);
+      console.log();
+    }
+  });
+
+skillCmd
+  .command('exec <name>')
+  .description('Execute a skill')
+  .option('-i, --input <json>', 'Input as JSON', '{}')
+  .action(async (name, opts) => {
+    const { getSkill, executeSkill, initSkills } = await import('./skills/registry.js');
+    initSkills();
+    
+    const skill = getSkill(name);
+    if (!skill) {
+      console.error(chalk.red(`Skill not found: ${name}`));
+      process.exit(1);
+    }
+    
+    try {
+      const input = JSON.parse(opts.input);
+      console.log(chalk.cyan(`\n▶️ Executing skill: ${skill.name}`));
+      const result = await executeSkill(name, input);
+      console.log(chalk.green('✓ Result:'));
+      console.log(JSON.stringify(result, null, 2));
+    } catch (error) {
+      console.error(chalk.red(`✗ Error: ${error instanceof Error ? error.message : String(error)}`));
+      process.exit(1);
+    }
+  });
+
+// Memory commands
+const memoryCmd = program
+  .command('memory')
+  .description('Manage agent memories');
+
+memoryCmd
+  .command('list [agent-id]')
+  .description('List memories for an agent')
+  .action((agentId) => {
+    const { getMemories } = require('./memory/store.js');
+    const memories = getMemories({ agentId, limit: 20 });
+    console.log(chalk.cyan(`\n🧠 Memories${agentId ? ` for ${agentId.slice(0, 8)}` : ''}:`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const mem of memories) {
+      const icon = { episodic: '📅', semantic: '📚', procedural: '⚙️', working: '💭' }[mem.type];
+      console.log(`${icon} [${mem.type}] ${chalk.bold(mem.summary?.slice(0, 40) || mem.content.slice(0, 40))}`);
+      console.log(`  Importance: ${'★'.repeat(mem.importance)}${'☆'.repeat(10 - mem.importance)}`);
+      console.log(`  Tags: ${mem.tags.join(', ') || 'none'}`);
+      console.log();
+    }
+  });
+
+// Orchestration commands
+const orchCmd = program
+  .command('orchestrate')
+  .alias('orch')
+  .description('Multi-agent orchestration');
+
+orchCmd
+  .command('run <goal>')
+  .description('Auto-orchestrate agents for a goal')
+  .option('-s, --strategy <strategy>', 'Strategy: sequential, parallel, hierarchical', 'sequential')
+  .action(async (goal, opts) => {
+    const { autoOrchestrate, executeOrchestration } = await import('./agents/orchestrator.js');
+    
+    console.log(chalk.cyan(`\n🎼 Orchestrating: ${goal}`));
+    try {
+      const { plan, summary } = await autoOrchestrate(goal, { strategy: opts.strategy });
+      console.log(chalk.gray(summary));
+      console.log(chalk.cyan('\n▶️ Executing...'));
+      
+      await executeOrchestration(plan, {
+        onStepStart: (step) => console.log(chalk.gray(`  → ${step.description}`)),
+        onStepComplete: (step) => console.log(chalk.green(`  ✓ ${step.description.slice(0, 50)}`)),
+      });
+      
+      console.log(chalk.green('\n✓ Orchestration complete!'));
+    } catch (error) {
+      console.error(chalk.red(`✗ Failed: ${error instanceof Error ? error.message : String(error)}`));
+      process.exit(1);
+    }
+  });
+
+// Economy commands
+const economyCmd = program
+  .command('economy')
+  .alias('eco')
+  .description('Economy and market');
+
+economyCmd
+  .command('balance <entity-type> <id>')
+  .description('Check balance (agent or org)')
+  .action((type, id) => {
+    const { getBalance } = require('./economy/index.js');
+    const balance = getBalance(id, type as any);
+    console.log(chalk.cyan(`\n💰 Balance:`));
+    console.log(`Entity: ${type} ${id.slice(0, 8)}`);
+    console.log(`Amount: ${balance} HTC`);
+  });
+
+economyCmd
+  .command('market')
+  .description('View market listings')
+  .action(() => {
+    const { getListings } = require('./economy/index.js');
+    const listings = getListings();
+    console.log(chalk.cyan('\n🏪 Market:'));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const listing of listings) {
+      console.log(`${chalk.bold(listing.service)} - ${listing.price} ${listing.currency}`);
+      console.log(`  ${listing.description}`);
+      console.log(`  Seller: ${listing.sellerId.slice(0, 8)}`);
+      console.log();
+    }
+  });
+
+// Code generation commands
+const genCmd = program
+  .command('generate')
+  .alias('gen')
+  .description('Auto-generate code');
+
+genCmd
+  .command('skill <description>')
+  .description('Generate a skill from description')
+  .action(async (description) => {
+    const { generateSkill } = await import('./codegen/index.js');
+    console.log(chalk.cyan(`\n✨ Generating skill: ${description}`));
+    const result = await generateSkill(description);
+    if (result.success) {
+      console.log(chalk.green('\n✓ Generated code:'));
+      console.log(chalk.gray('─'.repeat(60)));
+      console.log(result.code);
+    } else {
+      console.error(chalk.red(`✗ ${result.error}`));
+    }
+  });
+
+genCmd
+  .command('agent <role>')
+  .description('Generate an agent configuration')
+  .option('-s, --specialty <specialties...>', 'Specialties')
+  .action(async (role, opts) => {
+    const { generateAgent } = await import('./codegen/index.js');
+    const result = await generateAgent(role, opts.specialty || []);
+    if (result.success) {
+      console.log(chalk.green('\n✓ Generated agent:'));
+      console.log(JSON.stringify(result.data, null, 2));
+    }
+  });
+
+genCmd
+  .command('workflow <goal>')
+  .description('Generate a workflow from goal')
+  .action(async (goal) => {
+    const { generateWorkflow } = await import('./codegen/index.js');
+    const result = await generateWorkflow(goal);
+    if (result.success) {
+      console.log(chalk.green('\n✓ Generated workflow:'));
+      console.log(JSON.stringify(result.data, null, 2));
+    }
+  });
+
+genCmd
+  .command('code <description>')
+  .description('Generate code from natural language')
+  .option('-l, --lang <language>', 'Language', 'typescript')
+  .action(async (description, opts) => {
+    const { naturalLanguageToCode } = await import('./codegen/index.js');
+    const code = await naturalLanguageToCode(description, opts.lang);
+    console.log(chalk.green('\n✓ Generated code:'));
+    console.log(chalk.gray('─'.repeat(60)));
+    console.log(code);
+  });
+
 // TUI interactive mode
 program
   .command('tui')
