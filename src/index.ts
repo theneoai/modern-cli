@@ -802,6 +802,206 @@ testCmd
     }
   });
 
+// Notification commands
+const notifyCmd = program
+  .command('notify')
+  .description('Notification system');
+
+notifyCmd
+  .command('server')
+  .description('Start notification WebSocket server')
+  .option('-p, --port <port>', 'Port', '8080')
+  .action(async (opts) => {
+    const { initNotificationServer, initNotificationTables } = await import('./notifications/index.js');
+    initNotificationTables();
+    initNotificationServer(parseInt(opts.port));
+    console.log(chalk.green(`🔔 Notification server started on port ${opts.port}`));
+    
+    // Keep alive
+    setInterval(() => {}, 1000);
+  });
+
+notifyCmd
+  .command('send <title>')
+  .description('Send notification')
+  .option('-b, --body <text>', 'Body text')
+  .option('-t, --target <agent>', 'Target agent ID')
+  .option('-p, --priority <level>', 'Priority: low, medium, high, urgent', 'medium')
+  .action((title, opts) => {
+    const { sendNotification, initNotificationTables } = require('./notifications/index.js');
+    initNotificationTables();
+    
+    sendNotification({
+      type: 'info',
+      title,
+      body: opts.body,
+      target: opts.target,
+      priority: opts.priority,
+      source: 'cli',
+      read: false,
+    });
+    
+    console.log(chalk.green('✓ Notification sent'));
+  });
+
+// Dashboard commands
+const dashboardCmd = program
+  .command('dashboard')
+  .alias('dash')
+  .description('Data visualization');
+
+dashboardCmd
+  .command('agents')
+  .description('Generate agent activity dashboard')
+  .option('-o, --output <path>', 'Output path', './dashboard.html')
+  .action(async (opts) => {
+    const { generateAgentDashboard } = await import('./visualization/index.js');
+    
+    console.log(chalk.cyan('\n📊 Generating agent dashboard...'));
+    await generateAgentDashboard(opts.output);
+    console.log(chalk.green(`✓ Dashboard saved: ${opts.output}`));
+  });
+
+dashboardCmd
+  .command('economy')
+  .description('Generate economy dashboard')
+  .option('-o, --output <path>', 'Output path', './economy-dashboard.html')
+  .action(async (opts) => {
+    const { generateEconomyDashboard } = await import('./visualization/index.js');
+    
+    console.log(chalk.cyan('\n📊 Generating economy dashboard...'));
+    await generateEconomyDashboard(opts.output);
+    console.log(chalk.green(`✓ Dashboard saved: ${opts.output}`));
+  });
+
+// Voice commands
+const voiceCmd = program
+  .command('voice')
+  .description('Voice system');
+
+voiceCmd
+  .command('memo')
+  .description('Create voice memo')
+  .requiredOption('-f, --file <path>', 'Audio file path')
+  .option('-t, --title <title>', 'Memo title')
+  .action(async (opts) => {
+    const { createVoiceMemo, initVoiceTables } = await import('./voice/index.js');
+    initVoiceTables();
+    
+    console.log(chalk.cyan('\n🎤 Processing voice memo...'));
+    try {
+      const memo = await createVoiceMemo(opts.file, opts.title);
+      console.log(chalk.green(`✓ Memo created: ${memo.id}`));
+      if (memo.transcription) {
+        console.log(chalk.gray('Transcription:'));
+        console.log(memo.transcription);
+      }
+    } catch (error) {
+      console.error(chalk.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+voiceCmd
+  .command('list')
+  .description('List voice memos')
+  .action(() => {
+    const { getVoiceMemos, initVoiceTables } = require('./voice/index.js');
+    initVoiceTables();
+    
+    const memos = getVoiceMemos();
+    console.log(chalk.cyan('\n🎤 Voice Memos:'));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const memo of memos) {
+      console.log(`${chalk.bold(memo.title)} ${chalk.gray(`(${Math.round(memo.duration)}s)`)}`);
+      if (memo.transcription) {
+        console.log(`  "${memo.transcription.slice(0, 80)}..."`);
+      }
+      console.log();
+    }
+  });
+
+// Knowledge graph commands
+const kgCmd = program
+  .command('knowledge')
+  .alias('kg')
+  .description('Knowledge graph');
+
+kgCmd
+  .command('node <label>')
+  .description('Create knowledge node')
+  .option('-t, --type <type>', 'Node type', 'concept')
+  .action((label, opts) => {
+    const { createNode, initKnowledgeTables } = require('./knowledge/graph.js');
+    initKnowledgeTables();
+    
+    const node = createNode(opts.type, label);
+    console.log(chalk.green(`✓ Created node: ${node.id}`));
+    console.log(chalk.gray(`  Label: ${node.label}`));
+    console.log(chalk.gray(`  Type: ${node.type}`));
+  });
+
+kgCmd
+  .command('connect <from> <to>')
+  .description('Connect two nodes')
+  .requiredOption('-r, --relation <type>', 'Relationship type')
+  .action((from, to, opts) => {
+    const { createEdge, initKnowledgeTables } = require('./knowledge/graph.js');
+    initKnowledgeTables();
+    
+    const edge = createEdge(from, to, opts.relation);
+    console.log(chalk.green(`✓ Created connection: ${edge.id}`));
+  });
+
+kgCmd
+  .command('search <query>')
+  .description('Search knowledge graph')
+  .action((query) => {
+    const { findNodes, initKnowledgeTables } = require('./knowledge/graph.js');
+    initKnowledgeTables();
+    
+    const nodes = findNodes({ query });
+    console.log(chalk.cyan(`\n🔍 Found ${nodes.length} nodes:`));
+    for (const node of nodes) {
+      console.log(`${chalk.bold(node.label)} ${chalk.gray(`(${node.type})`)}`);
+      console.log(`  ID: ${node.id.slice(0, 8)}`);
+      console.log();
+    }
+  });
+
+kgCmd
+  .command('export')
+  .description('Export knowledge graph')
+  .option('-f, --format <format>', 'Format: json, cypher, dot', 'json')
+  .option('-o, --output <path>', 'Output file')
+  .action((opts) => {
+    const { exportGraph, initKnowledgeTables } = require('./knowledge/graph.js');
+    initKnowledgeTables();
+    
+    const data = exportGraph(opts.format);
+    
+    if (opts.output) {
+      const { writeFileSync } = require('fs');
+      writeFileSync(opts.output, data);
+      console.log(chalk.green(`✓ Exported to: ${opts.output}`));
+    } else {
+      console.log(data);
+    }
+  });
+
+kgCmd
+  .command('visualize')
+  .description('Generate graph visualization')
+  .option('-o, --output <path>', 'Output path', './knowledge-graph.svg')
+  .action(async (opts) => {
+    const { generateGraphSVG, initKnowledgeTables } = await import('./knowledge/graph.js');
+    initKnowledgeTables();
+    
+    const svg = generateGraphSVG();
+    const { writeFile } = await import('fs/promises');
+    await writeFile(opts.output, svg);
+    console.log(chalk.green(`✓ Graph saved: ${opts.output}`));
+  });
+
 // TUI interactive mode
 program
   .command('tui')
