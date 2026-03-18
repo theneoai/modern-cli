@@ -1002,6 +1002,135 @@ kgCmd
     console.log(chalk.green(`✓ Graph saved: ${opts.output}`));
   });
 
+// Log analytics commands
+const logsCmd = program
+  .command('logs')
+  .description('Log analytics');
+
+logsCmd
+  .command('ingest <file>')
+  .description('Ingest log file')
+  .requiredOption('-s, --source <name>', 'Source name')
+  .action(async (file, opts) => {
+    const { ingestLogFile, initLogTables } = await import('./log-analytics/index.js');
+    initLogTables();
+    
+    console.log(chalk.cyan(`\n📥 Ingesting logs from ${file}...`));
+    const count = await ingestLogFile(file, opts.source);
+    console.log(chalk.green(`✓ Ingested ${count} log entries`));
+  });
+
+logsCmd
+  .command('query')
+  .description('Query logs')
+  .option('-l, --level <level>', 'Log level')
+  .option('-s, --source <source>', 'Source')
+  .option('--search <query>', 'Search query')
+  .option('-n, --limit <num>', 'Limit', '50')
+  .action((opts) => {
+    const { queryLogs, initLogTables } = require('./log-analytics/index.js');
+    initLogTables();
+    
+    const logs = queryLogs({
+      level: opts.level,
+      source: opts.source,
+      search: opts.search,
+      limit: parseInt(opts.limit),
+    });
+    
+    console.log(chalk.cyan(`\n📋 Found ${logs.length} logs:`));
+    for (const log of logs) {
+      const color = { debug: chalk.gray, info: chalk.blue, warn: chalk.yellow, error: chalk.red, fatal: chalk.magenta }[log.level];
+      console.log(`${color(`[${log.level.toUpperCase()}]`)} ${chalk.gray(log.timestamp.toLocaleTimeString())} ${log.message.slice(0, 100)}`);
+    }
+  });
+
+logsCmd
+  .command('stats')
+  .description('Show log statistics')
+  .action(() => {
+    const { getLogStats, initLogTables } = require('./log-analytics/index.js');
+    initLogTables();
+    
+    const stats = getLogStats({ hours: 24 });
+    console.log(chalk.cyan('\n📊 Log Statistics (24h):'));
+    console.log(`Total: ${stats.total}`);
+    console.log(`Error rate: ${stats.errorRate.toFixed(2)}%`);
+    console.log('By level:', stats.byLevel);
+  });
+
+logsCmd
+  .command('patterns')
+  .description('Extract log patterns')
+  .action(() => {
+    const { extractPatterns, initLogTables } = require('./log-analytics/index.js');
+    initLogTables();
+    
+    const patterns = extractPatterns();
+    console.log(chalk.cyan('\n🔍 Top Log Patterns:'));
+    for (const pattern of patterns.slice(0, 10)) {
+      console.log(`${chalk.gray(`${pattern.count}x`)} ${pattern.pattern.slice(0, 80)}`);
+    }
+  });
+
+// Monitoring commands
+const monitorCmd = program
+  .command('monitor')
+  .description('System monitoring');
+
+monitorCmd
+  .command('start')
+  .description('Start monitoring')
+  .option('-i, --interval <minutes>', 'Interval', '5')
+  .action((opts) => {
+    const { startMonitoring, initMonitoringTables } = require('./monitoring/index.js');
+    initMonitoringTables();
+    startMonitoring(parseInt(opts.interval));
+  });
+
+monitorCmd
+  .command('status')
+  .description('Show current metrics')
+  .action(async () => {
+    const { collectMetrics, runHealthChecks, initMonitoringTables } = await import('./monitoring/index.js');
+    initMonitoringTables();
+    
+    const metrics = await collectMetrics();
+    console.log(chalk.cyan('\n📊 System Metrics:'));
+    console.log(`CPU: ${metrics.cpu.usage.toFixed(1)}%`);
+    console.log(`Memory: ${metrics.memory.percentage.toFixed(1)}% (${formatBytes(metrics.memory.used)} / ${formatBytes(metrics.memory.total)})`);
+    console.log(`Disk: ${metrics.disk.percentage.toFixed(1)}%`);
+    
+    console.log(chalk.cyan('\n💚 Health Checks:'));
+    const checks = await runHealthChecks();
+    for (const check of checks) {
+      const color = { healthy: chalk.green, warning: chalk.yellow, critical: chalk.red }[check.status];
+      console.log(`${color(`[${check.status.toUpperCase()}]`)} ${check.name} ${check.message || ''}`);
+    }
+  });
+
+monitorCmd
+  .command('report')
+  .description('Generate monitoring report')
+  .option('-o, --output <path>', 'Output path', './monitoring-report.md')
+  .action(async (opts) => {
+    const { generateReport, initMonitoringTables } = await import('./monitoring/index.js');
+    initMonitoringTables();
+    
+    await generateReport(opts.output);
+    console.log(chalk.green(`✓ Report saved: ${opts.output}`));
+  });
+
+function formatBytes(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1) {
+    bytes /= 1024;
+    i++;
+  }
+  return `${bytes.toFixed(1)} ${units[i]}`;
+}
+
 // TUI interactive mode
 program
   .command('tui')

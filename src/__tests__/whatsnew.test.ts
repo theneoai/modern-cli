@@ -1,10 +1,10 @@
-import { jest } from "@jest/globals";
+
 import type { Command } from "commander";
 
 // Mock the upgrade notifier so tests don't trigger network calls
-jest.mock("../utils/upgrade-notifier.js", () => ({
-  checkForUpdates: jest.fn(),
-  printUpdateNotice: jest.fn(),
+vi.mock("../utils/upgrade-notifier.js", () => ({
+  checkForUpdates: vi.fn(),
+  printUpdateNotice: vi.fn(),
 }));
 
 import { createCLI } from "../cli.js";

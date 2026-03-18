@@ -1,7 +1,7 @@
 /**
  * Tests for MCP built-in skill handlers (pure unit tests, no file-system mocking).
  */
-import { describe, it, expect } from "@jest/globals";
+
 import { BUILTIN_SKILLS } from "../mcp/builtins.js";
 
 describe("Built-in skill catalog", () => {

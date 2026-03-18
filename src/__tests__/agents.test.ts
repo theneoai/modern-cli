@@ -1,4 +1,4 @@
-import { describe, it, expect } from "@jest/globals";
+// Vitest globals are provided
 import {
   AGENT_ROLE_DESCRIPTIONS,
   ROLE_SYSTEM_PROMPTS,

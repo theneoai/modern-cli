@@ -3,7 +3,7 @@
  * Tests scaffoldPlugin and the plugin module format validation.
  * File-system registry tests use the real PLUGINS_DIR (read-only assertions).
  */
-import { describe, it, expect } from "@jest/globals";
+
 import { mkdirSync, writeFileSync, existsSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";

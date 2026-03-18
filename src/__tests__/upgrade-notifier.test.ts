@@ -1,13 +1,13 @@
-import { jest, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from "@jest/globals";
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
 
 // Suppress stderr during tests
 const originalStderrWrite = process.stderr.write.bind(process.stderr);
 beforeAll(() => {
-  jest.spyOn(process.stderr, "write").mockImplementation(() => true);
+  vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 });
 afterAll(() => {
   process.stderr.write = originalStderrWrite;
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("compareSemver (pure logic, tested inline)", () => {
