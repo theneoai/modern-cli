@@ -660,6 +660,51 @@ schedulerCmd
     setInterval(() => {}, 1000);
   });
 
+// Natural language commands
+void program
+  .command('ask <query>')
+  .description('Natural language query')
+  .option('-e, --execute', 'Execute the parsed command', false)
+  .action(async (query, opts) => {
+    const { processQuery, executeFromIntent } = await import('./nlp/query.js');
+    
+    console.log(chalk.cyan(`\n🤔 Processing: "${query}"`));
+    const command = await processQuery(query);
+    
+    console.log(chalk.gray('\nIntent:'), chalk.yellow(command.intent.type));
+    if (command.intent.target) {
+      console.log(chalk.gray('Target:'), chalk.yellow(command.intent.target));
+    }
+    console.log(chalk.gray('Confidence:'), `${(command.intent.confidence * 100).toFixed(0)}%`);
+    
+    if (Object.keys(command.intent.parameters).length > 0) {
+      console.log(chalk.gray('Parameters:'));
+      for (const [key, value] of Object.entries(command.intent.parameters)) {
+        console.log(`  ${key}: ${JSON.stringify(value)}`);
+      }
+    }
+    
+    if (command.suggestions.length > 0) {
+      console.log(chalk.gray('\nSuggestions:'));
+      for (const suggestion of command.suggestions) {
+        console.log(`  ${chalk.blue('•')} ${suggestion}`);
+      }
+    }
+    
+    if (opts.execute && command.canExecute) {
+      console.log(chalk.cyan('\n▶️ Executing...'));
+      try {
+        const result = await executeFromIntent(command.intent);
+        console.log(chalk.green('✓ Result:'));
+        console.log(result ?? 'Done');
+      } catch (error) {
+        console.error(chalk.red(`✗ Error: ${error instanceof Error ? error.message : String(error)}`));
+      }
+    } else if (!command.canExecute) {
+      console.log(chalk.yellow('\n⚠️ Cannot execute: confidence too low or unknown intent'));
+    }
+  });
+
 // GitHub integration commands
 const githubCmd = program
   .command('github')
