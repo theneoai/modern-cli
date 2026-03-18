@@ -660,6 +660,130 @@ schedulerCmd
     setInterval(() => {}, 1000);
   });
 
+// AI Model commands
+const modelCmd = program
+  .command('model')
+  .description('AI model management');
+
+modelCmd
+  .command('list')
+  .description('List AI models')
+  .option('--provider <name>', 'Filter by provider')
+  .action((opts) => {
+    const { listModels, initModelTables } = require('./models/manager.js');
+    initModelTables();
+    
+    const models = listModels(opts.provider ? { provider: opts.provider } : undefined);
+    console.log(chalk.cyan(`\n🤖 AI Models (${models.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const m of models) {
+      const status = m.enabled ? chalk.green('●') : chalk.gray('○');
+      const def = m.isDefault ? chalk.yellow(' [default]') : '';
+      console.log(`${status} ${chalk.bold(m.name)}${def} ${chalk.gray(m.provider)}`);
+      console.log(`   Model: ${m.modelId}`);
+      console.log(`   Capabilities: ${m.capabilities.join(', ')}`);
+      console.log(`   Context: ${m.contextWindow.toLocaleString()} tokens`);
+      console.log(`   Cost: $${m.costPer1KTokens.input}/1K in, $${m.costPer1KTokens.output}/1K out`);
+      if (m.usage.totalCalls > 0) {
+        console.log(`   Usage: ${m.usage.totalCalls} calls, ~$${m.usage.estimatedCost.toFixed(2)}`);
+      }
+      console.log();
+    }
+  });
+
+modelCmd
+  .command('add <name>')
+  .description('Add AI model')
+  .requiredOption('-p, --provider <name>', 'Provider: openai, anthropic, google')
+  .requiredOption('-m, --model-id <id>', 'Model ID')
+  .option('-c, --config <json>', 'Config JSON', '{}')
+  .option('--capabilities <list>', 'Comma-separated capabilities', 'chat')
+  .option('--cost-in <price>', 'Input cost per 1K tokens', '0.001')
+  .option('--cost-out <price>', 'Output cost per 1K tokens', '0.002')
+  .option('--context <size>', 'Context window size', '8192')
+  .option('--priority <num>', 'Priority', '0')
+  .option('--default', 'Set as default', false)
+  .action((name, opts) => {
+    const { addModel, initModelTables } = require('./models/manager.js');
+    initModelTables();
+    
+    const model = addModel({
+      name,
+      provider: opts.provider,
+      modelId: opts.modelId,
+      config: JSON.parse(opts.config),
+      capabilities: opts.capabilities.split(','),
+      costPer1KTokens: { input: parseFloat(opts.costIn), output: parseFloat(opts.costOut) },
+      contextWindow: parseInt(opts.context),
+      enabled: true,
+      isDefault: opts.default,
+      priority: parseInt(opts.priority),
+    });
+    
+    console.log(chalk.green(`✓ Added model: ${model.name}`));
+    console.log(chalk.gray(`  ID: ${model.id}`));
+  });
+
+modelCmd
+  .command('default <id>')
+  .description('Set default model')
+  .action((id) => {
+    const { updateModel, initModelTables } = require('./models/manager.js');
+    initModelTables();
+    
+    const model = updateModel(id, { isDefault: true });
+    if (model) {
+      console.log(chalk.green(`✓ Set default: ${model.name}`));
+    } else {
+      console.log(chalk.red(`✗ Model not found: ${id}`));
+    }
+  });
+
+modelCmd
+  .command('toggle <id>')
+  .description('Toggle model enabled state')
+  .action((id) => {
+    const { getModel, updateModel, initModelTables } = require('./models/manager.js');
+    initModelTables();
+    
+    const existing = getModel(id);
+    if (!existing) {
+      console.log(chalk.red(`✗ Model not found: ${id}`));
+      return;
+    }
+    
+    const model = updateModel(id, { enabled: !existing.enabled });
+    console.log(chalk.green(`✓ Model ${model?.enabled ? 'enabled' : 'disabled'}: ${model?.name}`));
+  });
+
+modelCmd
+  .command('stats')
+  .description('Show usage statistics')
+  .action(() => {
+    const { getUsageStats, initModelTables } = require('./models/manager.js');
+    initModelTables();
+    
+    const stats = getUsageStats();
+    console.log(chalk.cyan('\n📊 Usage Statistics:'));
+    console.log(`Total Calls: ${stats.totalCalls.toLocaleString()}`);
+    console.log(`Total Tokens: ${stats.totalTokens.toLocaleString()}`);
+    console.log(`Estimated Cost: $${stats.estimatedCost.toFixed(2)}`);
+    console.log(chalk.gray('\nBy Provider:'));
+    for (const [provider, data] of Object.entries(stats.byProvider)) {
+      console.log(`  ${provider}: ${data.calls} calls, $${data.cost.toFixed(2)}`);
+    }
+  });
+
+modelCmd
+  .command('defaults')
+  .description('Add default models')
+  .action(() => {
+    const { addDefaultModels, initModelTables } = require('./models/manager.js');
+    initModelTables();
+    addDefaultModels();
+    console.log(chalk.green('✓ Default models added'));
+  });
+
 // Automation commands
 const autoCmd = program
   .command('automation')
