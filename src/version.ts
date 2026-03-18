@@ -5,11 +5,11 @@ export const VERSION_META = {
   "name": "hyperterminal",
   "version": "0.2.0",
   "description": "面向未来的超级终端 - AI 原生的个人操作系统",
-  "commitHash": "64a281c",
-  "commitDate": "2026-03-18 22:11:34 +0800",
+  "commitHash": "a2b6cc5",
+  "commitDate": "2026-03-18 23:03:17 +0800",
   "branch": "main",
   "isDirty": true,
-  "buildTime": "2026-03-18T15:02:49.154Z",
+  "buildTime": "2026-03-18T15:45:35.317Z",
   "nodeVersion": "v22.22.0"
 } as const;
 

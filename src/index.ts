@@ -562,6 +562,246 @@ genCmd
     console.log(code);
   });
 
+// Browser automation commands
+const browserCmd = program
+  .command('browser')
+  .alias('br')
+  .description('Browser automation');
+
+browserCmd
+  .command('scrape <url>')
+  .description('Quick scrape a webpage')
+  .option('-s, --selectors <json>', 'CSS selectors as JSON', '{}')
+  .action(async (url, opts) => {
+    const { quickScrape, initBrowserTables } = await import('./browser/index.js');
+    initBrowserTables();
+    
+    console.log(chalk.cyan(`\n🌐 Scraping: ${url}`));
+    try {
+      const selectors = JSON.parse(opts.selectors);
+      const results = await quickScrape(url, selectors);
+      console.log(chalk.green('✓ Results:'));
+      console.log(JSON.stringify(results, null, 2));
+    } catch (error) {
+      console.error(chalk.red(`✗ Error: ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+browserCmd
+  .command('ai-scrape <url>')
+  .description('AI-powered scraping with instructions')
+  .action(async (url) => {
+    const { aiScrape, initBrowserTables } = await import('./browser/index.js');
+    initBrowserTables();
+    
+    console.log(chalk.cyan(`\n🤖 AI Scraping: ${url}`));
+    const results = await aiScrape(url, 'Extract all structured data');
+    console.log(chalk.green('✓ Results:'));
+    console.log(JSON.stringify(results, null, 2));
+  });
+
+// Scheduler commands
+const schedulerCmd = program
+  .command('scheduler')
+  .alias('sch')
+  .description('Task scheduler');
+
+schedulerCmd
+  .command('list')
+  .description('List scheduled jobs')
+  .action(() => {
+    const { listScheduledJobs, initSchedulerTables } = require('./scheduler/index.js');
+    initSchedulerTables();
+    const jobs = listScheduledJobs();
+    console.log(chalk.cyan('\n⏰ Scheduled Jobs:'));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const job of jobs) {
+      const status = job.enabled ? chalk.green('●') : chalk.gray('○');
+      console.log(`${status} ${chalk.bold(job.name)} ${chalk.gray(`(${job.type})`)}`);
+      console.log(`  Cron: ${job.cronExpression}`);
+      console.log(`  Next: ${job.nextRun?.toLocaleString() || 'N/A'}`);
+      console.log(`  Runs: ${job.runCount} ✓ / ${job.failCount} ✗`);
+      console.log();
+    }
+  });
+
+schedulerCmd
+  .command('create <name>')
+  .description('Create scheduled job')
+  .requiredOption('-c, --cron <expression>', 'Cron expression')
+  .requiredOption('-t, --type <type>', 'Job type: workflow, agent, skill, script')
+  .requiredOption('--target <id>', 'Target ID or script')
+  .action((name, opts) => {
+    const { createScheduledJob, initSchedulerTables } = require('./scheduler/index.js');
+    initSchedulerTables();
+    
+    const job = createScheduledJob({
+      name,
+      cronExpression: opts.cron,
+      type: opts.type,
+      targetId: opts.target,
+    });
+    
+    console.log(chalk.green(`✓ Created job: ${job.name}`));
+    console.log(chalk.gray(`  ID: ${job.id}`));
+    console.log(chalk.gray(`  Next run: ${job.nextRun?.toLocaleString()}`));
+  });
+
+schedulerCmd
+  .command('start')
+  .description('Start scheduler daemon')
+  .action(async () => {
+    const { startScheduler, initSchedulerTables } = await import('./scheduler/index.js');
+    initSchedulerTables();
+    startScheduler();
+    console.log(chalk.green('⏰ Scheduler started (Press Ctrl+C to stop)'));
+    
+    // Keep process alive
+    setInterval(() => {}, 1000);
+  });
+
+// GitHub integration commands
+const githubCmd = program
+  .command('github')
+  .alias('gh')
+  .description('GitHub integration');
+
+githubCmd
+  .command('prs <owner> <repo>')
+  .description('List pull requests')
+  .option('-s, --state <state>', 'State: open, closed, all', 'open')
+  .action(async (owner, repo, opts) => {
+    const { listPullRequests, initGitHubTables } = await import('./github/index.js');
+    initGitHubTables();
+    
+    try {
+      const prs = await listPullRequests(owner, repo, opts.state);
+      console.log(chalk.cyan(`\n🔀 Pull Requests (${owner}/${repo}):`));
+      console.log(chalk.gray('─'.repeat(60)));
+      for (const pr of prs.slice(0, 10)) {
+        console.log(`#${pr.number} ${chalk.bold(pr.title)} ${chalk.gray(`@${pr.user}`)}`);
+        console.log(`  ${chalk.green('+' + pr.additions)} ${chalk.red('-' + pr.deletions)} files: ${pr.changedFiles}`);
+        console.log();
+      }
+    } catch (error) {
+      console.error(chalk.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+githubCmd
+  .command('review <owner> <repo> <number>')
+  .description('AI review a pull request')
+  .action(async (owner, repo, number) => {
+    const { reviewPullRequest, initGitHubTables } = await import('./github/index.js');
+    initGitHubTables();
+    
+    console.log(chalk.cyan(`\n🔍 Reviewing PR #${number}...`));
+    try {
+      const review = await reviewPullRequest(owner, repo, parseInt(number), {
+        checkSecurity: true,
+        checkPerformance: true,
+        checkStyle: true,
+      });
+      console.log(chalk.green('\n✓ Review complete:'));
+      console.log(review.summary);
+      
+      if (review.comments.length > 0) {
+        console.log(chalk.yellow('\n⚠️ Issues found:'));
+        for (const comment of review.comments) {
+          console.log(`  [${comment.severity}] ${comment.comment}`);
+        }
+      }
+    } catch (error) {
+      console.error(chalk.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+githubCmd
+  .command('issues <owner> <repo>')
+  .description('List issues')
+  .action(async (owner, repo) => {
+    const { listIssues, initGitHubTables } = await import('./github/index.js');
+    initGitHubTables();
+    
+    try {
+      const issues = await listIssues(owner, repo);
+      console.log(chalk.cyan(`\n📋 Issues (${owner}/${repo}):`));
+      console.log(chalk.gray('─'.repeat(60)));
+      for (const issue of issues.slice(0, 10)) {
+        const labels = issue.labels.map(l => chalk.gray(`[${l}]`)).join(' ');
+        console.log(`#${issue.number} ${chalk.bold(issue.title)} ${labels}`);
+        console.log(`  @${issue.user} - ${issue.state}`);
+        console.log();
+      }
+    } catch (error) {
+      console.error(chalk.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+// Documentation commands
+const docsCmd = program
+  .command('docs')
+  .description('Documentation generator');
+
+docsCmd
+  .command('generate <source>')
+  .description('Generate docs from source code')
+  .option('-o, --output <dir>', 'Output directory', './docs')
+  .action(async (source, opts) => {
+    const { generateProjectDocs } = await import('./docs/generator.js');
+    
+    console.log(chalk.cyan(`\n📝 Generating documentation...`));
+    try {
+      const docs = await generateProjectDocs({
+        sourceDir: source,
+        outputDir: opts.output,
+        format: 'markdown',
+        includePrivate: false,
+        excludePatterns: ['node_modules', 'dist', '__tests__'],
+      });
+      console.log(chalk.green(`✓ Generated ${docs.length} documentation files`));
+      console.log(chalk.gray(`  Output: ${opts.output}`));
+    } catch (error) {
+      console.error(chalk.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+// Testing commands
+const testCmd = program
+  .command('test')
+  .description('Automated testing');
+
+testCmd
+  .command('generate <file>')
+  .description('Generate tests for a file')
+  .option('-o, --output <dir>', 'Output directory')
+  .action(async (file, opts) => {
+    const { generateTestFile } = await import('./testing/auto.js');
+    
+    console.log(chalk.cyan(`\n🧪 Generating tests for ${file}...`));
+    try {
+      const testPath = await generateTestFile(file, opts.output);
+      console.log(chalk.green(`✓ Test file created: ${testPath}`));
+    } catch (error) {
+      console.error(chalk.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+testCmd
+  .command('run <file>')
+  .description('Run tests')
+  .action(async (file) => {
+    const { runTests } = await import('./testing/auto.js');
+    
+    console.log(chalk.cyan(`\n▶️ Running tests: ${file}`));
+    const results = await runTests(file);
+    
+    console.log(chalk.green(`\n✓ Passed: ${results.passed}`));
+    if (results.failed > 0) {
+      console.log(chalk.red(`✗ Failed: ${results.failed}`));
+    }
+  });
+
 // TUI interactive mode
 program
   .command('tui')
