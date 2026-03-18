@@ -660,6 +660,101 @@ schedulerCmd
     setInterval(() => {}, 1000);
   });
 
+// Export/Import commands
+const backupCmd = program
+  .command('backup')
+  .description('Data backup and restore');
+
+backupCmd
+  .command('create [dir]')
+  .description('Create backup')
+  .action(async (dir) => {
+    const { createBackup } = await import('./export-import/index.js');
+    
+    console.log(chalk.cyan('\n💾 Creating backup...'));
+    const path = await createBackup(dir);
+    console.log(chalk.green(`✓ Backup created: ${path}`));
+  });
+
+backupCmd
+  .command('list [dir]')
+  .description('List backups')
+  .action(async (dir) => {
+    const { listBackups } = await import('./export-import/index.js');
+    
+    const backups = await listBackups(dir);
+    console.log(chalk.cyan(`\n💾 Backups (${backups.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const backup of backups) {
+      const size = (backup.size / 1024 / 1024).toFixed(2);
+      console.log(`${chalk.bold(backup.name)}`);
+      console.log(`  Date: ${backup.date.toLocaleString()}`);
+      console.log(`  Size: ${size} MB`);
+      console.log();
+    }
+  });
+
+backupCmd
+  .command('restore <file>')
+  .description('Restore from backup')
+  .action(async (file) => {
+    const { restoreBackup } = await import('./export-import/index.js');
+    
+    console.log(chalk.cyan(`\n📥 Restoring from: ${file}`));
+    const result = await restoreBackup(file);
+    
+    console.log(chalk.green('\n✓ Restore completed'));
+    console.log(chalk.gray('Imported:'));
+    for (const [type, count] of Object.entries(result.imported)) {
+      console.log(`  ${type}: ${count}`);
+    }
+    if (result.errors.length > 0) {
+      console.log(chalk.yellow(`\n⚠️ ${result.errors.length} errors`));
+    }
+  });
+
+backupCmd
+  .command('export <file>')
+  .description('Export data to file')
+  .option('--no-agents', 'Exclude agents')
+  .option('--no-workflows', 'Exclude workflows')
+  .option('--no-memories', 'Exclude memories')
+  .option('--no-knowledge', 'Exclude knowledge graph')
+  .action(async (file, opts) => {
+    const { exportToFile } = await import('./export-import/index.js');
+    
+    console.log(chalk.cyan('\n📤 Exporting data...'));
+    await exportToFile(file, {
+      include: {
+        agents: opts.agents,
+        workflows: opts.workflows,
+        memories: opts.memories,
+        knowledge: opts.knowledge,
+      },
+    });
+    console.log(chalk.green(`✓ Exported to: ${file}`));
+  });
+
+backupCmd
+  .command('import <file>')
+  .description('Import data from file')
+  .option('--merge', 'Merge with existing data', false)
+  .action(async (file, opts) => {
+    const { importFromFile } = await import('./export-import/index.js');
+    
+    console.log(chalk.cyan(`\n📥 Importing from: ${file}`));
+    const result = await importFromFile(file, { merge: opts.merge });
+    
+    console.log(chalk.green('\n✓ Import completed'));
+    console.log(chalk.gray('Imported:'));
+    for (const [type, count] of Object.entries(result.imported)) {
+      console.log(`  ${type}: ${count}`);
+    }
+    if (result.errors.length > 0) {
+      console.log(chalk.yellow(`\n⚠️ ${result.errors.length} errors`));
+    }
+  });
+
 // Audit commands
 const auditCmd = program
   .command('audit')
