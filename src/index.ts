@@ -53,6 +53,270 @@ program
     console.log(chalk.gray('\nTry: hyper agent list'));
   });
 
+// Global search command
+void program
+  .command('search <query>')
+  .description('Global search across all entities')
+  .option('-t, --types <list>', 'Filter by types (comma-separated)')
+  .option('-n, --limit <num>', 'Limit results', '20')
+  .action((query, opts) => {
+    const { globalSearch, getSearchStats, initSearchTables } = require('./search/index.js');
+    initSearchTables();
+    
+    const types = opts.types ? opts.types.split(',') : undefined;
+    const results = globalSearch(query, { types, limit: parseInt(opts.limit) });
+    
+    console.log(chalk.cyan(`\n🔍 Search Results for "${query}" (${results.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    
+    for (const result of results) {
+      const typeIcon = {
+        agent: '🤖', workflow: '⚡', memory: '🧠', skill: '🔧',
+        entity: '🔷', rule: '⚙️', model: '🧠', notification: '🔔',
+        log: '📄', task: '✓'
+      }[result.type] || '📄';
+      
+      console.log(`${typeIcon} ${chalk.bold(result.title)} ${chalk.gray(`[${result.type}]`)}`);
+      if (result.description) {
+        console.log(`   ${result.description}`);
+      }
+      console.log(`   Relevance: ${(result.relevance * 100).toFixed(0)}%`);
+      console.log();
+    }
+    
+    // Show stats
+    const stats = getSearchStats();
+    console.log(chalk.gray('Index stats:'), stats);
+  });
+
+// Template commands
+const templateCmd = program
+  .command('template')
+  .description('Manage templates');
+
+templateCmd
+  .command('list')
+  .description('List templates')
+  .option('-c, --category <cat>', 'Filter by category')
+  .action((opts) => {
+    const { listTemplates, initTemplateTables } = require('./templates/index.js');
+    initTemplateTables();
+    
+    const templates = listTemplates(opts.category ? { category: opts.category } : undefined);
+    console.log(chalk.cyan(`\n📋 Templates (${templates.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    
+    for (const t of templates) {
+      const badge = t.isBuiltin ? chalk.yellow('[builtin]') : chalk.gray('[custom]');
+      console.log(`${badge} ${chalk.bold(t.name)} ${chalk.gray(`(${t.category})`)}`);
+      console.log(`   ${t.description}`);
+      console.log(`   Tags: ${t.tags.join(', ')} | Used: ${t.usageCount}x`);
+      console.log();
+    }
+  });
+
+templateCmd
+  .command('apply <id>')
+  .description('Apply template')
+  .action(async (id) => {
+    const { applyTemplate, initTemplateTables } = await import('./templates/index.js');
+    initTemplateTables();
+    
+    console.log(chalk.cyan(`\n📋 Applying template: ${id}`));
+    try {
+      const result = await applyTemplate(id);
+      console.log(chalk.green('✓ Template applied'));
+      console.log(result);
+    } catch (error) {
+      console.error(chalk.red(`✗ Failed: ${error instanceof Error ? error.message : String(error)}`));
+    }
+  });
+
+templateCmd
+  .command('presets')
+  .description('Create builtin templates')
+  .action(() => {
+    const { createBuiltinTemplates, initTemplateTables } = require('./templates/index.js');
+    initTemplateTables();
+    createBuiltinTemplates();
+    console.log(chalk.green('✓ Builtin templates created'));
+  });
+
+// Tag commands
+const tagCmd = program
+  .command('tag')
+  .description('Manage tags');
+
+tagCmd
+  .command('list')
+  .description('List all tags')
+  .action(() => {
+    const { listTags, initTagTables } = require('./tags/index.js');
+    initTagTables();
+    
+    const tags = listTags();
+    console.log(chalk.cyan(`\n🏷️ Tags (${tags.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    
+    for (const tag of tags) {
+      const color = tag.color ? chalk.hex(tag.color) : chalk.blue;
+      console.log(`${color('●')} ${chalk.bold(tag.name)} ${chalk.gray(`(${tag.entityCount} items)`)}`);
+      if (tag.description) console.log(`   ${tag.description}`);
+    }
+  });
+
+tagCmd
+  .command('create <name>')
+  .description('Create tag')
+  .option('-c, --color <hex>', 'Tag color')
+  .option('-d, --description <text>', 'Description')
+  .action((name, opts) => {
+    const { createTag, initTagTables } = require('./tags/index.js');
+    initTagTables();
+    
+    const tag = createTag(name, { color: opts.color, description: opts.description });
+    console.log(chalk.green(`✓ Created tag: ${tag.name}`));
+  });
+
+tagCmd
+  .command('add <entity-type> <entity-id> <tag>')
+  .description('Tag an entity')
+  .action((type, id, tag) => {
+    const { tagEntity, initTagTables } = require('./tags/index.js');
+    initTagTables();
+    
+    const success = tagEntity(type, id, tag);
+    if (success) {
+      console.log(chalk.green(`✓ Tagged ${type}:${id} with "${tag}"`));
+    } else {
+      console.log(chalk.yellow(`⚠ Entity already has this tag`));
+    }
+  });
+
+tagCmd
+  .command('find <tag>')
+  .description('Find entities by tag')
+  .action((tag) => {
+    const { findByTag, initTagTables } = require('./tags/index.js');
+    initTagTables();
+    
+    const entities = findByTag(tag);
+    console.log(chalk.cyan(`\n🔍 Entities tagged "${tag}" (${entities.length}):`));
+    for (const e of entities) {
+      console.log(`  ${e.type}: ${e.id.slice(0, 8)} (${e.taggedAt.toLocaleDateString()})`);
+    }
+  });
+
+tagCmd
+  .command('stats')
+  .description('Show tag statistics')
+  .action(() => {
+    const { getTagStats, initTagTables } = require('./tags/index.js');
+    initTagTables();
+    
+    const stats = getTagStats();
+    console.log(chalk.cyan('\n📊 Tag Statistics:'));
+    console.log(`Total tags: ${stats.totalTags}`);
+    console.log(`Total tagged entities: ${stats.totalTaggedEntities}`);
+    console.log(chalk.gray('\nBy entity type:'), stats.byEntityType);
+    console.log(chalk.gray('\nTop tags:'));
+    for (const tag of stats.topTags) {
+      console.log(`  ${tag.name}: ${tag.count}`);
+    }
+  });
+
+// Alias commands
+const aliasCmd = program
+  .command('alias')
+  .description('Command aliases');
+
+aliasCmd
+  .command('list')
+  .description('List aliases')
+  .action(() => {
+    const { listAliases, formatAlias, initAliasTables } = require('./aliases/index.js');
+    initAliasTables();
+    
+    const aliases = listAliases();
+    console.log(chalk.cyan(`\n⚡ Aliases (${aliases.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    
+    for (const a of aliases) {
+      console.log(`${chalk.bold(a.name)} ${chalk.gray(`(${a.usageCount} uses)`)}`);
+      console.log(`   ${formatAlias(a)}`);
+      if (a.description) console.log(`   ${chalk.gray(a.description)}`);
+      console.log();
+    }
+  });
+
+aliasCmd
+  .command('create <name> <command>')
+  .description('Create alias')
+  .option('-d, --description <text>', 'Description')
+  .option('-c, --category <cat>', 'Category')
+  .action((name, command, opts) => {
+    const { createAlias, initAliasTables } = require('./aliases/index.js');
+    initAliasTables();
+    
+    const alias = createAlias({
+      name,
+      command,
+      description: opts.description,
+      category: opts.category || 'custom',
+    });
+    console.log(chalk.green(`✓ Created alias: ${alias.name}`));
+  });
+
+aliasCmd
+  .command('defaults')
+  .description('Create default aliases')
+  .action(() => {
+    const { createDefaultAliases, initAliasTables } = require('./aliases/index.js');
+    initAliasTables();
+    createDefaultAliases();
+    console.log(chalk.green('✓ Default aliases created'));
+  });
+
+// Profiler commands
+const profileCmd = program
+  .command('profile')
+  .description('Performance profiling');
+
+profileCmd
+  .command('stats')
+  .description('Show performance statistics')
+  .option('--hours <num>', 'Time range', '24')
+  .action((opts) => {
+    const { getPerformanceStats, initProfilerTables } = require('./profiler/index.js');
+    initProfilerTables();
+    
+    const stats = getPerformanceStats({ hours: parseInt(opts.hours) });
+    console.log(chalk.cyan(`\n⚡ Performance Statistics (${opts.hours}h):`));
+    console.log(`Total operations: ${stats.totalOperations}`);
+    console.log(`Average duration: ${stats.avgDuration.toFixed(2)}ms`);
+    
+    console.log(chalk.gray('\nBy category:'));
+    for (const cat of stats.byCategory) {
+      console.log(`  ${cat.category}: ${cat.count} ops, avg ${cat.avgDuration.toFixed(2)}ms`);
+    }
+    
+    console.log(chalk.gray('\nSlowest operations:'));
+    for (const op of stats.slowestOperations.slice(0, 5)) {
+      console.log(`  ${op.name}: ${op.duration?.toFixed(2)}ms`);
+    }
+  });
+
+profileCmd
+  .command('clean <days>')
+  .description('Clean old profiles')
+  .action((days) => {
+    const { cleanOldProfiles, initProfilerTables } = require('./profiler/index.js');
+    initProfilerTables();
+    
+    const count = cleanOldProfiles(parseInt(days));
+    console.log(chalk.green(`✓ Cleaned ${count} old profiles`));
+  });
+
 // Agent commands
 const agentCmd = program
   .command('agent')
