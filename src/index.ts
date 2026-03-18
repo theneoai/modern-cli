@@ -660,6 +660,85 @@ schedulerCmd
     setInterval(() => {}, 1000);
   });
 
+// Audit commands
+const auditCmd = program
+  .command('audit')
+  .description('Audit logging');
+
+auditCmd
+  .command('list')
+  .description('List audit logs')
+  .option('-a, --action <action>', 'Filter by action')
+  .option('-r, --resource <resource>', 'Filter by resource')
+  .option('-s, --severity <level>', 'Filter by severity')
+  .option('--status <status>', 'Filter by status')
+  .option('-n, --limit <num>', 'Limit', '50')
+  .action((opts) => {
+    const { queryAudit, initAuditTables } = require('./audit/logger.js');
+    initAuditTables();
+    
+    const logs = queryAudit({
+      action: opts.action,
+      resource: opts.resource,
+      severity: opts.severity,
+      status: opts.status,
+      limit: parseInt(opts.limit),
+    });
+    
+    console.log(chalk.cyan(`\n📋 Audit Logs (${logs.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const log of logs) {
+      const color = { info: chalk.blue, warning: chalk.yellow, error: chalk.red, critical: chalk.magenta }[log.severity];
+      const statusIcon = { success: '✓', failure: '✗', blocked: '⊘' }[log.status];
+      console.log(`${statusIcon} ${color(`[${log.severity.toUpperCase()}]`)} ${chalk.gray(log.timestamp.toLocaleTimeString())}`);
+      console.log(`   ${log.action} ${log.resource}${log.resourceId ? `: ${log.resourceId.slice(0, 8)}` : ''}`);
+      console.log(`   ${log.message}`);
+      console.log();
+    }
+  });
+
+auditCmd
+  .command('stats')
+  .description('Show audit statistics')
+  .option('--days <num>', 'Time range in days', '1')
+  .action((opts) => {
+    const { getAuditStats, initAuditTables } = require('./audit/logger.js');
+    initAuditTables();
+    
+    const stats = getAuditStats({ days: parseInt(opts.days) });
+    console.log(chalk.cyan(`\n📊 Audit Statistics (${opts.days} days):`));
+    console.log(`Total Events: ${stats.total}`);
+    console.log(`Failures: ${stats.failures} | Critical: ${stats.critical}`);
+    console.log(chalk.gray('\nBy Action:'), stats.byAction);
+    console.log(chalk.gray('By Resource:'), stats.byResource);
+    console.log(chalk.gray('By Severity:'), stats.bySeverity);
+  });
+
+auditCmd
+  .command('export [file]')
+  .description('Export audit logs')
+  .action((file) => {
+    const { exportAudit, initAuditTables } = require('./audit/logger.js');
+    initAuditTables();
+    
+    const data = exportAudit();
+    const { writeFileSync } = require('fs');
+    const path = file || `audit-export-${Date.now()}.json`;
+    writeFileSync(path, data);
+    console.log(chalk.green(`✓ Exported to: ${path}`));
+  });
+
+auditCmd
+  .command('clean <days>')
+  .description('Clean audit logs older than N days')
+  .action((days) => {
+    const { cleanOldAudit, initAuditTables } = require('./audit/logger.js');
+    initAuditTables();
+    
+    const count = cleanOldAudit(parseInt(days));
+    console.log(chalk.green(`✓ Cleaned ${count} old audit logs`));
+  });
+
 // AI Model commands
 const modelCmd = program
   .command('model')
