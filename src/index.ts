@@ -660,6 +660,122 @@ schedulerCmd
     setInterval(() => {}, 1000);
   });
 
+// Automation commands
+const autoCmd = program
+  .command('automation')
+  .alias('auto')
+  .description('Automation rules');
+
+autoCmd
+  .command('list')
+  .description('List automation rules')
+  .option('--enabled', 'Show only enabled rules')
+  .action((opts) => {
+    const { listRules, initAutomationTables } = require('./automation/engine.js');
+    initAutomationTables();
+    
+    const rules = listRules(opts.enabled !== undefined ? { enabled: true } : undefined);
+    console.log(chalk.cyan(`\n⚙️ Automation Rules (${rules.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const rule of rules) {
+      const status = rule.enabled ? chalk.green('●') : chalk.gray('○');
+      console.log(`${status} ${chalk.bold(rule.name)} ${chalk.gray(`(${rule.trigger.type})`)}`);
+      console.log(`   ${rule.description || ''}`);
+      console.log(`   Executions: ${rule.executionCount}${rule.lastExecuted ? ` | Last: ${rule.lastExecuted.toLocaleDateString()}` : ''}`);
+      console.log();
+    }
+  });
+
+autoCmd
+  .command('create <name>')
+  .description('Create automation rule')
+  .requiredOption('-t, --trigger <type>', 'Trigger type: schedule, event, metric')
+  .option('-c, --conditions <json>', 'Conditions JSON')
+  .option('-a, --actions <json>', 'Actions JSON', '[{"type":"log","config":{"message":"Rule executed"}}]')
+  .option('--cooldown <minutes>', 'Cooldown minutes')
+  .action((name, opts) => {
+    const { createRule, initAutomationTables } = require('./automation/engine.js');
+    initAutomationTables();
+    
+    const triggerConfig: Record<string, unknown> = {};
+    if (opts.trigger === 'schedule') triggerConfig.cron = '0 * * * *';
+    if (opts.trigger === 'event') triggerConfig.event = 'system.alert';
+    if (opts.trigger === 'metric') triggerConfig.metric = 'cpu';
+    
+    const rule = createRule({
+      name,
+      enabled: true,
+      trigger: { type: opts.trigger, config: triggerConfig },
+      conditions: opts.conditions ? JSON.parse(opts.conditions) : [],
+      actions: JSON.parse(opts.actions),
+      cooldownMinutes: opts.cooldown ? parseInt(opts.cooldown) : undefined,
+    });
+    
+    console.log(chalk.green(`✓ Created rule: ${rule.name}`));
+    console.log(chalk.gray(`  ID: ${rule.id}`));
+  });
+
+autoCmd
+  .command('toggle <id>')
+  .description('Toggle rule enabled state')
+  .action((id) => {
+    const { toggleRule, initAutomationTables } = require('./automation/engine.js');
+    initAutomationTables();
+    
+    const rule = toggleRule(id);
+    if (rule) {
+      console.log(chalk.green(`✓ Rule ${rule.enabled ? 'enabled' : 'disabled'}: ${rule.name}`));
+    } else {
+      console.log(chalk.red(`✗ Rule not found: ${id}`));
+    }
+  });
+
+autoCmd
+  .command('run <id>')
+  .description('Execute rule manually')
+  .option('-c, --context <json>', 'Context JSON', '{}')
+  .action(async (id, opts) => {
+    const { executeRule, initAutomationTables } = await import('./automation/engine.js');
+    initAutomationTables();
+    
+    console.log(chalk.cyan(`\n▶️ Executing rule: ${id}`));
+    const execution = await executeRule(id, JSON.parse(opts.context));
+    
+    if (execution.success) {
+      console.log(chalk.green('✓ Rule executed successfully'));
+    } else {
+      console.log(chalk.red(`✗ Failed: ${execution.error}`));
+    }
+  });
+
+autoCmd
+  .command('history [rule-id]')
+  .description('Show execution history')
+  .option('-n, --limit <num>', 'Limit', '20')
+  .action((ruleId, opts) => {
+    const { getRuleExecutions, initAutomationTables } = require('./automation/engine.js');
+    initAutomationTables();
+    
+    const executions = getRuleExecutions(ruleId, parseInt(opts.limit));
+    console.log(chalk.cyan(`\n📜 Execution History (${executions.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const exec of executions) {
+      const status = exec.success ? chalk.green('✓') : chalk.red('✗');
+      console.log(`${status} ${chalk.gray(exec.executedAt.toLocaleString())}`);
+      if (exec.error) console.log(`   ${chalk.red(exec.error)}`);
+    }
+  });
+
+autoCmd
+  .command('presets')
+  .description('Create preset rules')
+  .action(() => {
+    const { createPresetRules, initAutomationTables } = require('./automation/engine.js');
+    initAutomationTables();
+    createPresetRules();
+    console.log(chalk.green('✓ Preset rules created'));
+  });
+
 // Natural language commands
 void program
   .command('ask <query>')
