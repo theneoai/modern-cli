@@ -2,14 +2,14 @@
 // Run `npm run build` to regenerate.
 
 export const VERSION_META = {
-  "name": "modern-ai-cli",
-  "version": "0.1.0",
-  "description": "A modern AI-powered CLI scaffold built with TypeScript, Commander.js, and Claude API",
-  "commitHash": "16bb788",
-  "commitDate": "2026-03-17 02:27:20 +0000",
-  "branch": "claude/ai-cli-scaffold-TmtzU",
+  "name": "hyperterminal",
+  "version": "0.2.0",
+  "description": "面向未来的超级终端 - AI 原生的个人操作系统",
+  "commitHash": "894d9e3",
+  "commitDate": "2026-03-18 09:03:22 +0800",
+  "branch": "main",
   "isDirty": true,
-  "buildTime": "2026-03-17T05:31:19.541Z",
+  "buildTime": "2026-03-18T01:23:13.680Z",
   "nodeVersion": "v22.22.0"
 } as const;
 

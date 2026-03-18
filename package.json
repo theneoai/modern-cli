@@ -1,16 +1,18 @@
 {
-  "name": "modern-ai-cli",
-  "version": "0.1.0",
-  "description": "A modern AI-powered CLI scaffold built with TypeScript, Commander.js, and Claude API",
+  "name": "hyperterminal",
+  "version": "0.2.0",
+  "description": "面向未来的超级终端 - AI 原生的个人操作系统",
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
-    "ai": "./dist/index.js"
+    "hyper": "./dist/index.js",
+    "ht": "./dist/index.js"
   },
   "files": [
     "dist/",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "docs/"
   ],
   "scripts": {
     "build": "tsup",
@@ -19,15 +21,16 @@
     "start": "node dist/index.js",
     "lint": "eslint 'src/**/*.ts' --ignore-pattern 'src/__tests__/**'",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest",
-    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "release": "semantic-release",
     "prepare": "husky",
-    "pkg:linux-x64": "pkg dist/index.js --target node20-linux-x64   --output release-assets/modern-ai-cli-linux-x64",
-    "pkg:linux-arm64": "pkg dist/index.js --target node20-linux-arm64  --output release-assets/modern-ai-cli-linux-arm64",
-    "pkg:macos-x64": "pkg dist/index.js --target node20-macos-x64   --output release-assets/modern-ai-cli-macos-x64",
-    "pkg:macos-arm64": "pkg dist/index.js --target node20-macos-arm64  --output release-assets/modern-ai-cli-macos-arm64",
-    "pkg:win-x64": "pkg dist/index.js --target node20-win-x64      --output release-assets/modern-ai-cli-win-x64.exe",
+    "pkg:linux-x64": "pkg dist/index.js --target node20-linux-x64   --output release-assets/hyper-linux-x64",
+    "pkg:linux-arm64": "pkg dist/index.js --target node20-linux-arm64  --output release-assets/hyper-linux-arm64",
+    "pkg:macos-x64": "pkg dist/index.js --target node20-macos-x64   --output release-assets/hyper-macos-x64",
+    "pkg:macos-arm64": "pkg dist/index.js --target node20-macos-arm64  --output release-assets/hyper-macos-arm64",
+    "pkg:win-x64": "pkg dist/index.js --target node20-win-x64      --output release-assets/hyper-win-x64.exe",
     "pkg:all": "npm run build && npm run pkg:linux-x64 && npm run pkg:linux-arm64 && npm run pkg:macos-x64 && npm run pkg:macos-arm64 && npm run pkg:win-x64"
   },
   "pkg": {
@@ -49,6 +52,12 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.0",
     "@clack/prompts": "^0.9.1",
+    "ink": "^5.2.0",
+    "react": "^18.3.1",
+    "better-sqlite3": "^12.1.0",
+    "zod": "^3.25.73",
+    "eventemitter3": "^5.0.1",
+    "uuid": "^11.1.0",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "conf": "^13.0.0",
@@ -57,7 +66,12 @@
     "marked-terminal": "^7.3.0",
     "ora": "^8.2.0",
     "strip-ansi": "^7.1.0",
-    "wrap-ansi": "^9.0.0"
+    "wrap-ansi": "^9.0.0",
+    "chokidar": "^4.0.3",
+    "fast-glob": "^3.3.3",
+    "yaml": "^2.7.1",
+    "semver": "^7.7.2",
+    "dayjs": "^1.11.13"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
@@ -67,20 +81,23 @@
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.6",
     "@semantic-release/npm": "^13.1.5",
-    "@types/jest": "^29.5.14",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.13.10",
+    "@types/react": "^18.3.20",
+    "@types/semver": "^7.7.0",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
     "@yao-pkg/pkg": "^6.14.1",
     "conventional-changelog-conventionalcommits": "^9.3.0",
     "eslint": "^10.0.3",
     "husky": "^9.1.7",
-    "jest": "^29.7.0",
     "lint-staged": "^16.4.0",
     "semantic-release": "^25.0.3",
-    "ts-jest": "^29.2.6",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.1.3",
+    "@vitest/coverage-v8": "^3.1.3"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -88,11 +105,13 @@
   "keywords": [
     "cli",
     "ai",
-    "claude",
-    "anthropic",
-    "scaffold",
-    "typescript",
-    "modern-cli"
+    "agent",
+    "terminal",
+    "automation",
+    "workflow",
+    "mcp",
+    "hyperterminal",
+    "personal-os"
   ],
   "license": "MIT",
   "publishConfig": {
