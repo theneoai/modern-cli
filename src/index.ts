@@ -53,6 +53,168 @@ program
     console.log(chalk.gray('\nTry: hyper agent list'));
   });
 
+// Favorites commands
+const favCmd = program
+  .command('favorite')
+  .alias('fav')
+  .description('Manage favorites');
+
+favCmd
+  .command('list')
+  .description('List favorites')
+  .action(() => {
+    const { listFavorites, initFavoritesTables } = require('./favorites/index.js');
+    initFavoritesTables();
+    
+    const favs = listFavorites();
+    console.log(chalk.cyan(`\n⭐ Favorites (${favs.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const f of favs) {
+      const icon = { agent: '🤖', workflow: '⚡', skill: '🔧', memory: '🧠', task: '✓', entity: '🔷', rule: '⚙️' }[f.entityType];
+      console.log(`${icon} ${chalk.bold(f.entityName)} ${chalk.gray(`[${f.entityType}]`)}`);
+      if (f.notes) console.log(`   ${chalk.gray(f.notes)}`);
+    }
+  });
+
+favCmd
+  .command('add <type> <id> <name>')
+  .description('Add to favorites')
+  .option('-n, --notes <text>', 'Notes')
+  .action((type, id, name, opts) => {
+    const { addFavorite, initFavoritesTables } = require('./favorites/index.js');
+    initFavoritesTables();
+    
+    const fav = addFavorite(type, id, name, opts.notes);
+    console.log(chalk.green(`✓ Added to favorites: ${fav.entityName}`));
+  });
+
+favCmd
+  .command('remove <id>')
+  .description('Remove from favorites')
+  .action((id) => {
+    const { removeFavorite, initFavoritesTables } = require('./favorites/index.js');
+    initFavoritesTables();
+    
+    removeFavorite(id);
+    console.log(chalk.green('✓ Removed from favorites'));
+  });
+
+// Activity commands
+const activityCmd = program
+  .command('activity')
+  .alias('act')
+  .description('Activity feed');
+
+activityCmd
+  .command('feed')
+  .description('Show activity feed')
+  .option('-n, --limit <num>', 'Limit', '20')
+  .action((opts) => {
+    const { getActivityFeed, initActivityTables } = require('./activity/index.js');
+    initActivityTables();
+    
+    const activities = getActivityFeed(parseInt(opts.limit));
+    console.log(chalk.cyan(`\n📰 Activity Feed (${activities.length}):`));
+    console.log(chalk.gray('─'.repeat(60)));
+    for (const act of activities) {
+      const icon = { low: ' ', normal: '•', high: '★', critical: '⚠' }[act.importance];
+      const color = { low: chalk.gray, normal: chalk.blue, high: chalk.yellow, critical: chalk.red }[act.importance];
+      console.log(`${color(icon)} ${chalk.bold(act.title)} ${chalk.gray(act.timestamp.toLocaleTimeString())}`);
+      if (act.description) console.log(`   ${act.description}`);
+    }
+  });
+
+activityCmd
+  .command('stats')
+  .description('Show activity statistics')
+  .option('--hours <num>', 'Time range', '24')
+  .action((opts) => {
+    const { getActivityStats, initActivityTables } = require('./activity/index.js');
+    initActivityTables();
+    
+    const stats = getActivityStats({ hours: parseInt(opts.hours) });
+    console.log(chalk.cyan(`\n📊 Activity Stats (${opts.hours}h):`));
+    console.log(`Total: ${stats.total}`);
+    console.log(chalk.gray('By type:'), stats.byType);
+    console.log(chalk.gray('By importance:'), stats.byImportance);
+  });
+
+// Comment commands
+const commentCmd = program
+  .command('comment')
+  .alias('cmt')
+  .description('Manage comments');
+
+commentCmd
+  .command('list <type> <id>')
+  .description('List comments for entity')
+  .action((type, id) => {
+    const { getThreadedComments, initCommentTables } = require('./comments/index.js');
+    initCommentTables();
+    
+    const threads = getThreadedComments(type, id);
+    console.log(chalk.cyan(`\n💬 Comments (${threads.length} threads):`));
+    for (const thread of threads) {
+      console.log(chalk.bold(`\n${thread.author || 'Anonymous'}: ${thread.content.slice(0, 80)}`));
+      for (const reply of thread.replies) {
+        console.log(`  ↳ ${reply.author || 'Anonymous'}: ${reply.content.slice(0, 60)}`);
+      }
+    }
+  });
+
+commentCmd
+  .command('add <type> <id> <content>')
+  .description('Add comment')
+  .option('-a, --author <name>', 'Author')
+  .action((type, id, content, opts) => {
+    const { addComment, initCommentTables } = require('./comments/index.js');
+    initCommentTables();
+    
+    addComment(type, id, content, { author: opts.author });
+    console.log(chalk.green('✓ Comment added'));
+  });
+
+// Version commands
+const versionCmd = program
+  .command('version')
+  .alias('ver')
+  .description('Entity version control');
+
+versionCmd
+  .command('list <type> <id>')
+  .description('List versions')
+  .action((type, id) => {
+    const { getVersionHistory, initVersionTables } = require('./versions/index.js');
+    initVersionTables();
+    
+    const versions = getVersionHistory(type, id);
+    console.log(chalk.cyan(`\n📜 Versions (${versions.length}):`));
+    for (const ver of versions) {
+      const marker = ver.changeType === 'create' ? chalk.green(' [init]') : '';
+      console.log(`v${ver.version}${marker} ${chalk.gray(ver.createdAt.toLocaleString())}`);
+      if (ver.changeSummary) console.log(`   ${ver.changeSummary}`);
+    }
+  });
+
+versionCmd
+  .command('compare <type> <id> <v1> <v2>')
+  .description('Compare two versions')
+  .action((type, id, v1, v2) => {
+    const { compareVersions, initVersionTables } = require('./versions/index.js');
+    initVersionTables();
+    
+    const diff = compareVersions(type, id, parseInt(v1), parseInt(v2));
+    console.log(chalk.cyan(`\n📊 Diff v${v1} → v${v2}:`));
+    if (diff.added.length) console.log(chalk.green(`+ Added: ${diff.added.join(', ')}`));
+    if (diff.removed.length) console.log(chalk.red(`- Removed: ${diff.removed.join(', ')}`));
+    if (diff.changed.length) {
+      console.log(chalk.yellow(`~ Changed:`));
+      for (const c of diff.changed) {
+        console.log(`  ${c.key}: ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
+      }
+    }
+  });
+
 // Global search command
 void program
   .command('search <query>')
