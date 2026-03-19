@@ -82,6 +82,11 @@ export {
   ScrollableList,
   Selectable,
   SelectableItem,
+  Loading,
+  LoadingOverlay,
+  Skeleton,
+  ProgressBar,
+  StepIndicator,
 } from './components/ui/index.js';
 
 export type {
@@ -93,6 +98,11 @@ export type {
   ScrollableListProps,
   SelectableProps,
   SelectableItemProps,
+  LoadingProps,
+  LoadingOverlayProps,
+  SkeletonProps,
+  ProgressBarProps,
+  StepIndicatorProps,
 } from './components/ui/index.js';
 
 // Toast Components
@@ -118,6 +128,8 @@ export {
   ConfirmDialog,
   CommandPaletteContent,
   InputDialogContent,
+  HelpContent,
+  QuickHelp,
 } from './components/modal/index.js';
 
 export type {
