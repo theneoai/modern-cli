@@ -4,7 +4,7 @@ import tsparser from "@typescript-eslint/parser";
 /** @type {import("eslint").Linter.Config[]} */
 export default [
   {
-    ignores: ["dist/**", "coverage/**", "node_modules/**", "*.js", "!eslint.config.js", "!jest.config.js", "!commitlint.config.js"],
+    ignores: ["dist/**", "coverage/**", "node_modules/**", "*.js", "!eslint.config.js", "!jest.config.js", "!commitlint.config.js", "**/*.test.ts"],
   },
   {
     files: ["src/**/*.ts"],

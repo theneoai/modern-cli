@@ -111,7 +111,7 @@ export function useGoogleData(): UseGoogleDataReturn {
 
   // Initial load
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
 
   return {

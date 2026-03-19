@@ -398,7 +398,7 @@ export function getChannel(id: string): Channel | undefined {
 export function listChannels(teamId: string, userId?: string): Channel[] {
   const db = getDB();
   let query = 'SELECT * FROM channels WHERE team_id = ? AND is_archived = 0';
-  let params: any[] = [teamId];
+  const params: any[] = [teamId];
   
   if (userId) {
     query += ' AND (type = "public" OR members LIKE ?)';
@@ -479,7 +479,7 @@ export function createMessage(message: Omit<Message, 'createdAt' | 'updatedAt' |
 export function getMessages(channelId: string, limit = 50, before?: Date): Message[] {
   const db = getDB();
   let query = 'SELECT * FROM messages WHERE channel_id = ?';
-  let params: any[] = [channelId];
+  const params: any[] = [channelId];
   
   if (before) {
     query += ' AND created_at < ?';
