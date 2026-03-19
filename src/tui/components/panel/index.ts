@@ -3,4 +3,7 @@
  */
 
 export { MainPanel } from './MainPanel.js';
+export { TaskPanel } from './TaskPanel.js';
+
 export type { MainPanelProps } from './MainPanel.js';
+export type { TaskPanelProps } from './TaskPanel.js';
