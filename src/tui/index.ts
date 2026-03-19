@@ -149,12 +149,16 @@ export {
   MainPanel,
   TaskPanel,
   Sidebar,
+  StatsPanel,
+  MiniStats,
 } from './components/panel/index.js';
 
 export type {
   MainPanelProps,
   TaskPanelProps,
   SidebarProps,
+  StatsPanelProps,
+  MiniStatsProps,
 } from './components/panel/index.js';
 
 // Input Components
