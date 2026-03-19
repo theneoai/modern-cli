@@ -1,5 +1,5 @@
 import ora, { type Ora } from "ora";
-import { theme, icons } from "./theme.js";
+import { theme, icons } from "../theme/index.js";
 
 /**
  * Creates a styled spinner for AI operations.
@@ -58,4 +58,27 @@ export function thinkingSpinner(): Ora {
       ],
     },
   });
+}
+
+/**
+ * Progress spinner with percentage
+ */
+export function progressSpinner(text: string, total: number): {
+  update: (current: number) => void;
+  succeed: (text?: string) => void;
+  fail: (text?: string) => void;
+} {
+  let current = 0;
+  const spinner = createSpinner(`${text} (0/${total})`);
+  spinner.start();
+
+  return {
+    update: (value: number) => {
+      current = value;
+      const percent = Math.round((current / total) * 100);
+      spinner.text = theme.muted(`${text} (${current}/${total}) ${percent}%`);
+    },
+    succeed: (text?: string) => spinner.succeed(text),
+    fail: (text?: string) => spinner.fail(text),
+  };
 }

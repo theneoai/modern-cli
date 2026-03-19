@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { layout } from '../../theme/index.js';
 
 export interface Task {
   id: string;
@@ -33,6 +34,11 @@ export function useTasks() {
       createdAt: new Date(Date.now() - 172800000),
     },
   ]);
+
+  const hasPendingTasks = useMemo(() => 
+    tasks.some(t => t.status === 'pending' || t.status === 'in_progress'),
+    [tasks]
+  );
 
   const addTask = useCallback((taskData: Partial<Task>): Task => {
     const newTask: Task = {
@@ -72,9 +78,65 @@ export function useTasks() {
 
   return {
     tasks,
+    hasPendingTasks,
     addTask,
     updateTask,
     completeTask,
     deleteTask,
+  };
+}
+
+// Input history management with size limit
+export function useInputHistory() {
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const addToHistory = useCallback((input: string) => {
+    if (!input.trim()) return;
+    
+    setHistory(prev => {
+      // Remove duplicates and add to end
+      const filtered = prev.filter(item => item !== input);
+      const newHistory = [...filtered, input];
+      // Limit to max size
+      if (newHistory.length > layout.maxHistorySize) {
+        return newHistory.slice(newHistory.length - layout.maxHistorySize);
+      }
+      return newHistory;
+    });
+  }, []);
+
+  const navigateHistory = useCallback((direction: 'up' | 'down', currentInput: string): { newInput: string; newIndex: number } => {
+    if (history.length === 0) {
+      return { newInput: currentInput, newIndex: -1 };
+    }
+
+    let newIndex: number;
+    if (direction === 'up') {
+      newIndex = historyIndex < history.length - 1 ? historyIndex + 1 : historyIndex;
+    } else {
+      newIndex = historyIndex > 0 ? historyIndex - 1 : -1;
+    }
+
+    setHistoryIndex(newIndex);
+    
+    if (newIndex === -1) {
+      return { newInput: '', newIndex };
+    }
+    
+    const historyItem = history[history.length - 1 - newIndex];
+    return { newInput: historyItem || '', newIndex };
+  }, [history, historyIndex]);
+
+  const resetHistoryIndex = useCallback(() => {
+    setHistoryIndex(-1);
+  }, []);
+
+  return {
+    history,
+    historyIndex,
+    addToHistory,
+    navigateHistory,
+    resetHistoryIndex,
   };
 }

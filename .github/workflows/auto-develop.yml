@@ -1,0 +1,244 @@
+# HyperTerminal Auto-Development Workflow
+# 
+# 每 10 分钟自动：
+# 1. 检查代码状态
+# 2. 从功能池选择新功能
+# 3. 生成功能代码骨架
+# 4. 创建 PR 并提交
+
+name: Auto Development
+
+on:
+  schedule:
+    # 每 10 分钟运行一次
+    - cron: '*/10 * * * *'
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      feature_count:
+        description: 'Number of features to generate'
+        required: false
+        default: '1'
+
+jobs:
+  auto-develop:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name 'HyperTerminal Bot'
+          git config --global user.email 'bot@hyperterminal.dev'
+      
+      - name: Generate and commit feature
+        id: generate
+        run: |
+          # 功能池定义
+          FEATURES=(
+            "time-blocking:时间块规划:AI 自动安排深度工作时间:productivity"
+            "meeting-optimizer:会议优化器:自动找出最佳会议时间:productivity"
+            "focus-mode:专注模式:一键进入专注模式:productivity"
+            "auto-notes:自动笔记:会议自动记录:knowledge"
+            "smart-summarizer:智能摘要:自动生成会议摘要:ai"
+            "action-extractor:行动项提取:自动识别待办事项:ai"
+            "terminal-copilot:终端 Copilot:实时代码建议:code"
+            "sentiment-analyzer:情绪分析:检测消息情绪:communication"
+            "agile-board:敏捷看板:Sprint 规划:project"
+            "smart-assign:智能分配:AI 建议任务分配:ai"
+          )
+          
+          # 随机选择功能
+          RANDOM_FEATURE=${FEATURES[$RANDOM % ${#FEATURES[@]}]}
+          IFS=':' read -r ID NAME DESCRIPTION CATEGORY <<< "$RANDOM_FEATURE"
+          
+          echo "feature_id=$ID" >> $GITHUB_OUTPUT
+          echo "feature_name=$NAME" >> $GITHUB_OUTPUT
+          echo "feature_description=$DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "feature_category=$CATEGORY" >> $GITHUB_OUTPUT
+          
+          # 检查是否已存在
+          if [ -d "src/features/$ID" ]; then
+            echo "Feature $ID already exists, skipping"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "skipped=false" >> $GITHUB_OUTPUT
+          
+          # 创建分支
+          BRANCH="feature/auto-${ID}-$(date +%s)"
+          git checkout -b $BRANCH
+          
+          # 创建目录
+          mkdir -p src/features/$ID
+          
+          # 生成代码文件
+          cat > src/features/$ID/index.ts << 'EOFTS'
+          /**
+           * FEATURE_NAME
+           * 
+           * FEATURE_DESCRIPTION
+           * 
+           * @feature FEATURE_ID
+           * @category FEATURE_CATEGORY
+           * @priority P2
+           * @auto-generated true
+           */
+          
+          export interface FeatureConfig {
+            enabled: boolean;
+            teamId?: string;
+            userId?: string;
+          }
+          
+          export class FeatureClass {
+            private config: FeatureConfig;
+            
+            constructor(config: FeatureConfig) {
+              this.config = config;
+            }
+            
+            async initialize(): Promise<void> {
+              console.log('Feature initialized');
+            }
+            
+            async execute(): Promise<unknown> {
+              return { success: true, message: 'Feature executed' };
+            }
+          }
+          
+          export default FeatureClass;
+          EOFTS
+          
+          # 替换占位符
+          sed -i "s/FEATURE_NAME/$NAME/g" src/features/$ID/index.ts
+          sed -i "s/FEATURE_DESCRIPTION/$DESCRIPTION/g" src/features/$ID/index.ts
+          sed -i "s/FEATURE_ID/$ID/g" src/features/$ID/index.ts
+          sed -i "s/FEATURE_CATEGORY/$CATEGORY/g" src/features/$ID/index.ts
+          sed -i "s/FeatureClass/$(echo $ID | sed -r 's/(^|[-_])([a-z])/\\U\\2/g')/g" src/features/$ID/index.ts
+          
+          # 创建测试文件
+          cat > src/features/$ID/index.test.ts << 'EOFTEST'
+          import { describe, it, expect } from 'vitest';
+          import FeatureClass from './index.js';
+          
+          describe('FeatureClass', () => {
+            it('should initialize', async () => {
+              const feature = new FeatureClass({ enabled: true });
+              await expect(feature.initialize()).resolves.not.toThrow();
+            });
+            
+            it('should execute', async () => {
+              const feature = new FeatureClass({ enabled: true });
+              const result = await feature.execute();
+              expect(result.success).toBe(true);
+            });
+          });
+          EOFTEST
+          
+          sed -i "s/FeatureClass/$(echo $ID | sed -r 's/(^|[-_])([a-z])/\\U\\2/g')/g" src/features/$ID/index.test.ts
+          
+          # 创建 RFC 文档
+          mkdir -p rfcs
+          cat > rfcs/$ID-rfc.md << EOFRFC
+          # RFC: $NAME
+          
+          ## 基本信息
+          
+          - **ID**: $ID
+          - **分类**: $CATEGORY
+          - **优先级**: P2
+          - **状态**: 🚧 开发中
+          
+          ## 问题陈述
+          
+          $DESCRIPTION
+          
+          ## 目标
+          
+          - 实现 $NAME 功能
+          - 集成到 HyperTerminal
+          
+          ## 实现计划
+          
+          - [ ] 核心逻辑开发
+          - [ ] 单元测试
+          - [ ] 文档更新
+          
+          > 自动生成
+          EOFRFC
+          
+          # 提交更改
+          git add -A
+          git commit -m "feat($ID): $NAME
+
+$DESCRIPTION
+
+- 自动生成功能骨架
+- 包含类型定义和测试
+- 创建 RFC 文档"
+          
+          # 推送分支
+          git push origin $BRANCH
+          
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+      
+      - name: Create Pull Request
+        if: steps.generate.outputs.skipped == 'false'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.generate.outputs.branch }}
+          title: "feat(${{ steps.generate.outputs.feature_id }}): ${{ steps.generate.outputs.feature_name }}"
+          body: |
+            ## ${{ steps.generate.outputs.feature_name }}
+            
+            ${{ steps.generate.outputs.feature_description }}
+            
+            ### 信息
+            - **ID**: ${{ steps.generate.outputs.feature_id }}
+            - **分类**: ${{ steps.generate.outputs.feature_category }}
+            - **优先级**: P2
+            
+            ### 检查清单
+            - [ ] 代码审查
+            - [ ] 功能测试
+            - [ ] 文档更新
+            
+            > 此 PR 由 Auto-Development Workflow 自动生成
+          labels: |
+            auto-generated
+            feature
+            ${{ steps.generate.outputs.feature_category }}
+      
+      - name: Summary
+        run: |
+          echo "## Auto-Development Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.generate.outputs.skipped }}" == "true" ]; then
+            echo "功能已存在，跳过生成" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "成功生成新功能" >> $GITHUB_STEP_SUMMARY
+            echo "| 属性 | 值 |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+            echo "| ID | ${{ steps.generate.outputs.feature_id }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| 名称 | ${{ steps.generate.outputs.feature_name }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| 分类 | ${{ steps.generate.outputs.feature_category }} |" >> $GITHUB_STEP_SUMMARY
+          fi

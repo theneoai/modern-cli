@@ -1,13 +1,42 @@
-import chalk from "chalk";
-import { theme, icons } from "./theme.js";
+/**
+ * Output formatting utilities
+ * Re-export from unified theme system
+ */
+
+import chalk from 'chalk';
+import { 
+  theme, 
+  icons, 
+  renderMarkdown as baseRenderMarkdown,
+  formatHeader,
+  formatSection,
+  formatError,
+  formatSuccess,
+  formatWarning,
+  wrapText,
+  layout,
+} from '../theme/index.js';
+
+export {
+  theme,
+  icons,
+  formatHeader,
+  formatSection,
+  formatError,
+  formatSuccess,
+  formatWarning,
+  wrapText,
+};
 
 /**
  * Renders markdown-like content with terminal styling.
  * Handles code blocks, bold, italic, headers, and lists.
  */
 export function renderMarkdown(text: string): string {
-  let result = text;
-
+  // Use the base implementation from theme
+  let result = baseRenderMarkdown?.(text) || text;
+  
+  // Additional enhancements specific to CLI output
   // Code blocks (```...```)
   result = result.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
     const lines = code.trimEnd().split("\n");
@@ -90,21 +119,21 @@ export function printUsage(inputTokens: number, outputTokens: number): void {
 }
 
 /**
- * Wrap text at given width.
+ * Print a progress bar
  */
-export function wrapText(text: string, width = 80): string {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let current = "";
+export function progressBar(current: number, total: number, width = 20): string {
+  const filled = Math.round((current / total) * width);
+  const empty = width - filled;
+  return chalk.hex(layout.colors?.primary || '#6366f1')('█'.repeat(filled)) + 
+         chalk.hex(layout.colors?.border || '#334155')('░'.repeat(empty));
+}
 
-  for (const word of words) {
-    if ((current + " " + word).trim().length > width) {
-      if (current) lines.push(current);
-      current = word;
-    } else {
-      current = (current + " " + word).trim();
-    }
-  }
-  if (current) lines.push(current);
-  return lines.join("\n");
+/**
+ * Print a table row
+ */
+export function tableRow(columns: string[], widths: number[]): string {
+  return columns.map((col, i) => {
+    const width = widths[i] || col.length;
+    return col.slice(0, width).padEnd(width);
+  }).join('  ');
 }

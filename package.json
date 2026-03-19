@@ -31,7 +31,10 @@
     "pkg:macos-x64": "pkg dist/index.js --target node20-macos-x64   --output release-assets/hyper-macos-x64",
     "pkg:macos-arm64": "pkg dist/index.js --target node20-macos-arm64  --output release-assets/hyper-macos-arm64",
     "pkg:win-x64": "pkg dist/index.js --target node20-win-x64      --output release-assets/hyper-win-x64.exe",
-    "pkg:all": "npm run build && npm run pkg:linux-x64 && npm run pkg:linux-arm64 && npm run pkg:macos-x64 && npm run pkg:macos-arm64 && npm run pkg:win-x64"
+    "pkg:all": "npm run build && npm run pkg:linux-x64 && npm run pkg:linux-arm64 && npm run pkg:macos-x64 && npm run pkg:macos-arm64 && npm run pkg:win-x64",
+    "auto-dev": "node scripts/auto-dev.js",
+    "workbench": "node dist/index.js tui",
+    "features:update": "node scripts/update-features.js"
   },
   "pkg": {
     "assets": [],

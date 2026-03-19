@@ -8,10 +8,12 @@ import { TaskPanel } from './components/TaskPanel.js';
 import { InputBar } from './components/InputBar.js';
 import { CommandPalette } from './components/CommandPalette.js';
 import { FullScreen } from './components/FullScreen.js';
+import { ConfirmDialog } from './components/ConfirmDialog.js';
+import { Toast } from './components/Toast.js';
 import { useTasks } from './hooks/useTasks.js';
 import { useGoogleData } from './hooks/useGoogleData.js';
 import { useCommandParser } from './hooks/useCommandParser.js';
-import { theme, icons } from './theme.js';
+import { theme, icons, layout } from '../theme/index.js';
 
 export interface Message {
   id: string;
@@ -20,6 +22,13 @@ export interface Message {
   timestamp: Date;
   agentName?: string;
   agentIcon?: string;
+}
+
+export interface ToastMessage {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  content: string;
+  duration?: number;
 }
 
 export default function App() {
@@ -33,10 +42,22 @@ export default function App() {
     width: stdout.columns || 120,
     height: stdout.rows || 40,
   });
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isComposing, setIsComposing] = useState(false);
   
-  const { tasks, addTask, updateTask, completeTask, deleteTask } = useTasks();
+  const { tasks, addTask, updateTask, completeTask, deleteTask, hasPendingTasks } = useTasks();
   const { events, emails, meetings, loading, refreshData } = useGoogleData();
   const { parseCommand, executeCommand } = useCommandParser();
+
+  // Toast helper
+  const showToast = useCallback((type: ToastMessage['type'], content: string, duration = 3000) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, type, content, duration }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration);
+  }, []);
 
   // Listen for terminal resize
   useEffect(() => {
@@ -53,24 +74,54 @@ export default function App() {
     };
   }, [stdout]);
 
+  // Welcome message
+  useEffect(() => {
+    setMessages([
+      {
+        id: 'welcome',
+        type: 'system',
+        content: `✨ Welcome to ${theme.gradient('HyperTerminal')} v0.2.0\nYour AI-native personal OS is ready.\nTerminal: ${terminalSize.width}x${terminalSize.height} | Type /help for commands.`,
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
+
+  // Check terminal size
+  const isTerminalTooSmall = terminalSize.width < layout.minWidth || terminalSize.height < layout.minHeight;
+
   // Calculate dynamic layout sizes
-  const layout = useMemo(() => {
+  const layoutSizes = useMemo(() => {
     const { width, height } = terminalSize;
     
+    // If terminal too small, return minimal layout
+    if (isTerminalTooSmall) {
+      return {
+        width,
+        height,
+        headerHeight: 1,
+        inputBarHeight: 1,
+        bottomPanelHeight: 0,
+        mainContentHeight: height - 2,
+        sidebarWidth: 0,
+        mainPanelWidth: width,
+        isCompact: true,
+      };
+    }
+    
     // Header: always 3 rows
-    const headerHeight = 3;
+    const headerHeight = layout.headerHeight;
     
     // Input bar: always 3 rows  
-    const inputBarHeight = 3;
+    const inputBarHeight = layout.inputBarHeight;
     
     // Bottom panel (tasks + stats): 25% of remaining or min 10
-    const bottomPanelHeight = Math.max(10, Math.floor((height - headerHeight - inputBarHeight) * 0.25));
+    const bottomPanelHeight = Math.max(layout.minBottomPanelHeight, Math.floor((height - headerHeight - inputBarHeight) * 0.25));
     
     // Main content area
     const mainContentHeight = height - headerHeight - bottomPanelHeight - inputBarHeight;
     
     // Sidebar width: responsive (max 40, min 25)
-    const sidebarWidth = Math.min(40, Math.max(25, Math.floor(width * 0.25)));
+    const sidebarWidth = Math.min(layout.sidebarWidthMax, Math.max(layout.sidebarWidthMin, Math.floor(width * layout.sidebarWidthPercent)));
     
     // Main panel takes remaining width
     const mainPanelWidth = width - sidebarWidth;
@@ -84,20 +135,9 @@ export default function App() {
       mainContentHeight,
       sidebarWidth,
       mainPanelWidth,
+      isCompact: false,
     };
-  }, [terminalSize]);
-
-  // Welcome message
-  useEffect(() => {
-    setMessages([
-      {
-        id: 'welcome',
-        type: 'system',
-        content: `✨ Welcome to ${theme.gradient('HyperTerminal')} v0.2.0\nYour AI-native personal OS is ready.\nTerminal: ${terminalSize.width}x${terminalSize.height} | Type /help for commands.`,
-        timestamp: new Date(),
-      },
-    ]);
-  }, []);
+  }, [terminalSize, isTerminalTooSmall]);
 
   // Handle user input
   const handleInput = useCallback(async (input: string) => {
@@ -122,15 +162,15 @@ export default function App() {
         refreshData,
         setMessages,
         exit,
+        showToast,
       });
       
       if (result.message) {
-        setMessages(prev => [...prev, {
-          id: Date.now().toString() + '-cmd',
-          type: 'system',
-          content: result.message,
-          timestamp: new Date(),
-        }]);
+        if (result.success) {
+          showToast('success', result.message);
+        } else {
+          showToast('error', result.message);
+        }
       }
       return;
     }
@@ -145,12 +185,7 @@ export default function App() {
         priority: input.includes('urgent') || input.includes('important') ? 'high' : 'medium',
       });
       
-      setMessages(prev => [...prev, {
-        id: Date.now().toString() + '-task',
-        type: 'system',
-        content: `✅ Created task: ${task.title}`,
-        timestamp: new Date(),
-      }]);
+      showToast('success', `Created task: ${task.title}`);
       return;
     }
 
@@ -161,12 +196,7 @@ export default function App() {
       const task = tasks.find(t => t.title.toLowerCase().includes(taskTitle.toLowerCase()));
       if (task) {
         completeTask(task.id);
-        setMessages(prev => [...prev, {
-          id: Date.now().toString() + '-done',
-          type: 'system',
-          content: `✅ Completed: ${task.title}`,
-          timestamp: new Date(),
-        }]);
+        showToast('success', `Completed: ${task.title}`);
         return;
       }
     }
@@ -180,13 +210,25 @@ export default function App() {
       agentName: 'Assistant',
       agentIcon: '🤖',
     }]);
-  }, [addTask, completeTask, deleteTask, executeCommand, exit, refreshData, setMessages, tasks, updateTask]);
+  }, [addTask, completeTask, deleteTask, executeCommand, exit, refreshData, setMessages, showToast, tasks]);
 
   // Keyboard shortcuts
   useInput((input, key) => {
+    // Handle exit confirmation
+    if (showExitConfirm) {
+      if (input === 'y' || input === 'Y') {
+        exit();
+      } else if (input === 'n' || input === 'N' || key.escape) {
+        setShowExitConfirm(false);
+      }
+      return;
+    }
+
     if (key.escape) {
       if (showCommandPalette) {
         setShowCommandPalette(false);
+      } else if (hasPendingTasks) {
+        setShowExitConfirm(true);
       } else {
         exit();
       }
@@ -197,24 +239,41 @@ export default function App() {
     }
     
     if (key.ctrl && input === 'c') {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        type: 'system',
-        content: '^C received. Press ESC to exit.',
-        timestamp: new Date(),
-      }]);
+      showToast('info', '^C received. Press ESC to exit.');
     }
   });
+
+  // Compact mode for small terminals
+  if (layoutSizes.isCompact) {
+    return (
+      <FullScreen>
+        <Box flexDirection="column" width={layoutSizes.width} height={layoutSizes.height}>
+          <Box height={1} backgroundColor={theme.colors.error} justifyContent="center">
+            <Text color={theme.colors.text} bold>
+              Terminal too small! Min: {layout.minWidth}x{layout.minHeight}
+            </Text>
+          </Box>
+          <Box flexGrow={1} padding={1}>
+            <Text color={theme.colors.text}>
+              Current: {terminalSize.width}x{terminalSize.height}\n
+              Please resize your terminal or use CLI mode:\n
+              hyper agent run "your task"
+            </Text>
+          </Box>
+        </Box>
+      </FullScreen>
+    );
+  }
 
   return (
     <FullScreen>
       <Box 
         flexDirection="column" 
-        width={layout.width}
-        height={layout.height}
+        width={layoutSizes.width}
+        height={layoutSizes.height}
       >
         {/* Header */}
-        <Box height={layout.headerHeight} flexShrink={0}>
+        <Box height={layoutSizes.headerHeight} flexShrink={0}>
           <Header 
             title="HyperTerminal" 
             subtitle={`v0.2.0 | ${terminalSize.width}×${terminalSize.height}`}
@@ -225,25 +284,25 @@ export default function App() {
         {/* Main Content Area */}
         <Box 
           flexDirection="row" 
-          height={layout.mainContentHeight}
+          height={layoutSizes.mainContentHeight}
           flexShrink={0}
         >
           {/* Left: Main Terminal Area */}
           <Box 
-            width={layout.mainPanelWidth} 
+            width={layoutSizes.mainPanelWidth} 
             flexDirection="column"
             flexShrink={0}
           >
             <MainPanel 
               messages={messages} 
-              height={layout.mainContentHeight}
-              width={layout.mainPanelWidth}
+              height={layoutSizes.mainContentHeight}
+              width={layoutSizes.mainPanelWidth}
             />
           </Box>
 
           {/* Right: Sidebar */}
           <Box 
-            width={layout.sidebarWidth} 
+            width={layoutSizes.sidebarWidth} 
             flexDirection="column" 
             flexShrink={0}
             borderStyle="single" 
@@ -254,8 +313,8 @@ export default function App() {
               emails={emails}
               meetings={meetings}
               loading={loading}
-              height={layout.mainContentHeight}
-              width={layout.sidebarWidth}
+              height={layoutSizes.mainContentHeight}
+              width={layoutSizes.sidebarWidth}
             />
           </Box>
         </Box>
@@ -263,7 +322,7 @@ export default function App() {
         {/* Bottom Area */}
         <Box 
           flexDirection="row" 
-          height={layout.bottomPanelHeight}
+          height={layoutSizes.bottomPanelHeight}
           flexShrink={0}
         >
           {/* Bottom Left: Tasks */}
@@ -276,13 +335,16 @@ export default function App() {
             <TaskPanel 
               tasks={tasks} 
               onUpdateTask={updateTask}
-              height={layout.bottomPanelHeight}
+              onCompleteTask={completeTask}
+              onDeleteTask={deleteTask}
+              height={layoutSizes.bottomPanelHeight}
+              showToast={showToast}
             />
           </Box>
 
           {/* Bottom Right: Quick Stats */}
           <Box 
-            width={layout.sidebarWidth} 
+            width={layoutSizes.sidebarWidth} 
             flexShrink={0}
             borderStyle="single" 
             borderColor={theme.colors.border} 
@@ -291,7 +353,7 @@ export default function App() {
             <Text color={theme.colors.primary}>{icons.stats} Quick Stats</Text>
             <Box flexDirection="column" marginTop={1}>
               <Text color={theme.colors.text}>
-                {icons.task} {tasks.filter(t => t.status === 'pending').length} pending
+                {icons.pending} {tasks.filter(t => t.status === 'pending').length} pending
               </Text>
               <Text color={theme.colors.success}>
                 {icons.check} {tasks.filter(t => t.status === 'completed').length} done
@@ -310,11 +372,11 @@ export default function App() {
         </Box>
 
         {/* Input Bar */}
-        <Box height={layout.inputBarHeight} flexShrink={0}>
+        <Box height={layoutSizes.inputBarHeight} flexShrink={0}>
           <InputBar 
             onSubmit={handleInput} 
             mode={inputMode}
-            width={layout.width}
+            width={layoutSizes.width}
           />
         </Box>
 
@@ -326,10 +388,29 @@ export default function App() {
               setShowCommandPalette(false);
             }}
             onClose={() => setShowCommandPalette(false)}
-            width={Math.min(80, layout.width - 4)}
-            height={Math.min(20, layout.height - 8)}
+            width={Math.min(80, layoutSizes.width - 4)}
+            height={Math.min(20, layoutSizes.height - 8)}
           />
         )}
+
+        {/* Exit Confirmation Dialog */}
+        {showExitConfirm && (
+          <ConfirmDialog
+            title="Exit HyperTerminal?"
+            message={hasPendingTasks ? `You have ${tasks.filter(t => t.status === 'pending').length} pending tasks.` : undefined}
+            onConfirm={() => exit()}
+            onCancel={() => setShowExitConfirm(false)}
+          />
+        )}
+
+        {/* Toast Notifications */}
+        <Box position="absolute" marginTop={1} marginLeft={1} flexDirection="column">
+          {toasts.map((toast, index) => (
+            <Box key={toast.id} marginTop={index > 0 ? 1 : 0}>
+              <Toast type={toast.type} content={toast.content} />
+            </Box>
+          ))}
+        </Box>
       </Box>
     </FullScreen>
   );

@@ -2,7 +2,7 @@ import { Command } from "commander";
 import * as clack from "@clack/prompts";
 import chalk from "chalk";
 import { printMessage, printUsage, divider } from "../ui/output.js";
-import { theme, icons, formatHeader } from "../ui/theme.js";
+import { theme, icons, formatHeader } from "../theme/index.js";
 import { thinkingSpinner } from "../ui/spinner.js";
 import { sendMessageStream } from "../ai/client.js";
 import { getConfig } from "../utils/config.js";

@@ -14,7 +14,7 @@
  *   ╚══════════════╩══════════════╩═════════════════════╝
  */
 
-import { theme } from "./theme.js";
+import { theme, icons } from "../theme/index.js";
 import type { AgentRoleName } from "../agents/types.js";
 
 // ---------------------------------------------------------------------------
@@ -42,10 +42,10 @@ export interface AgentCard {
 // ---------------------------------------------------------------------------
 
 const STATUS_ICONS: Record<AgentStatus, string> = {
-  waiting: "⏳",
-  running: "⚡",
-  done:    "✅",
-  error:   "❌",
+  waiting: icons.waiting,
+  running: icons.running,
+  done:    icons.checkHeavy,
+  error:   icons.crossHeavy,
 };
 
 const STATUS_COLORS: Record<AgentStatus, (s: string) => string> = {
@@ -105,7 +105,7 @@ export function renderBoard(cards: AgentCard[], _goal: string, mode: string): st
   lines.push(
     theme.primary("│") +
     theme.heading(
-      pad(`  ${theme.primary("⬡")} Multi-Agent  ·  ${mode}  ·  ${cards.length} agents  `, totalW)
+      pad(`  ${icons.robot} Multi-Agent  ·  ${mode}  ·  ${cards.length} agents  `, totalW)
     ) +
     theme.primary("│")
   );

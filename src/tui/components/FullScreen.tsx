@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { useStdout } from 'ink';
+import { useStdout, useInput } from 'ink';
 
 interface FullScreenProps {
   children: React.ReactNode;
+  onReset?: () => void;
 }
 
 /**
@@ -12,8 +13,15 @@ interface FullScreenProps {
  * 3. Hides the cursor
  * 4. Restores everything on unmount
  */
-export function FullScreen({ children }: FullScreenProps) {
+export function FullScreen({ children, onReset }: FullScreenProps) {
   const { stdout } = useStdout();
+
+  // Handle reset key
+  useInput((input) => {
+    if ((input === 'r' || input === 'R') && onReset) {
+      onReset();
+    }
+  });
 
   useEffect(() => {
     // Enter alternate screen buffer

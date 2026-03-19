@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Text, useInput, useStdout } from 'ink';
-import { theme, icons, formatTime } from '../theme.js';
+import { Box, Text, useInput } from 'ink';
+import { theme, icons, formatTime, wrapTextLines } from '../../theme/index.js';
 import type { Message } from '../App.js';
 
 interface MainPanelProps {
@@ -11,12 +11,10 @@ interface MainPanelProps {
 
 export function MainPanel({ messages, height, width }: MainPanelProps) {
   const [scrollOffset, setScrollOffset] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<null>(null);
 
-  // Calculate visible message count based on height
-  // Header takes 2 rows, each message takes ~2-4 rows depending on content
-  const maxVisibleMessages = Math.max(3, Math.floor((height - 4) / 2));
+  // Estimate message height (each message takes ~2-4 rows)
+  const maxVisibleMessages = Math.max(3, Math.floor((height - 6) / 2));
   
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -27,6 +25,7 @@ export function MainPanel({ messages, height, width }: MainPanelProps) {
 
   // Handle scrolling
   useInput((_, key) => {
+    // Only handle scroll keys when main panel is focused
     if (key.upArrow) {
       setScrollOffset(prev => Math.max(0, prev - 1));
     }
@@ -91,12 +90,11 @@ export function MainPanel({ messages, height, width }: MainPanelProps) {
             {'\n'}Try: /help | "Add task buy milk"
           </Text>
         ) : (
-          visibleMessages.map((msg, idx) => (
+          visibleMessages.map((msg) => (
             <MessageItem 
               key={msg.id} 
               message={msg} 
               width={width - 4}
-              isSelected={selectedIndex === scrollOffset + idx}
             />
           ))
         )}
@@ -122,22 +120,17 @@ export function MainPanel({ messages, height, width }: MainPanelProps) {
 interface MessageItemProps {
   message: Message;
   width: number;
-  isSelected?: boolean;
 }
 
-function MessageItem({ message, width, isSelected }: MessageItemProps) {
+function MessageItem({ message, width }: MessageItemProps) {
   const timeStr = formatTime(message.timestamp);
-  const contentLines = wrapText(message.content, width - 20);
-  
-  const borderColor = isSelected ? theme.colors.primary : undefined;
+  const contentLines = wrapTextLines(message.content, width - 20);
   
   if (message.type === 'system') {
     return (
       <Box 
         marginY={0.5} 
         paddingX={1}
-        borderStyle={isSelected ? 'single' : undefined}
-        borderColor={borderColor}
       >
         <Text color={theme.colors.muted}>[{timeStr}] </Text>
         <Text color={theme.colors.info}>{message.content}</Text>
@@ -150,8 +143,6 @@ function MessageItem({ message, width, isSelected }: MessageItemProps) {
       <Box 
         marginY={0.5} 
         paddingX={1}
-        borderStyle={isSelected ? 'single' : undefined}
-        borderColor={borderColor}
       >
         <Text color={theme.colors.muted}>[{timeStr}] </Text>
         <Text color={theme.colors.accent} bold>{icons.user} You: </Text>
@@ -166,8 +157,6 @@ function MessageItem({ message, width, isSelected }: MessageItemProps) {
       marginY={0.5} 
       flexDirection="column"
       paddingX={1}
-      borderStyle={isSelected ? 'single' : undefined}
-      borderColor={borderColor}
     >
       <Box>
         <Text color={theme.colors.muted}>[{timeStr}] </Text>
@@ -182,35 +171,4 @@ function MessageItem({ message, width, isSelected }: MessageItemProps) {
       </Box>
     </Box>
   );
-}
-
-/**
- * Simple text wrapping function
- */
-function wrapText(text: string, maxWidth: number): string[] {
-  const lines: string[] = [];
-  const rawLines = text.split('\n');
-  
-  for (const line of rawLines) {
-    if (line.length <= maxWidth) {
-      lines.push(line);
-    } else {
-      // Simple word wrap
-      let currentLine = '';
-      const words = line.split(' ');
-      
-      for (const word of words) {
-        if ((currentLine + ' ' + word).length <= maxWidth) {
-          currentLine = currentLine ? currentLine + ' ' + word : word;
-        } else {
-          if (currentLine) lines.push(currentLine);
-          currentLine = word;
-        }
-      }
-      
-      if (currentLine) lines.push(currentLine);
-    }
-  }
-  
-  return lines;
 }

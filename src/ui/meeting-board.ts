@@ -15,6 +15,7 @@
  *  └─────────────────────────────────────────────────────────┘
  */
 
+import { icons } from "../theme/index.js";
 import type { MeetingConfig, MeetingParticipant, MeetingEvent } from "../agents/meeting.js";
 
 const isTTY = process.stderr.isTTY;
@@ -56,7 +57,7 @@ export class MeetingBoard {
 
   init(): void {
     if (!isTTY) {
-      process.stderr.write(`\n🏛️  Meeting: ${this.config.topic}\n`);
+      process.stderr.write(`\n${icons.meeting} Meeting: ${this.config.topic}\n`);
       process.stderr.write(`   Participants: ${this.config.participants.map((p) => p.name).join(", ")}\n\n`);
       return;
     }
@@ -83,7 +84,7 @@ export class MeetingBoard {
     if (card) card.status = "speaking";
     if (!isTTY) {
       const p = this.config.participants.find((x) => x.name === participantName);
-      process.stderr.write(`\n${p?.icon ?? "🤖"} ${participantName}:\n`);
+      process.stderr.write(`\n${p?.icon ?? icons.agent} ${participantName}:\n`);
     }
   }
 
@@ -104,7 +105,7 @@ export class MeetingBoard {
       this.livePreview = "";
       this.liveSpeaker = "";
     }
-    if (!isTTY) process.stderr.write(`\n✅ Done (${tokens} tokens)\n`);
+    if (!isTTY) process.stderr.write(`\n${icons.checkHeavy} Done (${tokens} tokens)\n`);
   }
 
   stop(summary?: string): void {
@@ -193,7 +194,7 @@ export class MeetingBoard {
     lines.push(topBorder);
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
     const elapsedStr = elapsed > 60 ? `${Math.floor(elapsed / 60)}m${elapsed % 60}s` : `${elapsed}s`;
-    const headerText = `🏛️  ${this.config.topic.slice(0, width - 30)}`;
+    const headerText = `${icons.meeting} ${this.config.topic.slice(0, width - 30)}`;
     lines.push(row(headerText));
     const subText = `Mode: ${this.config.mode}  │  Round ${this.currentRound}/${this.totalRounds}  │  ${elapsedStr} elapsed`;
     lines.push(row(`\x1b[90m${subText}\x1b[0m`));
@@ -206,7 +207,7 @@ export class MeetingBoard {
     // Icons + names row
     const nameRow = cards
       .map((c) => {
-        const icon = c.participant.icon ?? "🤖";
+        const icon = c.participant.icon ?? icons.agent;
         const name = `${icon} ${c.participant.name}`;
         return pad(`  ${name}`, cardWidth);
       })
@@ -228,7 +229,7 @@ export class MeetingBoard {
     const preview = this.liveSpeaker
       ? `\x1b[1m${this.liveSpeaker}\x1b[0m: ${this.livePreview.replace(/\n/g, " ").slice(-width + 20)}`
       : "\x1b[90m(waiting for next speaker...)\x1b[0m";
-    lines.push(row(`💬 ${preview}`));
+    lines.push(row(`${icons.chat} ${preview}`));
 
     lines.push(botBorder);
     return lines.join("\n") + "\n";
@@ -249,7 +250,7 @@ export class MeetingBoard {
       const padded = content + " ".repeat(Math.max(0, width - 4 - visible.length));
       return `│ ${padded} │`;
     };
-    lines.push(row(`✅ Meeting Complete: ${this.config.topic.slice(0, width - 25)}`));
+    lines.push(row(`${icons.checkHeavy} Meeting Complete: ${this.config.topic.slice(0, width - 25)}`));
     lines.push(row(`\x1b[90m${elapsed}s total  │  ${totalTok} tokens  │  ${this.config.rounds} rounds\x1b[0m`));
 
     if (summary) {
@@ -268,9 +269,9 @@ export class MeetingBoard {
 
 function statusLabel(card: ParticipantCard): string {
   switch (card.status) {
-    case "speaking": return "\x1b[33m⚡ speaking\x1b[0m";
-    case "done":     return `\x1b[32m✅ done (${card.tokens}t)\x1b[0m`;
-    case "waiting":  return "\x1b[90m⏳ waiting\x1b[0m";
-    case "idle":     return "\x1b[90m  idle\x1b[0m";
+    case "speaking": return `\x1b[33m${icons.running} speaking\x1b[0m`;
+    case "done":     return `\x1b[32m${icons.checkHeavy} done (${card.tokens}t)\x1b[0m`;
+    case "waiting":  return `\x1b[90m${icons.waiting} waiting\x1b[0m`;
+    case "idle":     return `\x1b[90m  idle\x1b[0m`;
   }
 }

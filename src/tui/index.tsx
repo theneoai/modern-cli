@@ -2,12 +2,20 @@
 import React from 'react';
 import { render } from 'ink';
 import App from './App.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
 
 // Suppress React dev warnings
 process.env.NODE_ENV = 'production';
 
 export function startTUI() {
-  const app = render(<App />);
+  const app = render(
+    <ErrorBoundary onReset={() => {
+      // Clear any problematic state and restart
+      console.clear();
+    }}>
+      <App />
+    </ErrorBoundary>
+  );
   
   // Handle cleanup on exit
   const cleanup = () => {

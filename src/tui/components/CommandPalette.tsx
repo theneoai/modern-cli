@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { theme, icons } from '../theme.js';
+import { theme, icons } from '../../theme/index.js';
 
 interface CommandPaletteProps {
   onSelect: (command: string) => void;
@@ -15,32 +15,68 @@ interface CommandItem {
   value: string;
   description: string;
   icon: string;
+  category: string;
 }
 
 const commands: CommandItem[] = [
-  { label: 'View Calendar', value: '/calendar', description: 'Show full calendar', icon: icons.calendar },
-  { label: 'View Emails', value: '/emails', description: 'Show all emails', icon: icons.email },
-  { label: 'View Meetings', value: '/meetings', description: 'Show all meetings', icon: icons.meeting },
-  { label: 'View Tasks', value: '/tasks', description: 'Show all tasks', icon: icons.task },
-  { label: 'Create Task', value: '/task add ', description: 'Add new task', icon: icons.add },
-  { label: 'Agent List', value: '/agents', description: 'List all agents', icon: icons.agent },
-  { label: 'Organization', value: '/orgs', description: 'List organizations', icon: '⚙️' },
-  { label: 'Refresh Data', value: '/refresh', description: 'Sync Google data', icon: '🔄' },
-  { label: 'Help', value: '/help', description: 'Show help', icon: '❓' },
-  { label: 'Clear Screen', value: '/clear', description: 'Clear terminal', icon: '🧹' },
-  { label: 'Exit', value: '/exit', description: 'Exit HyperTerminal', icon: '🚪' },
+  { label: 'View Calendar', value: '/calendar', description: 'Show full calendar', icon: icons.calendar, category: 'Google' },
+  { label: 'View Emails', value: '/emails', description: 'Show all emails', icon: icons.email, category: 'Google' },
+  { label: 'View Meetings', value: '/meetings', description: 'Show all meetings', icon: icons.meeting, category: 'Google' },
+  { label: 'Refresh Data', value: '/refresh', description: 'Sync Google data', icon: '↻', category: 'Google' },
+  { label: 'View Tasks', value: '/tasks', description: 'Show all tasks', icon: icons.check, category: 'Tasks' },
+  { label: 'Create Task', value: '/task add ', description: 'Add new task', icon: icons.add, category: 'Tasks' },
+  { label: 'Agent List', value: '/agents', description: 'List all agents', icon: icons.agent, category: 'Agents' },
+  { label: 'Organization', value: '/orgs', description: 'List organizations', icon: icons.building, category: 'Orgs' },
+  { label: 'Help', value: '/help', description: 'Show help', icon: '❓', category: 'System' },
+  { label: 'Clear Screen', value: '/clear', description: 'Clear terminal', icon: '🧹', category: 'System' },
+  { label: 'Exit', value: '/exit', description: 'Exit HyperTerminal', icon: '🚪', category: 'System' },
 ];
+
+/**
+ * Highlight matching text in a string
+ */
+function HighlightedText({ text, query, highlightColor }: { text: string; query: string; highlightColor: string }) {
+  if (!query) {
+    return <Text>{text}</Text>;
+  }
+  
+  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  
+  return (
+    <Text>
+      {parts.map((part, i) => {
+        const isMatch = part.toLowerCase() === query.toLowerCase();
+        return isMatch ? (
+          <Text key={i} color={theme.colors.background} backgroundColor={highlightColor} bold>
+            {part}
+          </Text>
+        ) : (
+          <Text key={i}>{part}</Text>
+        );
+      })}
+    </Text>
+  );
+}
 
 export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: CommandPaletteProps) {
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   
-  const filteredCommands = search 
-    ? commands.filter(cmd => 
-        cmd.label.toLowerCase().includes(search.toLowerCase()) ||
-        cmd.description.toLowerCase().includes(search.toLowerCase())
-      )
-    : commands;
+  const filteredCommands = useMemo(() => {
+    if (!search) return commands;
+    
+    const query = search.toLowerCase();
+    return commands.filter(cmd => 
+      cmd.label.toLowerCase().includes(query) ||
+      cmd.description.toLowerCase().includes(query) ||
+      cmd.category.toLowerCase().includes(query)
+    );
+  }, [search]);
+
+  // Reset selection when search changes
+  useMemo(() => {
+    setSelectedIndex(0);
+  }, [search]);
 
   useInput((input, key) => {
     if (key.escape) {
@@ -67,6 +103,9 @@ export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: C
     }
   });
 
+  const visibleCommands = filteredCommands.slice(0, height - 7);
+  const hasMore = filteredCommands.length > visibleCommands.length;
+
   return (
     <Box 
       position="absolute" 
@@ -84,6 +123,7 @@ export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: C
         <Text color={theme.colors.primary} bold>
           {icons.search} Command Palette
         </Text>
+        <Text color={theme.colors.muted}> ({filteredCommands.length} commands)</Text>
       </Box>
 
       <Box marginBottom={1}>
@@ -96,19 +136,58 @@ export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: C
       </Box>
 
       <Box flexDirection="column" flexGrow={1} overflow="hidden">
-        {filteredCommands.slice(0, height - 7).map((cmd, index) => (
-          <Box 
-            key={cmd.value}
-            paddingY={0.5}
-            paddingX={1}
-            backgroundColor={index === selectedIndex ? theme.colors.primary : undefined}
-          >
-            <Text color={index === selectedIndex ? theme.colors.background : theme.colors.text}>
-              {cmd.icon} <Text bold>{cmd.label}</Text>
-              <Text color={index === selectedIndex ? theme.colors.background : theme.colors.muted}> - {cmd.description}</Text>
+        {visibleCommands.length === 0 ? (
+          <Box paddingY={1}>
+            <Text color={theme.colors.muted} italic>
+              No commands match "{search}"
             </Text>
           </Box>
-        ))}
+        ) : (
+          visibleCommands.map((cmd, index) => {
+            const isSelected = index === selectedIndex;
+            const bgColor = isSelected ? theme.colors.primary : undefined;
+            const textColor = isSelected ? theme.colors.background : theme.colors.text;
+            const descColor = isSelected ? theme.colors.background : theme.colors.muted;
+            
+            return (
+              <Box 
+                key={cmd.value}
+                paddingY={0.5}
+                paddingX={1}
+                backgroundColor={bgColor}
+              >
+                <Text color={textColor}>
+                  {cmd.icon} {' '}
+                  <HighlightedText 
+                    text={cmd.label} 
+                    query={search} 
+                    highlightColor={isSelected ? theme.colors.accent : theme.colors.primary}
+                  />
+                  <Text color={descColor}>
+                    {' '} - {' '}
+                    <HighlightedText 
+                      text={cmd.description} 
+                      query={search}
+                      highlightColor={isSelected ? theme.colors.accent : theme.colors.primary}
+                    />
+                  </Text>
+                  {!search && (
+                    <Text color={isSelected ? theme.colors.background : theme.colors.border}>
+                      {' '}({cmd.category})
+                    </Text>
+                  )}
+                </Text>
+              </Box>
+            );
+          })
+        )}
+        {hasMore && (
+          <Box paddingY={0.5}>
+            <Text color={theme.colors.muted} italic>
+              +{filteredCommands.length - visibleCommands.length} more...
+            </Text>
+          </Box>
+        )}
       </Box>
 
       <Box marginTop={1} borderTop borderColor={theme.colors.border} paddingTop={1}>

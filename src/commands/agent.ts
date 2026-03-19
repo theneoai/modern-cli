@@ -54,7 +54,7 @@ import {
   listDepartments,
   getOrgStats,
 } from "../agents/org.js";
-import { theme, formatHeader, formatError, formatSuccess } from "../ui/theme.js";
+import { theme, formatHeader, formatError, formatSuccess } from "../theme/index.js";
 import { renderMarkdown } from "../ui/output.js";
 import { createSpinner } from "../ui/spinner.js";
 import { AgentBoard } from "../ui/agent-board.js";
