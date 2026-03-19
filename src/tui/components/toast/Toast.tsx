@@ -4,7 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
-import { theme, icons } from '../../../theme/index.js';
+import { tuiTheme, icons } from '../../../theme/index.js';
 import type { ToastMessage, ToastType } from '../../contexts/ToastContext.js';
 
 // ============================================================================
@@ -20,10 +20,10 @@ export interface ToastProps {
 // ============================================================================
 
 const toastConfig: Record<ToastType, { icon: string; color: string; bgColor?: string }> = {
-  success: { icon: icons.checkHeavy, color: theme.colors.success },
-  error: { icon: icons.error, color: theme.colors.error },
-  warning: { icon: icons.warning, color: theme.colors.warning },
-  info: { icon: icons.info, color: theme.colors.info },
+  success: { icon: icons.checkHeavy, color: tuiTheme.colors.success },
+  error: { icon: icons.error, color: tuiTheme.colors.error },
+  warning: { icon: icons.warning, color: tuiTheme.colors.warning },
+  info: { icon: icons.info, color: tuiTheme.colors.info },
 };
 
 export function Toast({ toast }: ToastProps) {
@@ -35,12 +35,12 @@ export function Toast({ toast }: ToastProps) {
       paddingY={1}
       borderStyle="round"
       borderColor={config.color}
-      backgroundColor={theme.colors.surface}
+      backgroundColor={tuiTheme.colors.surface}
     >
       <Text color={config.color} bold>
         {config.icon}
       </Text>
-      <Text color={theme.colors.text}>
+      <Text color={tuiTheme.colors.text}>
         {' '}{toast.content}
       </Text>
     </Box>
@@ -132,7 +132,7 @@ export function SimpleToast({ type, content }: SimpleToastProps) {
       <Text color={config.color} bold>
         {config.icon}
       </Text>
-      <Text color={theme.colors.text}>
+      <Text color={tuiTheme.colors.text}>
         {' '}{content}
       </Text>
     </Box>
