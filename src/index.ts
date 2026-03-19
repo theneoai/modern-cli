@@ -174,6 +174,190 @@ commentCmd
     console.log(chalk.green('✓ Comment added'));
   });
 
+// Analytics commands
+const analyticsCmd = program
+  .command('analytics')
+  .alias('an')
+  .description('Data analytics and insights');
+
+analyticsCmd
+  .command('health')
+  .description('Show system health score')
+  .action(() => {
+    const { getHealthScore } = require('./analytics/index.js');
+    
+    const health = getHealthScore();
+    console.log(chalk.cyan('\n🏥 System Health'));
+    console.log(`Overall: ${health.overall.toFixed(1)}%`);
+    console.log(chalk.gray('\nComponents:'));
+    for (const [name, comp] of Object.entries(health.components)) {
+      const color = comp.status === 'healthy' ? chalk.green : comp.status === 'warning' ? chalk.yellow : chalk.red;
+      console.log(`  ${color(`${comp.score.toFixed(0)}%`)} ${name}`);
+    }
+  });
+
+analyticsCmd
+  .command('insights')
+  .description('Show insights')
+  .action(() => {
+    const { generateInsights } = require('./analytics/index.js');
+    
+    const insights = generateInsights();
+    console.log(chalk.cyan('\n💡 Insights:'));
+    for (const insight of insights) {
+      console.log(`  • ${insight}`);
+    }
+  });
+
+analyticsCmd
+  .command('trend <metric>')
+  .description('Analyze trend (agent-executions, workflow-executions, cpu-usage, memory-usage)')
+  .option('--days <num>', 'Time range', '7')
+  .action((metric, opts) => {
+    const { getTimeSeries, analyzeTrend } = require('./analytics/index.js');
+    
+    const data = getTimeSeries(metric, { days: parseInt(opts.days) });
+    const trend = analyzeTrend(data);
+    
+    console.log(chalk.cyan(`\n📈 Trend: ${metric}`));
+    console.log(`Direction: ${trend.direction}`);
+    console.log(`Change: ${trend.changePercent.toFixed(2)}%`);
+    console.log(`Average: ${trend.average.toFixed(2)}`);
+    console.log(`Range: ${trend.min.toFixed(2)} - ${trend.max.toFixed(2)}`);
+    if (trend.forecast) {
+      console.log(`Forecast: ${trend.forecast.toFixed(2)}`);
+    }
+  });
+
+// Batch commands
+const batchCmd = program
+  .command('batch')
+  .description('Batch operations');
+
+batchCmd
+  .command('list')
+  .description('List batch jobs')
+  .action(() => {
+    const { listBatchJobs, initBatchTables } = require('./batch/index.js');
+    initBatchTables();
+    
+    const jobs = listBatchJobs();
+    console.log(chalk.cyan(`\n📦 Batch Jobs (${jobs.length}):`));
+    for (const job of jobs) {
+      const status = { pending: '⏳', running: '▶️', completed: '✓', failed: '✗' }[job.status];
+      console.log(`${status} ${chalk.bold(job.name)} ${chalk.gray(`(${job.operation} ${job.entityType})`)}`);
+      if (job.progress.total > 0) {
+        const pct = (job.progress.processed / job.progress.total * 100).toFixed(0);
+        console.log(`   Progress: ${pct}% (${job.progress.succeeded}/${job.progress.total})`);
+      }
+    }
+  });
+
+batchCmd
+  .command('create <name>')
+  .description('Create batch job')
+  .requiredOption('-o, --operation <op>', 'Operation: delete, update, tag, export')
+  .requiredOption('-t, --type <type>', 'Entity type')
+  .option('--tags <list>', 'Tags for tag operation')
+  .action((name, opts) => {
+    const { createBatchJob, initBatchTables } = require('./batch/index.js');
+    initBatchTables();
+    
+    const job = createBatchJob(name, opts.operation, opts.type, {}, 
+      opts.tags ? { tags: opts.tags.split(',') } : undefined
+    );
+    console.log(chalk.green(`✓ Created batch job: ${job.id}`));
+  });
+
+batchCmd
+  .command('run <id>')
+  .description('Execute batch job')
+  .action(async (id) => {
+    const { executeBatchJob, initBatchTables } = await import('./batch/index.js');
+    initBatchTables();
+    
+    console.log(chalk.cyan(`\n▶️ Executing batch job: ${id}`));
+    const job = await executeBatchJob(id);
+    console.log(chalk.green(`✓ Completed: ${job.progress.succeeded} succeeded`));
+  });
+
+// Notification template commands
+const notifTplCmd = program
+  .command('notify-template')
+  .alias('ntpl')
+  .description('Notification templates');
+
+notifTplCmd
+  .command('list')
+  .description('List templates')
+  .action(() => {
+    const { listTemplates, initNotificationTemplateTables } = require('./notifications-templates/index.js');
+    initNotificationTemplateTables();
+    
+    const templates = listTemplates();
+    console.log(chalk.cyan(`\n🔔 Notification Templates (${templates.length}):`));
+    for (const t of templates) {
+      console.log(`${chalk.bold(t.name)} ${chalk.gray(`[${t.category}]`)}`);
+      console.log(`  Title: ${t.title}`);
+      console.log(`  Channel: ${t.channel}, Priority: ${t.priority}`);
+      console.log(`  Variables: ${t.variables.join(', ')}`);
+      console.log();
+    }
+  });
+
+notifTplCmd
+  .command('presets')
+  .description('Create default templates')
+  .action(() => {
+    const { createDefaultTemplates, initNotificationTemplateTables } = require('./notifications-templates/index.js');
+    initNotificationTemplateTables();
+    createDefaultTemplates();
+    console.log(chalk.green('✓ Default templates created'));
+  });
+
+// Preferences commands
+const prefsCmd = program
+  .command('prefs')
+  .description('User preferences');
+
+prefsCmd
+  .command('show')
+  .description('Show preferences')
+  .action(() => {
+    const { getPreferences, initPreferencesTables } = require('./preferences/index.js');
+    initPreferencesTables();
+    
+    const prefs = getPreferences();
+    console.log(chalk.cyan('\n⚙️ Preferences:'));
+    console.log(`Theme: ${prefs.theme}`);
+    console.log(`Language: ${prefs.language}`);
+    console.log(`Timezone: ${prefs.timezone}`);
+    console.log(`Notifications: ${prefs.notifications.enabled ? 'on' : 'off'}`);
+    console.log(`Compact mode: ${prefs.display.compactMode ? 'on' : 'off'}`);
+  });
+
+prefsCmd
+  .command('set <key> <value>')
+  .description('Set preference')
+  .action((key, value) => {
+    const { updatePreferences, initPreferencesTables } = require('./preferences/index.js');
+    initPreferencesTables();
+    
+    updatePreferences('default', { [key]: value });
+    console.log(chalk.green(`✓ Updated: ${key} = ${value}`));
+  });
+
+prefsCmd
+  .command('reset')
+  .description('Reset to defaults')
+  .action(() => {
+    const { resetPreferences, initPreferencesTables } = require('./preferences/index.js');
+    initPreferencesTables();
+    
+    resetPreferences();
+    console.log(chalk.green('✓ Preferences reset to defaults'));
+  });
+
 // Version commands
 const versionCmd = program
   .command('version')
