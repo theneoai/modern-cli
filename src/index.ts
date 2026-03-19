@@ -174,6 +174,168 @@ commentCmd
     console.log(chalk.green('✓ Comment added'));
   });
 
+// API Key commands
+const apiKeyCmd = program
+  .command('apikey')
+  .description('API key management');
+
+apiKeyCmd
+  .command('list')
+  .description('List API keys')
+  .action(() => {
+    const { listApiKeys, initApiKeyTables } = require('./api-keys/index.js');
+    initApiKeyTables();
+    
+    const keys = listApiKeys();
+    console.log(chalk.cyan(`\n🔑 API Keys (${keys.length}):`));
+    for (const key of keys) {
+      const status = key.isActive ? chalk.green('●') : chalk.gray('○');
+      const expired = key.expiresAt && key.expiresAt < new Date() ? chalk.red(' [expired]') : '';
+      console.log(`${status} ${key.name} ${chalk.gray(key.keyPrefix + '...')}${expired}`);
+      console.log(`   Scopes: ${key.scopes.join(', ')}`);
+      if (key.lastUsedAt) console.log(`   Last used: ${key.lastUsedAt.toLocaleDateString()}`);
+    }
+  });
+
+apiKeyCmd
+  .command('create <name>')
+  .description('Create new API key')
+  .option('-s, --scopes <list>', 'Comma-separated scopes', 'read')
+  .option('-d, --days <num>', 'Expires in days')
+  .action((name, opts) => {
+    const { generateApiKey, initApiKeyTables } = require('./api-keys/index.js');
+    initApiKeyTables();
+    
+    const { key, apiKey } = generateApiKey(name, {
+      scopes: opts.scopes.split(','),
+      expiresInDays: opts.days ? parseInt(opts.days) : undefined,
+    });
+    
+    console.log(chalk.green('\n✓ API key created'));
+    console.log(chalk.yellow(`Key: ${key}`));
+    console.log(chalk.gray('Save this key - it will not be shown again'));
+    console.log(`ID: ${apiKey.id}`);
+  });
+
+apiKeyCmd
+  .command('revoke <id>')
+  .description('Revoke API key')
+  .action((id) => {
+    const { revokeApiKey, initApiKeyTables } = require('./api-keys/index.js');
+    initApiKeyTables();
+    
+    revokeApiKey(id);
+    console.log(chalk.green('✓ API key revoked'));
+  });
+
+apiKeyCmd
+  .command('rotate <id>')
+  .description('Rotate API key')
+  .action((id) => {
+    const { rotateApiKey, initApiKeyTables } = require('./api-keys/index.js');
+    initApiKeyTables();
+    
+    const result = rotateApiKey(id);
+    if (result) {
+      console.log(chalk.green('\n✓ API key rotated'));
+      console.log(chalk.yellow(`New key: ${result.key}`));
+      console.log(chalk.gray('Save this key - it will not be shown again'));
+    }
+  });
+
+apiKeyCmd
+  .command('stats')
+  .description('Show API key statistics')
+  .action(() => {
+    const { getApiKeyStats, initApiKeyTables } = require('./api-keys/index.js');
+    initApiKeyTables();
+    
+    const stats = getApiKeyStats();
+    console.log(chalk.cyan('\n📊 API Key Stats:'));
+    console.log(`Total: ${stats.total} | Active: ${stats.active} | Expired: ${stats.expired}`);
+    console.log(chalk.gray('By scope:'), stats.byScope);
+  });
+
+// Migration commands
+const migrateCmd = program
+  .command('migrate')
+  .description('Database migrations');
+
+migrateCmd
+  .command('status')
+  .description('Show migration status')
+  .action(() => {
+    const { getMigrationStatus } = require('./migrations/index.js');
+    
+    const status = getMigrationStatus();
+    console.log(chalk.cyan('\n🗄️ Migration Status:'));
+    console.log(`Current: v${status.currentVersion} | Latest: v${status.latestVersion}`);
+    console.log(`Pending: ${status.pending.length} | Applied: ${status.applied.length}`);
+    
+    if (status.pending.length > 0) {
+      console.log(chalk.yellow('\nPending migrations:'));
+      for (const m of status.pending) {
+        console.log(`  v${m.version}: ${m.name}`);
+      }
+    }
+  });
+
+migrateCmd
+  .command('up')
+  .description('Apply pending migrations')
+  .action(() => {
+    const { migrate } = require('./migrations/index.js');
+    
+    console.log(chalk.cyan('\n⬆️ Applying migrations...'));
+    const result = migrate();
+    
+    if (result.applied.length > 0) {
+      console.log(chalk.green(`✓ Applied ${result.applied.length} migrations`));
+      for (const m of result.applied) {
+        console.log(`  v${m.version}: ${m.name}`);
+      }
+    } else {
+      console.log(chalk.gray('No pending migrations'));
+    }
+    
+    if (result.errors.length > 0) {
+      console.log(chalk.red('\nErrors:'));
+      for (const e of result.errors) console.log(`  ${e}`);
+    }
+  });
+
+migrateCmd
+  .command('down [steps]')
+  .description('Rollback migrations')
+  .action((steps = '1') => {
+    const { rollback } = require('./migrations/index.js');
+    
+    console.log(chalk.cyan('\n⬇️ Rolling back...'));
+    const result = rollback(parseInt(steps));
+    
+    console.log(chalk.green(`✓ Rolled back ${result.rolledBack.length} migrations`));
+    for (const m of result.rolledBack) {
+      console.log(`  v${m.version}: ${m.name}`);
+    }
+  });
+
+migrateCmd
+  .command('verify')
+  .description('Verify database integrity')
+  .action(() => {
+    const { verifyIntegrity } = require('./migrations/index.js');
+    
+    const result = verifyIntegrity();
+    if (result.valid) {
+      console.log(chalk.green('✓ Database integrity verified'));
+    } else {
+      console.log(chalk.red('✗ Integrity issues found:'));
+      for (const issue of result.issues) {
+        console.log(`  ${issue}`);
+      }
+    }
+  });
+
 // Analytics commands
 const analyticsCmd = program
   .command('analytics')
