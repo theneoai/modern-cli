@@ -23,10 +23,10 @@ import {
 } from './index.js';
 import { ModalContainer } from './components/modal/index.js';
 import { ToastContainer } from './components/toast/index.js';
-import { MainPanel, TaskPanel } from './components/panel/index.js';
+import { MainPanel, TaskPanel, Sidebar } from './components/panel/index.js';
 import { FullScreen } from './components/FullScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import type { Message, Task } from './types/ui.js';
+import type { Message, Task, CalendarEvent, Email, Meeting } from './types/ui.js';
 
 // ============================================================================
 // Main App Component
@@ -109,6 +109,23 @@ function AppContent() {
     },
   ]);
   
+  // Demo sidebar data
+  const [events] = useState<CalendarEvent[]>([
+    { id: '1', title: 'Team Standup', startTime: new Date(), type: 'event' },
+    { id: '2', title: 'Lunch with Sarah', startTime: new Date(Date.now() + 3600000), type: 'event' },
+    { id: '3', title: 'Project Review', startTime: new Date(Date.now() + 7200000), type: 'event' },
+  ]);
+  
+  const [emails] = useState<Email[]>([
+    { id: '1', subject: 'Project Update', from: 'boss@company.com', preview: 'Here is the latest...', read: false, receivedAt: new Date(), priority: 'high' },
+    { id: '2', subject: 'Team Lunch', from: 'team@company.com', preview: 'Let us meet at...', read: true, receivedAt: new Date(Date.now() - 3600000), priority: 'normal' },
+  ]);
+  
+  const [meetings] = useState<Meeting[]>([
+    { id: '1', title: 'Weekly Sync', time: new Date(Date.now() + 3600000), duration: 30, attendees: 5 },
+    { id: '2', title: 'Design Review', time: new Date(Date.now() + 7200000), duration: 60, attendees: 3 },
+  ]);
+  
   // Task handlers
   const handleUpdateTask = useCallback((id: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
@@ -152,8 +169,17 @@ function AppContent() {
           focusId="main-panel"
         />
         
-        {/* Sidebar */}
-        {layout.panels.sidebar && <Sidebar />}
+        {/* Sidebar - 使用重构后的组件 */}
+        {layout.panels.sidebar && (
+          <Sidebar
+            events={events}
+            emails={emails}
+            meetings={meetings}
+            height={layout.layoutSizes.mainContentHeight}
+            width={layout.layoutSizes.sidebarWidth}
+            focusId="sidebar"
+          />
+        )}
       </Box>
       
       {/* Bottom Panel - 使用重构后的TaskPanel */}
@@ -241,29 +267,6 @@ function AppHeader() {
       <Box width="30%" justifyContent="flex-end">
         <Text color={theme.colors.success}>●</Text>
         <Text color={theme.colors.muted}> Connected</Text>
-      </Box>
-    </Box>
-  );
-}
-
-function Sidebar() {
-  const { layout } = useTUI();
-  
-  return (
-    <Box 
-      width={layout.layoutSizes.sidebarWidth}
-      height={layout.layoutSizes.mainContentHeight}
-      borderStyle="single"
-      borderColor={theme.colors.border}
-      padding={1}
-    >
-      <Text color={theme.colors.primary} bold>
-        {icons.calendar} Sidebar
-      </Text>
-      <Box marginTop={1}>
-        <Text color={theme.colors.muted}>
-          Calendar, Email, Meetings
-        </Text>
       </Box>
     </Box>
   );
