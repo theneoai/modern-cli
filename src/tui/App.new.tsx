@@ -7,7 +7,7 @@
  * 3. 可测试性：纯组件，依赖注入
  */
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Box, Text } from 'ink';
 import { theme, icons } from '../theme/index.js';
 import {
@@ -23,8 +23,10 @@ import {
 } from './index.js';
 import { ModalContainer } from './components/modal/index.js';
 import { ToastContainer } from './components/toast/index.js';
+import { MainPanel, TaskPanel } from './components/panel/index.js';
 import { FullScreen } from './components/FullScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import type { Message, Task } from './types/ui.js';
 
 // ============================================================================
 // Main App Component
@@ -59,6 +61,69 @@ function AppContent() {
   const { toasts } = useToast();
   const { currentView } = useView();
   
+  // Demo state
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      type: 'system',
+      content: 'Welcome to HyperTerminal! Type /help for commands.',
+      timestamp: new Date(),
+    },
+    {
+      id: '2',
+      type: 'user',
+      content: 'Hello, this is a demo message',
+      timestamp: new Date(Date.now() - 60000),
+    },
+    {
+      id: '3',
+      type: 'agent',
+      content: 'Hi there! How can I help you today?\nI can help with tasks, calendar, and more.',
+      timestamp: new Date(Date.now() - 30000),
+      agentName: 'Assistant',
+      agentIcon: '🤖',
+    },
+  ]);
+  
+  const [tasks, setTasks] = useState<Task[]>([
+    {
+      id: '1',
+      title: 'Review project proposal',
+      status: 'pending',
+      priority: 'high',
+      createdAt: new Date(),
+    },
+    {
+      id: '2',
+      title: 'Email team updates',
+      status: 'in_progress',
+      priority: 'medium',
+      createdAt: new Date(Date.now() - 86400000),
+    },
+    {
+      id: '3',
+      title: 'Prepare presentation',
+      status: 'pending',
+      priority: 'high',
+      createdAt: new Date(Date.now() - 172800000),
+    },
+  ]);
+  
+  // Task handlers
+  const handleUpdateTask = useCallback((id: string, updates: Partial<Task>) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  }, []);
+  
+  const handleCompleteTask = useCallback((id: string) => {
+    setTasks(prev => prev.map(t => 
+      t.id === id ? { ...t, status: 'completed' as const, completedAt: new Date() } : t
+    ));
+  }, []);
+  
+  const handleDeleteTask = useCallback((id: string) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }, []);
+  
   // Handle compact mode
   if (layout.isCompact) {
     return <CompactModeView />;
@@ -79,15 +144,39 @@ function AppContent() {
         height={layout.layoutSizes.mainContentHeight}
         flexShrink={0}
       >
-        {/* Main Panel */}
-        <MainPanel />
+        {/* Main Panel - 使用重构后的组件 */}
+        <MainPanel 
+          messages={messages}
+          height={layout.layoutSizes.mainContentHeight}
+          width={layout.layoutSizes.mainPanelWidth}
+          focusId="main-panel"
+        />
         
         {/* Sidebar */}
         {layout.panels.sidebar && <Sidebar />}
       </Box>
       
-      {/* Bottom Panel */}
-      {layout.panels.bottomPanel && <BottomPanel />}
+      {/* Bottom Panel - 使用重构后的TaskPanel */}
+      {layout.panels.bottomPanel && (
+        <Box 
+          height={layout.layoutSizes.bottomPanelHeight}
+          flexShrink={0}
+        >
+          <Box flexGrow={1}>
+            <TaskPanel
+              tasks={tasks}
+              onUpdateTask={handleUpdateTask}
+              onCompleteTask={handleCompleteTask}
+              onDeleteTask={handleDeleteTask}
+              height={layout.layoutSizes.bottomPanelHeight}
+              focusId="task-panel"
+            />
+          </Box>
+          <Box width={layout.layoutSizes.sidebarWidth}>
+            <StatsPanel tasks={tasks} />
+          </Box>
+        </Box>
+      )}
       
       {/* Input Bar */}
       <InputBar />
@@ -126,7 +215,6 @@ function CompactModeView() {
 
 function AppHeader() {
   const { layout } = useTUI();
-  const { showInfo } = useToast();
   
   return (
     <Box 
@@ -158,27 +246,6 @@ function AppHeader() {
   );
 }
 
-function MainPanel() {
-  const { layout } = useTUI();
-  const { currentView } = useView();
-  
-  return (
-    <Box 
-      width={layout.layoutSizes.mainPanelWidth}
-      height={layout.layoutSizes.mainContentHeight}
-      borderStyle="single"
-      borderColor={theme.colors.border}
-      padding={1}
-    >
-      <Text color={theme.colors.text}>
-        View: {currentView}
-        {'\n'}Main content area (placeholder)
-        {'\n'}Layout: {layout.layoutSizes.mainPanelWidth}x{layout.layoutSizes.mainContentHeight}
-      </Text>
-    </Box>
-  );
-}
-
 function Sidebar() {
   const { layout } = useTUI();
   
@@ -202,32 +269,32 @@ function Sidebar() {
   );
 }
 
-function BottomPanel() {
+interface StatsPanelProps {
+  tasks: Task[];
+}
+
+function StatsPanel({ tasks }: StatsPanelProps) {
   const { layout } = useTUI();
+  const pendingCount = tasks.filter(t => t.status === 'pending').length;
+  const completedCount = tasks.filter(t => t.status === 'completed').length;
   
   return (
     <Box 
       height={layout.layoutSizes.bottomPanelHeight}
-      flexShrink={0}
+      borderStyle="single"
+      borderColor={theme.colors.border}
+      padding={1}
     >
-      <Box 
-        flexGrow={1}
-        borderStyle="single"
-        borderColor={theme.colors.border}
-        padding={1}
-      >
-        <Text color={theme.colors.primary}>
-          {icons.check} Tasks
+      <Text color={theme.colors.primary}>{icons.stats} Quick Stats</Text>
+      <Box flexDirection="column" marginTop={1}>
+        <Text color={theme.colors.text}>
+          {icons.pending} {pendingCount} pending
         </Text>
-      </Box>
-      <Box 
-        width={layout.layoutSizes.sidebarWidth}
-        borderStyle="single"
-        borderColor={theme.colors.border}
-        padding={1}
-      >
-        <Text color={theme.colors.primary}>
-          {icons.stats} Stats
+        <Text color={theme.colors.success}>
+          {icons.check} {completedCount} done
+        </Text>
+        <Text color={theme.colors.info}>
+          {icons.check} {tasks.length} total
         </Text>
       </Box>
     </Box>
@@ -242,7 +309,6 @@ function InputBar() {
   
   useInput((input: string, key: any) => {
     if (key.tab) {
-      // Open command palette
       openPalette({
         items: [
           { id: '1', label: 'View Tasks', icon: icons.check },
