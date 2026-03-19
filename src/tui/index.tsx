@@ -7,11 +7,21 @@ import App from './App.js';
 process.env.NODE_ENV = 'production';
 
 export function startTUI() {
-  const { clear } = render(<App />);
+  const app = render(<App />);
   
-  // Handle cleanup
-  process.on('exit', () => {
-    clear();
+  // Handle cleanup on exit
+  const cleanup = () => {
+    app.unmount();
+  };
+
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => {
+    cleanup();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    cleanup();
+    process.exit(0);
   });
 }
 

@@ -6,6 +6,8 @@ import { theme, icons } from '../theme.js';
 interface CommandPaletteProps {
   onSelect: (command: string) => void;
   onClose: () => void;
+  width?: number;
+  height?: number;
 }
 
 interface CommandItem {
@@ -29,7 +31,7 @@ const commands: CommandItem[] = [
   { label: 'Exit', value: '/exit', description: 'Exit HyperTerminal', icon: '🚪' },
 ];
 
-export function CommandPalette({ onSelect, onClose }: CommandPaletteProps) {
+export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: CommandPaletteProps) {
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   
@@ -68,10 +70,10 @@ export function CommandPalette({ onSelect, onClose }: CommandPaletteProps) {
   return (
     <Box 
       position="absolute" 
-      marginLeft={25}
-      marginTop={10}
-      width={50} 
-      height={20}
+      marginLeft={Math.max(0, Math.floor((80 - width) / 4))}
+      marginTop={Math.max(0, Math.floor((24 - height) / 3))}
+      width={width} 
+      height={height}
       borderStyle="double"
       borderColor={theme.colors.primary}
       backgroundColor={theme.colors.surface}
@@ -93,8 +95,8 @@ export function CommandPalette({ onSelect, onClose }: CommandPaletteProps) {
         />
       </Box>
 
-      <Box flexDirection="column" flexGrow={1}>
-        {filteredCommands.map((cmd, index) => (
+      <Box flexDirection="column" flexGrow={1} overflow="hidden">
+        {filteredCommands.slice(0, height - 7).map((cmd, index) => (
           <Box 
             key={cmd.value}
             paddingY={0.5}
@@ -109,7 +111,7 @@ export function CommandPalette({ onSelect, onClose }: CommandPaletteProps) {
         ))}
       </Box>
 
-      <Box marginTop={1} borderStyle="single" borderColor={theme.colors.border} paddingTop={1}>
+      <Box marginTop={1} borderTop borderColor={theme.colors.border} paddingTop={1}>
         <Text color={theme.colors.muted}>
           ↑↓ Navigate | Enter Select | ESC Close
         </Text>

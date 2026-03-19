@@ -36,9 +36,11 @@ interface SidebarProps {
   emails: Email[];
   meetings: Meeting[];
   loading: boolean;
+  height: number;
+  width: number;
 }
 
-export function Sidebar({ events, emails, meetings, loading }: SidebarProps) {
+export function Sidebar({ events, emails, meetings, loading, height, width }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendar');
 
   if (loading) {

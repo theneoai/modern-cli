@@ -14,11 +14,13 @@ interface Task {
 interface TaskPanelProps {
   tasks: Task[];
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
+  height: number;
 }
 
-export function TaskPanel({ tasks, onUpdateTask }: TaskPanelProps) {
+export function TaskPanel({ tasks, onUpdateTask, height }: TaskPanelProps) {
   const pendingTasks = tasks.filter(t => t.status !== 'completed');
-  const recentTasks = pendingTasks.slice(0, 6);
+  const maxVisibleTasks = Math.max(2, Math.floor((height - 4) / 1.5));
+  const recentTasks = pendingTasks.slice(0, maxVisibleTasks);
 
   return (
     <Box flexDirection="column" padding={1} height="100%">
