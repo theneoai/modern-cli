@@ -6,7 +6,8 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { theme, icons } from '../../../theme/index.js';
-import { Focusable, FocusLayer } from '../../contexts/FocusContext.js';
+import { FocusLayer } from '../../contexts/FocusContext.js';
+import { Focusable } from '../ui/Focusable.js';
 import type { ViewType } from '../../contexts/ViewContext.js';
 
 interface FooterProps {

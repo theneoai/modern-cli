@@ -6,7 +6,8 @@
 import React, { useState } from 'react';
 import { Box, Text, type Key } from 'ink';
 import { theme, icons, formatTime, formatDate, truncate } from '../../../theme/index.js';
-import { Focusable, FocusLayer } from '../../contexts/FocusContext.js';
+import { FocusLayer } from '../../contexts/FocusContext.js';
+import { Focusable } from '../ui/Focusable.js';
 import { Selectable, SelectableItem } from '../ui/Selectable.js';
 import type { CalendarEvent, Email, Meeting } from '../../types/ui.js';
 

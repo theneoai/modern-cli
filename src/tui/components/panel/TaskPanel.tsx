@@ -6,7 +6,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Box, Text, type Key } from 'ink';
 import { theme, icons, truncate } from '../../../theme/index.js';
-import { Focusable, FocusLayer } from '../../contexts/FocusContext.js';
+import { FocusLayer } from '../../contexts/FocusContext.js';
+import { Focusable } from '../ui/Focusable.js';
 import { useToast } from '../../contexts/ToastContext.js';
 import { SelectableItem } from '../ui/Selectable.js';
 import type { Task, TaskStatus, TaskPriority } from '../../types/ui.js';

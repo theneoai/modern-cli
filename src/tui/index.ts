@@ -127,6 +127,67 @@ export type {
   ConfirmDialogProps,
 } from './components/modal/index.js';
 
+// Layout Components
+export {
+  Header,
+  CompactHeader,
+  StatusBar,
+  StatusItem,
+  Footer,
+  CompactFooter,
+  NavigationFooter,
+} from './components/layout/index.js';
+
+export type {
+  HeaderProps,
+  FooterProps,
+  Shortcut,
+} from './components/layout/index.js';
+
+// Panel Components
+export {
+  MainPanel,
+  TaskPanel,
+  Sidebar,
+} from './components/panel/index.js';
+
+export type {
+  MainPanelProps,
+  TaskPanelProps,
+  SidebarProps,
+} from './components/panel/index.js';
+
+// Input Components
+export {
+  InputBar,
+} from './components/input/index.js';
+
+export type {
+  InputBarProps,
+} from './components/input/index.js';
+
+// Utils
+export {
+  calculateCenterPosition,
+  calculateModalPosition,
+  calculateVisibleItems,
+  calculateScrollOffset,
+  calculateVisibleRange,
+  shouldShowScrollIndicators,
+  calculateProgress,
+  formatFileSize,
+  formatDuration,
+  truncateText,
+  calculateLineCount,
+  calculateColumnWidths,
+  createResponsiveLayout,
+} from './utils/index.js';
+
+export type {
+  ResponsiveLayout,
+  LayoutConfig,
+} from './utils/index.js';
+
 // Legacy components (kept for backward compatibility during migration)
 export { ErrorBoundary } from './components/ErrorBoundary.js';
 export { FullScreen } from './components/FullScreen.js';
