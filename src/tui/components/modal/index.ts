@@ -11,3 +11,5 @@ export type { ConfirmDialogProps } from './ConfirmDialogContent.js';
 export { CommandPaletteContent } from './CommandPaletteContent.js';
 
 export { InputDialogContent } from './InputDialogContent.js';
+
+export { HelpContent, QuickHelp } from './HelpContent.js';
