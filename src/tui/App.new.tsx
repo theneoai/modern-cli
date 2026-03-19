@@ -24,6 +24,7 @@ import {
 import { ModalContainer } from './components/modal/index.js';
 import { ToastContainer } from './components/toast/index.js';
 import { MainPanel, TaskPanel, Sidebar } from './components/panel/index.js';
+import { InputBar } from './components/input/index.js';
 import { FullScreen } from './components/FullScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import type { Message, Task, CalendarEvent, Email, Meeting } from './types/ui.js';
@@ -204,8 +205,15 @@ function AppContent() {
         </Box>
       )}
       
-      {/* Input Bar */}
-      <InputBar />
+      {/* Input Bar - 使用重构后的组件 */}
+      <InputBar
+        onSubmit={(input) => {
+          // Handle user input
+          console.log('Submitted:', input);
+        }}
+        placeholder="Type a message or command..."
+        mode="chat"
+      />
       
       {/* Overlays */}
       <ModalContainer />
@@ -300,46 +308,6 @@ function StatsPanel({ tasks }: StatsPanelProps) {
           {icons.check} {tasks.length} total
         </Text>
       </Box>
-    </Box>
-  );
-}
-
-function InputBar() {
-  const { layout } = useTUI();
-  const { openPalette } = useModal();
-  const { showInfo } = useToast();
-  const { useInput } = require('ink');
-  
-  useInput((input: string, key: any) => {
-    if (key.tab) {
-      openPalette({
-        items: [
-          { id: '1', label: 'View Tasks', icon: icons.check },
-          { id: '2', label: 'View Calendar', icon: icons.calendar },
-          { id: '3', label: 'Settings', icon: icons.settings },
-        ],
-        onSelect: (item) => showInfo(`Selected: ${item.label}`),
-      });
-    }
-  });
-  
-  return (
-    <Box 
-      height={layout.layoutSizes.inputBarHeight}
-      borderStyle="single"
-      borderColor={theme.colors.primary}
-      paddingX={1}
-      alignItems="center"
-      flexShrink={0}
-    >
-      <Text color={theme.colors.primary} bold>{'>'}</Text>
-      <Text color={theme.colors.muted}>
-        {' '}Type a message... (Tab for commands)
-      </Text>
-      <Box flexGrow={1} />
-      <Text color={theme.colors.muted}>
-        Tab:Cmds | ESC:Exit
-      </Text>
     </Box>
   );
 }
