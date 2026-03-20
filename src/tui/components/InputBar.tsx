@@ -143,12 +143,17 @@ export function InputBar({ onSubmit, mode, width }: InputBarProps) {
       return;
     }
 
-    // Character input
+    // Character input - handle one character at a time
     if (value && !key.ctrl && !key.meta) {
-      const newInput = input.slice(0, cursorPosition) + value + input.slice(cursorPosition);
+      // Filter out escape sequences (mouse events, etc)
+      const cleanValue = value.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+      if (cleanValue.length === 0) return;
+      
+      const char = cleanValue[0];
+      const newInput = input.slice(0, cursorPosition) + char + input.slice(cursorPosition);
       if (newInput.length <= layout.maxInputLength) {
         setInput(newInput);
-        setCursorPosition(cursorPosition + value.length);
+        setCursorPosition(cursorPosition + 1);
       }
     }
 
