@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import React from 'react';
 import { render } from 'ink';
-import App from './App.js';
+import FlowApp from './FlowApp.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 
 // Suppress React dev warnings
@@ -13,7 +13,7 @@ export function startTUI() {
       // Clear any problematic state and restart
       console.clear();
     }}>
-      <App />
+      <FlowApp />
     </ErrorBoundary>
   );
   
