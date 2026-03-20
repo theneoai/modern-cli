@@ -112,14 +112,18 @@ export default function App() {
     // Header: always 3 rows
     const headerHeight = layout.headerHeight;
     
+    // Focus indicator: 1 row
+    const focusIndicatorHeight = 1;
+    
     // Input bar: always 3 rows  
     const inputBarHeight = layout.inputBarHeight;
     
     // Bottom panel (tasks + stats): 25% of remaining or min 10
-    const bottomPanelHeight = Math.max(layout.minBottomPanelHeight, Math.floor((height - headerHeight - inputBarHeight) * 0.25));
+    const remainingHeight = height - headerHeight - focusIndicatorHeight - inputBarHeight;
+    const bottomPanelHeight = Math.max(layout.minBottomPanelHeight, Math.floor(remainingHeight * 0.25));
     
     // Main content area
-    const mainContentHeight = height - headerHeight - bottomPanelHeight - inputBarHeight;
+    const mainContentHeight = remainingHeight - bottomPanelHeight;
     
     // Sidebar width: responsive (max 40, min 25)
     const sidebarWidth = Math.min(layout.sidebarWidthMax, Math.max(layout.sidebarWidthMin, Math.floor(width * layout.sidebarWidthPercent)));
@@ -131,6 +135,7 @@ export default function App() {
       width,
       height,
       headerHeight,
+      focusIndicatorHeight,
       inputBarHeight,
       bottomPanelHeight,
       mainContentHeight,
@@ -327,7 +332,7 @@ export default function App() {
         </Box>
 
         {/* Focus indicator */}
-        <Box height={1} flexShrink={0}>
+        <Box height={layoutSizes.focusIndicatorHeight} flexShrink={0}>
           <Text color={theme.colors.muted}>
             Focus: {focusedPanel} | Tab:cycle | Ctrl+1/2/3/4:focus | ESC:exit
           </Text>
@@ -336,7 +341,7 @@ export default function App() {
         {/* Main Content Area */}
         <Box 
           flexDirection="row" 
-          height={layoutSizes.mainContentHeight - 1}
+          height={layoutSizes.mainContentHeight}
           flexShrink={0}
         >
           {/* Left: Main Terminal Area */}
@@ -347,7 +352,7 @@ export default function App() {
           >
             <MainPanel 
               messages={messages} 
-              height={layoutSizes.mainContentHeight - 1}
+              height={layoutSizes.mainContentHeight}
               width={layoutSizes.mainPanelWidth}
               isFocused={focusedPanel === 'main'}
             />
@@ -366,7 +371,7 @@ export default function App() {
               emails={emails}
               meetings={meetings}
               loading={loading}
-              height={layoutSizes.mainContentHeight - 1}
+              height={layoutSizes.mainContentHeight}
               width={layoutSizes.sidebarWidth}
               isFocused={focusedPanel === 'sidebar'}
             />
