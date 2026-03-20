@@ -213,4 +213,4 @@ export { default as App } from './App.js';
 export { default as Workbench } from './Workbench.js';
 
 // Entry point
-export { startTUI } from './index';
+export { startTUI } from './entry.js';
