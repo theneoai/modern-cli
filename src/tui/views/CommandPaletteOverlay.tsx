@@ -1,8 +1,6 @@
 /**
  * CommandPaletteOverlay.tsx - Ctrl+K 命令面板
- *
- * 模糊搜索 + 分类展示所有可用命令
- * 按 Enter 执行, ESC 关闭
+ * 模糊搜索 + 分类展示全部命令
  */
 
 import React, { useState, useMemo } from 'react';
@@ -20,24 +18,45 @@ interface PaletteItem {
 }
 
 const ALL_COMMANDS: PaletteItem[] = [
-  // Mode switching
-  { label: '对话模式', value: '/chat', desc: '切换到 AI 对话视图', icon: '💬', category: '视图', shortcut: 'Ctrl+1' },
-  { label: '任务模式', value: '/tasks', desc: '切换到任务管理视图', icon: '✓', category: '视图', shortcut: 'Ctrl+2' },
-  { label: 'Agent 模式', value: '/agents', desc: '切换到 AI Agent 视图', icon: '⚙', category: '视图', shortcut: 'Ctrl+3' },
+  // 视图切换
+  { label: '对话 CHAT',   value: '/chat',   desc: 'AI 流式对话',          icon: '💬', category: '视图', shortcut: 'Ctrl+1' },
+  { label: '任务 TASKS',  value: '/tasks',  desc: 'Vim 风格任务管理',       icon: '✓',  category: '视图', shortcut: 'Ctrl+2' },
+  { label: '笔记 NOTES',  value: '/notes',  desc: '快速笔记双栏视图',       icon: '📝', category: '视图', shortcut: 'Ctrl+3' },
+  { label: 'AGENTS',     value: '/agents', desc: '6 个内置 AI Agent',      icon: '⚙',  category: '视图', shortcut: 'Ctrl+4' },
 
-  // AI actions
-  { label: '新建对话', value: '/new', desc: '清空历史, 开始新对话', icon: '✦', category: 'AI', shortcut: 'Ctrl+N' },
-  { label: '清空对话', value: '/clear', desc: '清空当前对话内容', icon: '○', category: 'AI', shortcut: 'Ctrl+L' },
-  { label: '研究员 Agent', value: '/agents', desc: '启动研究员 Agent 分析任务', icon: '🔍', category: 'AI' },
-  { label: '工程师 Agent', value: '/agents', desc: '启动工程师 Agent 编写代码', icon: '⚙', category: 'AI' },
+  // AI 对话
+  { label: '新建对话',    value: '/new',    desc: '清空历史开始新对话',      icon: '✦',  category: 'AI',  shortcut: 'Ctrl+N' },
+  { label: '清空对话',    value: '/clear',  desc: '清空当前对话',            icon: '○',  category: 'AI',  shortcut: 'Ctrl+L' },
 
-  // Tasks
-  { label: '创建任务', value: '/task ', desc: '快速创建新任务 (补充标题)', icon: '＋', category: '任务' },
-  { label: '查看任务', value: '/tasks', desc: '查看所有待处理任务', icon: '≡', category: '任务' },
+  // 效率工具
+  { label: '今日规划',    value: '/plan',      desc: 'AI 生成今日时间块计划',  icon: '📅', category: '效率' },
+  { label: '站会内容',    value: '/standup',   desc: 'AI 生成站会发言稿',     icon: '🗣', category: '效率' },
+  { label: '每日回顾',    value: '/review',    desc: 'AI 分析今日完成情况',   icon: '🔄', category: '效率' },
+  { label: '番茄 25min', value: '/timer 25',  desc: '开始 25 分钟专注计时',  icon: '⏱', category: '效率' },
+  { label: '休息 5min',  value: '/timer 5',   desc: '开始 5 分钟休息计时',   icon: '☕', category: '效率' },
+  { label: '停止计时',    value: '/stop',      desc: '停止当前番茄计时',      icon: '⏹', category: '效率' },
 
-  // System
-  { label: '查看帮助', value: '/help', desc: '键盘快捷键完整参考', icon: '?', category: '系统', shortcut: '?' },
-  { label: '退出程序', value: '/exit', desc: '退出 HyperTerminal', icon: '×', category: '系统' },
+  // 任务
+  { label: '创建任务',    value: '/task ',     desc: '添加新任务 (补充标题)', icon: '＋', category: '任务' },
+
+  // 笔记
+  { label: '快速记录',    value: '/note ',     desc: '添加笔记 (补充内容)',   icon: '✏', category: '笔记' },
+
+  // 开发
+  { label: '代码生成',    value: '/code ',     desc: '用 AI 实现功能代码',    icon: '⚙', category: '开发' },
+  { label: '调试助手',    value: '/debug ',    desc: '分析错误并给出修复方案', icon: '🔧', category: '开发' },
+  { label: '代码解释',    value: '/explain ',  desc: '解释代码或技术概念',    icon: '💡', category: '开发' },
+  { label: '代码重构',    value: '/refactor ', desc: '重构优化代码质量',      icon: '♻', category: '开发' },
+
+  // 写作
+  { label: '内容写作',    value: '/write ',    desc: '生成各类文字内容',      icon: '✍', category: '写作' },
+  { label: '深度研究',    value: '/research ', desc: '深入分析某个主题',      icon: '🔍', category: '写作' },
+  { label: '内容总结',    value: '/summary ',  desc: '提炼核心要点',          icon: '📋', category: '写作' },
+  { label: '翻译',        value: '/translate ',desc: '中英文互译',            icon: '🌐', category: '写作' },
+
+  // 系统
+  { label: '快捷键帮助',  value: '/help',   desc: '查看完整快捷键参考',      icon: '?',  category: '系统', shortcut: '?' },
+  { label: '退出',        value: '/exit',   desc: '退出 HyperTerminal',      icon: '×',  category: '系统' },
 ];
 
 interface CommandPaletteOverlayProps {
@@ -49,21 +68,19 @@ interface CommandPaletteOverlayProps {
 }
 
 export function CommandPaletteOverlay({
-  width, height, mode, onSelect, onClose,
+  width, height, onSelect, onClose,
 }: CommandPaletteOverlayProps) {
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
 
-  // Fuzzy filter
   const filtered = useMemo(() => {
     if (!query) return ALL_COMMANDS;
     const q = query.toLowerCase();
-    return ALL_COMMANDS.filter(
-      c =>
-        c.label.toLowerCase().includes(q) ||
-        c.desc.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q) ||
-        c.value.toLowerCase().includes(q)
+    return ALL_COMMANDS.filter(c =>
+      c.label.toLowerCase().includes(q) ||
+      c.desc.toLowerCase().includes(q) ||
+      c.category.toLowerCase().includes(q) ||
+      c.value.toLowerCase().includes(q)
     );
   }, [query]);
 
@@ -74,36 +91,19 @@ export function CommandPaletteOverlay({
 
   useInput((ch, key) => {
     if (key.escape) { onClose(); return; }
-
-    if (key.upArrow) {
-      setCursor(prev => Math.max(0, prev - 1));
-      return;
-    }
-    if (key.downArrow) {
-      setCursor(prev => Math.min(filtered.length - 1, prev + 1));
-      return;
-    }
-
+    if (key.upArrow) { setCursor(prev => Math.max(0, prev - 1)); return; }
+    if (key.downArrow) { setCursor(prev => Math.min(filtered.length - 1, prev + 1)); return; }
     if (key.return) {
       const item = filtered[safeCursor];
       if (item) onSelect(item.value);
       return;
     }
-
-    if (key.backspace) {
-      setQuery(prev => prev.slice(0, -1));
-      setCursor(0);
-      return;
-    }
-
-    if (ch && !key.ctrl && !key.meta) {
-      setQuery(prev => prev + ch);
-      setCursor(0);
-    }
+    if (key.backspace) { setQuery(prev => prev.slice(0, -1)); setCursor(0); return; }
+    if (ch && !key.ctrl && !key.meta) { setQuery(prev => prev + ch); setCursor(0); }
   });
 
-  // Group by category for display
-  const categories = [...new Set(ALL_COMMANDS.map(c => c.category))];
+  // Collect unique categories for display
+  const cats = [...new Set(ALL_COMMANDS.map(c => c.category))];
 
   return (
     <Box
@@ -117,16 +117,16 @@ export function CommandPaletteOverlay({
       borderColor={theme.colors.primary}
       backgroundColor={theme.colors.surface}
     >
-      {/* Header */}
+      {/* Title bar */}
       <Box height={1} paddingX={2} alignItems="center">
         <Text color={theme.colors.primary} bold>⌘ 命令面板</Text>
-        <Text color={theme.colors.muted}> — {filtered.length} 个命令</Text>
+        <Text color={theme.colors.muted}> {filtered.length}/{ALL_COMMANDS.length} 命令</Text>
         <Box flexGrow={1} justifyContent="flex-end">
           <Text color={theme.colors.muted}>ESC 关闭</Text>
         </Box>
       </Box>
 
-      {/* Search input */}
+      {/* Search box */}
       <Box
         height={3}
         borderStyle="single"
@@ -137,7 +137,7 @@ export function CommandPaletteOverlay({
       >
         <Text color={theme.colors.primary}>🔍 </Text>
         {query.length === 0 ? (
-          <Text color={theme.colors.muted}>输入命令名称或描述...</Text>
+          <Text color={theme.colors.muted}>输入命令名 / 描述 / 分类...</Text>
         ) : (
           <>
             <Text color={theme.colors.text}>{query}</Text>
@@ -150,32 +150,35 @@ export function CommandPaletteOverlay({
       <Box flexDirection="column" flexGrow={1} overflow="hidden" paddingX={1} marginTop={1}>
         {filtered.length === 0 ? (
           <Box marginTop={1}>
-            <Text color={theme.colors.muted}>无匹配命令 "{query}"</Text>
+            <Text color={theme.colors.muted}>无匹配: "{query}"</Text>
           </Box>
         ) : (
           visible.map((item, idx) => {
             const actualIdx = scrollStart + idx;
-            const isSelected = actualIdx === safeCursor;
+            const isSel = actualIdx === safeCursor;
             return (
               <Box
-                key={item.value + item.label}
+                key={`${item.value}-${item.label}`}
                 paddingX={1}
-                backgroundColor={isSelected ? theme.colors.primary : undefined}
+                backgroundColor={isSel ? theme.colors.primary : undefined}
               >
-                <Text color={isSelected ? theme.colors.background : theme.colors.text}>
+                <Text color={isSel ? theme.colors.background : theme.colors.muted}>
                   {item.icon}
                 </Text>
                 <Text
-                  color={isSelected ? theme.colors.background : theme.colors.text}
-                  bold={isSelected}
+                  color={isSel ? theme.colors.background : theme.colors.text}
+                  bold={isSel}
                 >
-                  {' '}{item.label}
+                  {'  '}{item.label}
                 </Text>
-                <Text color={isSelected ? theme.colors.background : theme.colors.muted}>
-                  {' — '}{item.desc}
+                <Text color={isSel ? theme.colors.background : theme.colors.muted}>
+                  {'  '}{item.desc}
                 </Text>
-                {item.shortcut && !isSelected && (
+                {item.shortcut && !isSel && (
                   <Text color={theme.colors.border}> [{item.shortcut}]</Text>
+                )}
+                {!query && !isSel && (
+                  <Text color={theme.colors.border}> {item.category}</Text>
                 )}
               </Box>
             );
@@ -187,7 +190,7 @@ export function CommandPaletteOverlay({
       <Box height={1} paddingX={2}>
         <Text color={theme.colors.muted}>↑↓:选择  Enter:执行  ESC:取消</Text>
         {!query && (
-          <Text color={theme.colors.muted}>  类别: {categories.join(' · ')}</Text>
+          <Text color={theme.colors.muted}>  {cats.join(' · ')}</Text>
         )}
       </Box>
     </Box>

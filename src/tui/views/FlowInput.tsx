@@ -16,21 +16,42 @@ import { tuiTheme as theme } from '../../theme/index.js';
 import type { AppMode } from '../FlowApp.js';
 
 const COMMANDS = [
-  { cmd: '/chat',   desc: '切换到对话模式' },
-  { cmd: '/tasks',  desc: '切换到任务模式' },
-  { cmd: '/agents', desc: '切换到 Agent 模式' },
-  { cmd: '/task',   desc: '创建新任务: /task 标题' },
-  { cmd: '/todo',   desc: '创建新任务 (别名)' },
-  { cmd: '/clear',  desc: '清空对话历史' },
-  { cmd: '/new',    desc: '新建对话' },
-  { cmd: '/help',   desc: '查看帮助' },
-  { cmd: '/exit',   desc: '退出程序' },
+  // 视图
+  { cmd: '/chat',      desc: '对话模式 (Ctrl+1)' },
+  { cmd: '/tasks',     desc: '任务模式 (Ctrl+2)' },
+  { cmd: '/notes',     desc: '笔记模式 (Ctrl+3)' },
+  { cmd: '/agents',    desc: 'Agent 模式 (Ctrl+4)' },
+  // 效率
+  { cmd: '/plan',      desc: 'AI 生成今日计划' },
+  { cmd: '/standup',   desc: 'AI 生成站会内容' },
+  { cmd: '/review',    desc: 'AI 每日工作回顾' },
+  { cmd: '/timer',     desc: '番茄计时: /timer 25' },
+  { cmd: '/stop',      desc: '停止番茄计时' },
+  // 创建
+  { cmd: '/task',      desc: '创建任务: /task 标题' },
+  { cmd: '/note',      desc: '记录笔记: /note 内容' },
+  // 开发
+  { cmd: '/code',      desc: '代码生成: /code 需求' },
+  { cmd: '/debug',     desc: '调试: /debug 错误信息' },
+  { cmd: '/explain',   desc: '解释代码/概念' },
+  { cmd: '/refactor',  desc: '重构代码' },
+  // 写作
+  { cmd: '/write',     desc: '内容写作' },
+  { cmd: '/research',  desc: '深度研究某主题' },
+  { cmd: '/summary',   desc: '内容总结提炼' },
+  { cmd: '/translate', desc: '中英互译' },
+  // 系统
+  { cmd: '/new',       desc: '新建对话 (Ctrl+N)' },
+  { cmd: '/clear',     desc: '清空对话 (Ctrl+L)' },
+  { cmd: '/help',      desc: '快捷键帮助 (?)' },
+  { cmd: '/exit',      desc: '退出' },
 ];
 
 const PLACEHOLDERS: Record<AppMode, string> = {
-  chat:   '与 AI 对话... (/ 输入命令, ↑↓ 历史, Ctrl+K 命令面板)',
-  tasks:  'todo 任务标题 — 或 /task 标题 创建任务',
-  agents: '描述你的目标, AI Agent 将执行... 或 Tab 聚焦 Agent 面板',
+  chat:   '与 AI 对话... | todo X | note X | timer 25 | /plan /standup /code /debug',
+  tasks:  'todo 任务标题  /task 标题  — 或 Tab 用键盘管理任务',
+  notes:  'note 快速记录内容  /note 内容  — 或 Tab 聚焦笔记面板',
+  agents: '描述目标让 Agent 执行... — 或 Tab 选择 Agent',
 };
 
 interface FlowInputProps {
