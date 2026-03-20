@@ -38,6 +38,7 @@ interface SidebarProps {
   loading: boolean;
   height: number;
   width: number;
+  isFocused?: boolean;
 }
 
 const tabs: { id: TabType; label: string; icon: string }[] = [
@@ -78,11 +79,13 @@ function SidebarSkeleton({ height, width }: { height: number; width: number }) {
   );
 }
 
-export function Sidebar({ events, emails, meetings, loading, height, width }: SidebarProps) {
+export function Sidebar({ events, emails, meetings, loading, height, width, isFocused = false }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendar');
 
-  // Handle tab switching with number keys
+  // Handle tab switching with number keys - only when focused
   useInput((input, key) => {
+    if (!isFocused) return;
+    
     // Number keys 1, 2, 3 switch tabs
     if (input === '1') setActiveTab('calendar');
     if (input === '2') setActiveTab('email');

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Box, Text, useInput } from 'ink';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Box, Text, useInput, useStdin } from 'ink';
 import { tuiTheme as theme, icons, formatTime, wrapTextLines } from '../../theme/index.js';
 import type { Message } from '../App.js';
 
@@ -7,47 +7,49 @@ interface MainPanelProps {
   messages: Message[];
   height: number;
   width: number;
+  isFocused?: boolean;
 }
 
-export function MainPanel({ messages, height, width }: MainPanelProps) {
+export function MainPanel({ messages, height, width, isFocused = true }: MainPanelProps) {
   const [scrollOffset, setScrollOffset] = useState(0);
-  const messagesEndRef = useRef<null>(null);
+  const { isRawModeSupported } = useStdin();
 
   // Estimate message height (each message takes ~2-4 rows)
-  const maxVisibleMessages = Math.max(3, Math.floor((height - 6) / 2));
+  const maxVisibleMessages = useMemo(() => 
+    Math.max(3, Math.floor((height - 6) / 2)),
+    [height]
+  );
   
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive (only if already near bottom)
   useEffect(() => {
-    if (messages.length > maxVisibleMessages) {
+    const isNearBottom = scrollOffset >= Math.max(0, messages.length - maxVisibleMessages - 2);
+    if (isNearBottom && messages.length > maxVisibleMessages) {
       setScrollOffset(Math.max(0, messages.length - maxVisibleMessages));
     }
-  }, [messages.length, maxVisibleMessages]);
+  }, [messages.length, maxVisibleMessages]); // 不依赖 scrollOffset 避免循环
 
-  // Handle scrolling
+  // Handle scrolling - only when focused and raw mode supported
   useInput((_, key) => {
-    // Only handle scroll keys when main panel is focused
+    if (!isFocused || !isRawModeSupported) return;
+    
+    // Only handle scroll keys (not regular input)
     if (key.upArrow) {
       setScrollOffset(prev => Math.max(0, prev - 1));
-    }
-    if (key.downArrow) {
+    } else if (key.downArrow) {
       setScrollOffset(prev => Math.min(
         Math.max(0, messages.length - maxVisibleMessages),
         prev + 1
       ));
-    }
-    if (key.pageUp) {
+    } else if (key.pageUp) {
       setScrollOffset(prev => Math.max(0, prev - maxVisibleMessages));
-    }
-    if (key.pageDown) {
+    } else if (key.pageDown) {
       setScrollOffset(prev => Math.min(
         Math.max(0, messages.length - maxVisibleMessages),
         prev + maxVisibleMessages
       ));
-    }
-    if (key.home) {
+    } else if (key.home) {
       setScrollOffset(0);
-    }
-    if (key.end) {
+    } else if (key.end) {
       setScrollOffset(Math.max(0, messages.length - maxVisibleMessages));
     }
   });

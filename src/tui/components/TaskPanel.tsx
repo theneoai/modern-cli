@@ -18,9 +18,10 @@ interface TaskPanelProps {
   onDeleteTask: (id: string) => void;
   height: number;
   showToast?: (type: 'success' | 'error' | 'warning' | 'info', content: string) => void;
+  isFocused?: boolean;
 }
 
-export function TaskPanel({ tasks, onUpdateTask, onCompleteTask, onDeleteTask, height, showToast }: TaskPanelProps) {
+export function TaskPanel({ tasks, onUpdateTask, onCompleteTask, onDeleteTask, height, showToast, isFocused = false }: TaskPanelProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showCompleted, setShowCompleted] = useState(false);
   
@@ -33,6 +34,8 @@ export function TaskPanel({ tasks, onUpdateTask, onCompleteTask, onDeleteTask, h
   const hasMoreTasks = displayTasks.length > maxVisibleTasks;
 
   useInput((input, key) => {
+    if (!isFocused) return;
+    
     if (key.upArrow) {
       setSelectedIndex(prev => Math.max(0, prev - 1));
     }

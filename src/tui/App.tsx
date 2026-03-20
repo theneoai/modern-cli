@@ -92,9 +92,10 @@ export default function App() {
   // Calculate dynamic layout sizes
   const layoutSizes = useMemo(() => {
     const { width, height } = terminalSize;
+    const tooSmall = width < layout.minWidth || height < layout.minHeight;
     
     // If terminal too small, return minimal layout
-    if (isTerminalTooSmall) {
+    if (tooSmall) {
       return {
         width,
         height,
@@ -137,7 +138,7 @@ export default function App() {
       mainPanelWidth,
       isCompact: false,
     };
-  }, [terminalSize, isTerminalTooSmall]);
+  }, [terminalSize]);
 
   // Handle user input
   const handleInput = useCallback(async (input: string) => {
