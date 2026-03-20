@@ -7,6 +7,7 @@ interface InputBarProps {
   onSubmit: (input: string) => void;
   mode: 'command' | 'chat';
   width: number;
+  isFocused?: boolean;
 }
 
 interface Suggestion {
@@ -28,7 +29,7 @@ const commandSuggestions: Suggestion[] = [
   { command: '/exit', description: 'Exit' },
 ];
 
-export function InputBar({ onSubmit, mode, width }: InputBarProps) {
+export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarProps) {
   const [input, setInput] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const [placeholder, setPlaceholder] = useState('Type a message... (Tab for commands)');
@@ -63,6 +64,9 @@ export function InputBar({ onSubmit, mode, width }: InputBarProps) {
   }, [input]);
 
   useInput((value, key) => {
+    // Only handle input when focused
+    if (!isFocused) return;
+    
     // Handle suggestion navigation
     if (suggestions.length > 0) {
       if (key.downArrow) {

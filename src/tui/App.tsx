@@ -44,7 +44,7 @@ export default function App() {
   });
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [isComposing, setIsComposing] = useState(false);
+  const [focusedPanel, setFocusedPanel] = useState<'input' | 'main' | 'sidebar' | 'tasks'>('input');
   
   const { tasks, addTask, updateTask, completeTask, deleteTask, hasPendingTasks } = useTasks();
   const { events, emails, meetings, loading, refreshData } = useGoogleData();
@@ -225,18 +225,62 @@ export default function App() {
       return;
     }
 
-    if (key.escape) {
-      if (showCommandPalette) {
+    // Handle command palette
+    if (showCommandPalette) {
+      if (key.escape) {
         setShowCommandPalette(false);
-      } else if (hasPendingTasks) {
+      }
+      // Command palette handles its own keyboard input
+      return;
+    }
+
+    if (key.escape) {
+      if (hasPendingTasks) {
         setShowExitConfirm(true);
       } else {
         exit();
       }
+      return;
     }
     
-    if (key.tab) {
-      setShowCommandPalette(prev => !prev);
+    // Tab to cycle through panels (when not in input)
+    if (key.tab && !key.shift) {
+      setFocusedPanel(prev => {
+        const panels: ('input' | 'main' | 'sidebar' | 'tasks')[] = ['input', 'main', 'sidebar', 'tasks'];
+        const currentIndex = panels.indexOf(prev);
+        return panels[(currentIndex + 1) % panels.length];
+      });
+      return;
+    }
+    
+    // Shift+Tab to cycle backwards
+    if (key.tab && key.shift) {
+      setFocusedPanel(prev => {
+        const panels: ('input' | 'main' | 'sidebar' | 'tasks')[] = ['input', 'main', 'sidebar', 'tasks'];
+        const currentIndex = panels.indexOf(prev);
+        return panels[(currentIndex - 1 + panels.length) % panels.length];
+      });
+      return;
+    }
+    
+    // Quick focus shortcuts
+    if (key.ctrl) {
+      if (input === '1') {
+        setFocusedPanel('input');
+        return;
+      }
+      if (input === '2') {
+        setFocusedPanel('main');
+        return;
+      }
+      if (input === '3') {
+        setFocusedPanel('sidebar');
+        return;
+      }
+      if (input === '4') {
+        setFocusedPanel('tasks');
+        return;
+      }
     }
     
     if (key.ctrl && input === 'c') {
@@ -282,10 +326,17 @@ export default function App() {
           />
         </Box>
 
+        {/* Focus indicator */}
+        <Box height={1} flexShrink={0}>
+          <Text color={theme.colors.muted}>
+            Focus: {focusedPanel} | Tab:cycle | Ctrl+1/2/3/4:focus | ESC:exit
+          </Text>
+        </Box>
+
         {/* Main Content Area */}
         <Box 
           flexDirection="row" 
-          height={layoutSizes.mainContentHeight}
+          height={layoutSizes.mainContentHeight - 1}
           flexShrink={0}
         >
           {/* Left: Main Terminal Area */}
@@ -296,8 +347,9 @@ export default function App() {
           >
             <MainPanel 
               messages={messages} 
-              height={layoutSizes.mainContentHeight}
+              height={layoutSizes.mainContentHeight - 1}
               width={layoutSizes.mainPanelWidth}
+              isFocused={focusedPanel === 'main'}
             />
           </Box>
 
@@ -314,8 +366,9 @@ export default function App() {
               emails={emails}
               meetings={meetings}
               loading={loading}
-              height={layoutSizes.mainContentHeight}
+              height={layoutSizes.mainContentHeight - 1}
               width={layoutSizes.sidebarWidth}
+              isFocused={focusedPanel === 'sidebar'}
             />
           </Box>
         </Box>
@@ -331,7 +384,7 @@ export default function App() {
             flexGrow={1} 
             flexShrink={0}
             borderStyle="single" 
-            borderColor={theme.colors.border}
+            borderColor={focusedPanel === 'tasks' ? theme.colors.primary : theme.colors.border}
           >
             <TaskPanel 
               tasks={tasks} 
@@ -340,6 +393,7 @@ export default function App() {
               onDeleteTask={deleteTask}
               height={layoutSizes.bottomPanelHeight}
               showToast={showToast}
+              isFocused={focusedPanel === 'tasks'}
             />
           </Box>
 
@@ -373,11 +427,17 @@ export default function App() {
         </Box>
 
         {/* Input Bar */}
-        <Box height={layoutSizes.inputBarHeight} flexShrink={0}>
+        <Box 
+          height={layoutSizes.inputBarHeight} 
+          flexShrink={0}
+          borderStyle={focusedPanel === 'input' ? 'double' : 'single'}
+          borderColor={focusedPanel === 'input' ? theme.colors.primary : theme.colors.border}
+        >
           <InputBar 
             onSubmit={handleInput} 
             mode={inputMode}
-            width={layoutSizes.width}
+            width={layoutSizes.width - 2}
+            isFocused={focusedPanel === 'input'}
           />
         </Box>
 
