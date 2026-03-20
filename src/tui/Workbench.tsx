@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout, Spacer } from 'ink';
-import { theme, icons, layout, formatTime, formatDate, truncate } from '../theme/index.js';
+import { tuiTheme as theme, icons, layout, formatTime, formatDate, truncate } from '../theme/index.js';
 import type { 
   Team, TeamMember, Channel, Message, TeamWorkflow, 
   WorkflowExecution, PresenceStatus, Task as TeamTask 

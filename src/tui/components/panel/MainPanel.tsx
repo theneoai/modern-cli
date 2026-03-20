@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Box, Text, type Key } from 'ink';
-import { theme, icons, formatTime, wrapTextLines } from '../../../theme/index.js';
+import { tuiTheme as theme, icons, formatTime, wrapTextLines } from '../../../theme/index.js';
 import { useScrollable, useScrollableKeyboard } from '../../hooks/useScrollable.js';
 import { FocusLayer } from '../../contexts/FocusContext.js';
 import { Focusable } from '../ui/Focusable.js';

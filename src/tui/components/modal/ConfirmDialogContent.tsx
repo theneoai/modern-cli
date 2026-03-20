@@ -4,7 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { theme, icons } from '../../../theme/index.js';
+import { tuiTheme as theme, icons } from '../../../theme/index.js';
 import type { ConfirmOptions } from '../../contexts/ModalContext.js';
 import { useModal } from '../../contexts/ModalContext.js';
 

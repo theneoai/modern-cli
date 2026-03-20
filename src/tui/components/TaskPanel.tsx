@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { theme, icons, truncate } from '../../theme/index.js';
+import { tuiTheme as theme, icons, truncate } from '../../theme/index.js';
 
 interface Task {
   id: string;

@@ -5,7 +5,7 @@
 
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
-import { theme } from '../../../theme/index.js';
+import { tuiTheme as theme } from '../../../theme/index.js';
 import { useFocusZone, FocusLayer, type UseFocusZoneOptions } from '../../contexts/FocusContext.js';
 import { type Key } from 'ink';
 

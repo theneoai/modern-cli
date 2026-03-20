@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
-import { theme, icons, layout } from '../../theme/index.js';
+import { tuiTheme as theme, icons, layout } from '../../theme/index.js';
 import { useInputHistory } from '../hooks/useTasks.js';
 
 interface InputBarProps {

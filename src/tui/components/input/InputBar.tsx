@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
-import { theme, icons, layout as layoutConfig } from '../../../theme/index.js';
+import { tuiTheme as theme, icons, layout as layoutConfig } from '../../../theme/index.js';
 import { useToast } from '../../contexts/ToastContext.js';
 import { useModal, type PaletteItem } from '../../contexts/ModalContext.js';
 import { useTUI } from '../../contexts/TUIProvider.js';

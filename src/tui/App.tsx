@@ -13,7 +13,7 @@ import { Toast } from './components/Toast.js';
 import { useTasks } from './hooks/useTasks.js';
 import { useGoogleData } from './hooks/useGoogleData.js';
 import { useCommandParser } from './hooks/useCommandParser.js';
-import { theme, icons, layout } from '../theme/index.js';
+import { tuiTheme as theme, icons, layout } from '../theme/index.js';
 
 export interface Message {
   id: string;

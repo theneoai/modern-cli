@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { theme, icons, formatTime, wrapTextLines } from '../../theme/index.js';
+import { tuiTheme as theme, icons, formatTime, wrapTextLines } from '../../theme/index.js';
 import type { Message } from '../App.js';
 
 interface MainPanelProps {

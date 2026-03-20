@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { theme, icons } from '../../../theme/index.js';
+import { tuiTheme as theme, icons } from '../../../theme/index.js';
 import type { InputOptions } from '../../contexts/ModalContext.js';
 import { useModal } from '../../contexts/ModalContext.js';
 

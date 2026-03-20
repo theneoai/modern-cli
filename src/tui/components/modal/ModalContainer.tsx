@@ -5,7 +5,7 @@
 
 import React, { useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { theme } from '../../../theme/index.js';
+import { tuiTheme as theme } from '../../../theme/index.js';
 import { useModal, type ModalState } from '../../contexts/ModalContext.js';
 
 // ============================================================================

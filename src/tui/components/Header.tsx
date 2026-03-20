@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import { theme, icons } from '../../theme/index.js';
+import { tuiTheme as theme, icons } from '../../theme/index.js';
 
 interface HeaderProps {
   title: string;

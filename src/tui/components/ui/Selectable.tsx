@@ -5,7 +5,7 @@
 
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
-import { theme, icons } from '../../../theme/index.js';
+import { tuiTheme as theme, icons } from '../../../theme/index.js';
 import { useSelectable, type UseSelectableOptions } from '../../hooks/useScrollable.js';
 import { FocusLayer, useFocusZone } from '../../contexts/FocusContext.js';
 import { type Key } from 'ink';

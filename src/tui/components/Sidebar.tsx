@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { theme, icons, formatTime, formatDate, truncate } from '../../theme/index.js';
+import { tuiTheme as theme, icons, formatTime, formatDate, truncate } from '../../theme/index.js';
 
 type TabType = 'calendar' | 'email' | 'meetings';
 
