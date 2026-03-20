@@ -33,13 +33,12 @@ export function FullScreen({ children, onReset }: FullScreenProps) {
     // Clear screen
     stdout.write('\u001B[2J\u001B[H');
     
-    // Enable mouse support (optional, for clickable elements)
-    stdout.write('\u001B[?1000h\u001B[?1002h\u001B[?1015h\u001B[?1006h');
+    // Note: Mouse support disabled to prevent input corruption
+    // Mouse events are sent as escape sequences that useInput can't handle properly
+    // See: https://github.com/vadimdemedes/ink/issues/xxx
 
     // Cleanup function
     return () => {
-      // Disable mouse support
-      stdout.write('\u001B[?1006l\u001B[?1015l\u001B[?1002l\u001B[?1000l');
       
       // Show cursor
       stdout.write('\u001B[?25h');
