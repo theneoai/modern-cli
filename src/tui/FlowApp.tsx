@@ -35,19 +35,22 @@ import { recordAnalyticsRound, type TaskType } from './plugins/analytics.js';
 import type { LoadedPlugin, StatusContext, PluginContext } from '../sdk/plugin.js';
 import { autonomousEngine, type AutonomousTask } from './agents/AutonomousEngine.js';
 import { companion, type CompanionMessage } from './companion/Companion.js';
-import { CompanionView } from './views/CompanionView.js';
+import { companionMemory } from './companion/CompanionMemory.js';
+import { CompanionDashboard } from './views/CompanionDashboard.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'chat' | 'tasks' | 'notes' | 'agents' | 'plugins' | 'companion';
+export type AppMode = 'chat' | 'tasks' | 'notes' | 'agents' | 'plugins';
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool';
+  role: 'user' | 'assistant' | 'system' | 'tool' | 'companion';
   content: string;
   timestamp: Date;
   streaming?: boolean;
   tokenCount?: number;
+  /** companion emotion emoji when role==='companion' */
+  companionEmotion?: string;
 }
 
 export interface Task {
@@ -128,10 +131,9 @@ export default function FlowApp() {
   const [statusWidgets, setStatusWidgets] = useState<string[]>([]);
   const [, forceUpdate] = useState(0);  // for plugin widget refresh
 
-  // Companion state
-  const [companionMessages, setCompanionMessages] = useState<CompanionMessage[]>([]);
+  // Companion state — messages appear inline in main chat
   const [companionThinking, setCompanionThinking] = useState(false);
-  const [companionBadge, setCompanionBadge] = useState(0);  // unseen messages
+  const [showCompanionDash, setShowCompanionDash] = useState(false);
 
   // Pomodoro timer
   const [timer, setTimer] = useState<TimerState>({
@@ -251,19 +253,20 @@ export default function FlowApp() {
     return () => autonomousEngine.destroy();
   }, []);
 
-  // Init companion
+  // Init companion — inject companion messages into main chat stream
   useEffect(() => {
     companion.init(
       sendMessageStream,
       (msg: CompanionMessage) => {
-        setCompanionMessages(prev => [...prev, msg]);
-        // Badge increment if not currently viewing companion
-        setCompanionBadge(prev => prev + 1);
+        setMessages(prev => [...prev, {
+          id: msg.id,
+          role: 'companion',
+          content: msg.content,
+          timestamp: msg.at,
+          companionEmotion: msg.emotion,
+        }]);
       },
-      () => {
-        // Emotional state changed — re-render
-        forceUpdate(n => n + 1);
-      },
+      () => forceUpdate(n => n + 1),
     );
     return () => companion.destroy();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -446,14 +449,15 @@ export default function FlowApp() {
 
       switch (cmd) {
         // ── Mode switching ──────────────────────────────────────────────
-        case 'chat':      case '1': setMode('chat');      return;
-        case 'tasks':     case '2': setMode('tasks');     return;
-        case 'notes':     case '3': setMode('notes');     return;
-        case 'agents':    case '4': setMode('agents');    return;
-        case 'plugins':   case '5': setMode('plugins');   return;
-        case 'companion': case 'mate': case '6':
-          setMode('companion');
-          setCompanionBadge(0);
+        case 'chat':    case '1': setMode('chat');    return;
+        case 'tasks':   case '2': setMode('tasks');   return;
+        case 'notes':   case '3': setMode('notes');   return;
+        case 'agents':  case '4': setMode('agents');  return;
+        case 'plugins': case '5': setMode('plugins'); return;
+
+        // ── Companion dashboard ─────────────────────────────────────────
+        case 'companion': case 'mate': case 'neo':
+          setShowCompanionDash(true);
           return;
 
         // ── Chat management ─────────────────────────────────────────────
@@ -679,12 +683,27 @@ export default function FlowApp() {
       return;
     }
 
-    // COMPANION mode → chat with companion
-    if (mode === 'companion') {
+    // @neo prefix → talk directly to companion
+    if (input.startsWith('@neo ') || input.startsWith('@n ')) {
+      const text = input.replace(/^@n(?:eo)?\s+/, '');
+      if (!text) return;
+      // Add user message to chat
+      setMessages(prev => [...prev, {
+        id: `user-neo-${Date.now()}`,
+        role: 'user',
+        content: input,
+        timestamp: new Date(),
+      }]);
       setCompanionThinking(true);
       try {
-        const reply = await companion.chat(input);
-        setCompanionMessages(prev => [...prev, reply]);
+        const reply = await companion.chat(text);
+        setMessages(prev => [...prev, {
+          id: reply.id,
+          role: 'companion',
+          content: reply.content,
+          timestamp: reply.at,
+          companionEmotion: reply.emotion,
+        }]);
       } finally {
         setCompanionThinking(false);
       }
@@ -724,12 +743,12 @@ export default function FlowApp() {
     if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
-    if (key.ctrl && ch === '1') { setMode('chat');      return; }
-    if (key.ctrl && ch === '2') { setMode('tasks');     return; }
-    if (key.ctrl && ch === '3') { setMode('notes');     return; }
-    if (key.ctrl && ch === '4') { setMode('agents');    return; }
-    if (key.ctrl && ch === '5') { setMode('plugins');   return; }
-    if (key.ctrl && ch === '6') { setMode('companion'); setCompanionBadge(0); return; }
+    if (key.ctrl && ch === '1') { setMode('chat');    return; }
+    if (key.ctrl && ch === '2') { setMode('tasks');   return; }
+    if (key.ctrl && ch === '3') { setMode('notes');   return; }
+    if (key.ctrl && ch === '4') { setMode('agents');  return; }
+    if (key.ctrl && ch === '5') { setMode('plugins'); return; }
+    if (key.ctrl && ch === '6') { setShowCompanionDash(p => !p); return; }
 
     // Quick capture: Ctrl+T = task, Ctrl+Shift+N = note (without Ctrl+N conflict)
     if (key.ctrl && ch === 't') { setCapture({ mode: 'task', text: '' }); return; }
@@ -764,6 +783,11 @@ export default function FlowApp() {
   const runningAgents = autonomousEngine.list().filter(t => t.status === 'running').length;
   const timerPct = timer.active && timer.total > 0 ? Math.floor((timer.seconds / timer.total) * 100) : 0;
   const activePlugins = pluginList.filter(p => p.enabled).length;
+
+  // Companion mood from memory
+  const companionEmotional = companionMemory.getEmotional();
+  const companionMoodEmoji = companionEmotional.mood > 0.5 ? '😊' : companionEmotional.mood > 0.1 ? '🙂' : companionEmotional.mood > -0.2 ? '😐' : '😔';
+  const companionPersona = companionMemory.getPersona();
 
   return (
     <Box flexDirection="column" width={termSize.width} height={termSize.height}>
@@ -805,12 +829,11 @@ export default function FlowApp() {
         {/* Left: logo + numbered mode tabs */}
         <Box flexShrink={0}>
           <Text color={theme.colors.primary} bold>◆ </Text>
-          <CompactTab n={1} label="CHAT"     badge={undefined}             mode="chat"      active={mode} onClick={setMode} />
+          <CompactTab n={1} label="CHAT"    badge={undefined}             mode="chat"    active={mode} onClick={setMode} />
           <CompactTab n={2} label="TASKS"   badge={pendingCount || undefined} mode="tasks"   active={mode} onClick={setMode} />
           <CompactTab n={3} label="NOTES"   badge={notes.length || undefined} mode="notes"   active={mode} onClick={setMode} />
           <CompactTab n={4} label="AGENTS"  badge={runningAgents > 0 ? runningAgents : undefined} mode="agents"  active={mode} onClick={setMode} />
           <CompactTab n={5} label="PLUGINS" badge={activePlugins > 0 ? activePlugins : undefined} mode="plugins" active={mode} onClick={setMode} />
-          <CompactTab n={6} label="NEO♥"    badge={companionBadge > 0 ? companionBadge : undefined} mode="companion" active={mode} onClick={(m) => { setMode(m); setCompanionBadge(0); }} />
         </Box>
 
         {/* Right: status (minimal) */}
@@ -830,9 +853,15 @@ export default function FlowApp() {
           {totalTokens > 0 && (
             <Text color={theme.colors.muted}>{formatTokens(totalTokens)}  </Text>
           )}
+          {/* Companion mood — always visible, click Ctrl+6 to open dashboard */}
+          {companionThinking ? (
+            <Text color={theme.colors.accent}>💝 ✦  </Text>
+          ) : (
+            <Text color={theme.colors.accent}>💝{companionMoodEmoji} </Text>
+          )}
           {/* Provider/Model + hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^M ^K ?</Text>
+          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^6 ^M ^K ?</Text>
         </Box>
       </Box>
 
@@ -898,24 +927,6 @@ export default function FlowApp() {
             statusCtx={statusCtx}
           />
         )}
-        {mode === 'companion' && (
-          <CompanionView
-            messages={companionMessages}
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            isThinking={companionThinking}
-            onSendMessage={async (text) => {
-              setCompanionThinking(true);
-              try {
-                const reply = await companion.chat(text);
-                setCompanionMessages(prev => [...prev, reply]);
-              } finally {
-                setCompanionThinking(false);
-              }
-            }}
-          />
-        )}
       </Box>
 
       {/* ── Input Bar ── */}
@@ -962,6 +973,37 @@ export default function FlowApp() {
             void handleInput(cmd);
           }}
           onClose={() => setShowPalette(false)}
+        />
+      )}
+      {showCompanionDash && (
+        <CompanionDashboard
+          width={Math.min(80, termSize.width - 4)}
+          height={Math.min(30, termSize.height - 4)}
+          onClose={() => setShowCompanionDash(false)}
+          onChat={async (text) => {
+            setShowCompanionDash(false);
+            setMode('chat');
+            // Add user message then companion reply
+            setMessages(prev => [...prev, {
+              id: `user-neo-${Date.now()}`,
+              role: 'user',
+              content: `@neo ${text}`,
+              timestamp: new Date(),
+            }]);
+            setCompanionThinking(true);
+            try {
+              const reply = await companion.chat(text);
+              setMessages(prev => [...prev, {
+                id: reply.id,
+                role: 'companion',
+                content: reply.content,
+                timestamp: reply.at,
+                companionEmotion: reply.emotion,
+              }]);
+            } finally {
+              setCompanionThinking(false);
+            }
+          }}
         />
       )}
     </Box>

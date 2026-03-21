@@ -45,15 +45,16 @@ const COMMANDS: CmdDef[] = [
   { cmd: '/timer',    short: '/ti', desc: '番茄计时',       args: '<分钟>' },
   { cmd: '/stop',     desc: '停止计时' },
   // 系统
-  { cmd: '/chat',     desc: '切换到对话 (Ctrl+1)' },
-  { cmd: '/tasks',    desc: '切换到任务 (Ctrl+2)' },
-  { cmd: '/notes',    desc: '切换到笔记 (Ctrl+3)' },
-  { cmd: '/agents',   desc: '切换到 Agent (Ctrl+4)' },
-  { cmd: '/plugins',  desc: '切换到插件 (Ctrl+5)' },
-  { cmd: '/new',      desc: '新建对话 (Ctrl+N)' },
-  { cmd: '/clear',    short: '/cl', desc: '清空 (Ctrl+L)' },
-  { cmd: '/help',     short: '/h',  desc: '帮助 (?)' },
-  { cmd: '/quit',     short: '/q',  desc: '退出' },
+  { cmd: '/chat',      desc: '切换到对话 (Ctrl+1)' },
+  { cmd: '/tasks',     desc: '切换到任务 (Ctrl+2)' },
+  { cmd: '/notes',     desc: '切换到笔记 (Ctrl+3)' },
+  { cmd: '/agents',    desc: '切换到 Agent (Ctrl+4)' },
+  { cmd: '/plugins',   desc: '切换到插件 (Ctrl+5)' },
+  { cmd: '/companion', short: '/mate', desc: '打开 Neo 关系看板 (Ctrl+6)' },
+  { cmd: '/new',       desc: '新建对话 (Ctrl+N)' },
+  { cmd: '/clear',     short: '/cl', desc: '清空 (Ctrl+L)' },
+  { cmd: '/help',      short: '/h',  desc: '帮助 (?)' },
+  { cmd: '/quit',      short: '/q',  desc: '退出' },
 ];
 
 // ── Context Hints ─────────────────────────────────────────────────────────────
@@ -65,8 +66,8 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
     { key: '/d', label: '调试' },
     { key: '/rs', label: '研究' },
     { key: '/plan', label: '规划' },
-    { key: 'ti N', label: '计时' },
-    { key: '⌘K', label: '面板' },
+    { key: '@neo', label: '和助理聊' },
+    { key: '^6', label: '助理看板' },
   ],
   tasks: [
     { key: 'Enter', label: '创建任务' },
@@ -96,30 +97,22 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
     { key: 'j/k', label: '导航' },
     { key: 'Tab', label: '详情' },
   ],
-  companion: [
-    { key: 'Enter', label: '发送消息' },
-    { key: 'Tab→↑↓', label: '滚动记录' },
-    { key: 'c', label: '配置伴侣' },
-    { key: 'Ctrl+6', label: '切换' },
-  ],
 };
 
 const MODE_COLORS: Record<AppMode, string> = {
-  chat:      theme.colors.primary,
-  tasks:     theme.colors.success,
-  notes:     theme.colors.info,
-  agents:    theme.colors.accent,
-  plugins:   theme.colors.warning,
-  companion: theme.colors.accent,
+  chat:    theme.colors.primary,
+  tasks:   theme.colors.success,
+  notes:   theme.colors.info,
+  agents:  theme.colors.accent,
+  plugins: theme.colors.warning,
 };
 
 const MODE_ICONS: Record<AppMode, string> = {
-  chat:      '◆',
-  tasks:     '☐',
-  notes:     '📝',
-  agents:    '🤖',
-  plugins:   '⚡',
-  companion: '💝',
+  chat:    '◆',
+  tasks:   '☐',
+  notes:   '📝',
+  agents:  '🤖',
+  plugins: '⚡',
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -360,12 +353,11 @@ function buildHint(
 
 function getPlaceholder(mode: AppMode): string {
   switch (mode) {
-    case 'chat':      return '发消息给 AI，或 / 触发命令';
-    case 'tasks':     return '直接输入即创建任务，/ 触发命令';
-    case 'notes':     return '直接输入即记录笔记，/ 触发命令';
-    case 'agents':    return '描述 Agent 目标，或 Tab 选择';
-    case 'plugins':   return '搜索插件或输入命令';
-    case 'companion': return '和 Neo 聊天...';
+    case 'chat':    return '发消息给 AI · @neo 和助理聊天 · / 触发命令';
+    case 'tasks':   return '直接输入即创建任务，/ 触发命令';
+    case 'notes':   return '直接输入即记录笔记，/ 触发命令';
+    case 'agents':  return '描述 Agent 目标，或 Tab 选择';
+    case 'plugins': return '搜索插件或输入命令';
   }
 }
 

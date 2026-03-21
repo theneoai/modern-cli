@@ -32,7 +32,9 @@ type LineEntry =
   | { kind: 'user-line'; text: string; last: boolean }
   | { kind: 'ai-header'; streaming: boolean; tokCount?: number; time: string }
   | { kind: 'ai-line'; text: string; streaming: boolean; last: boolean }
-  | { kind: 'sys-line'; text: string };
+  | { kind: 'sys-line'; text: string }
+  | { kind: 'companion-header'; emotion: string; time: string }
+  | { kind: 'companion-line'; text: string; last: boolean };
 
 export function ChatView({ messages, height, width, isFocused, streamingId }: ChatViewProps) {
   const [scrollOffset, setScrollOffset] = useState(0);
@@ -86,7 +88,7 @@ export function ChatView({ messages, height, width, isFocused, streamingId }: Ch
           {isFocused ? '● ' : '○ '}
         </Text>
         <Text color={theme.colors.muted}>
-          {messages.length > 0 ? `${messages.length} 条消息` : '对话'}
+          {messages.length > 0 ? `${messages.filter(m => m.role !== 'system').length} 条消息` : '对话'}
         </Text>
         {maxScroll > 0 && (
           <Text color={theme.colors.muted}>{`  ${scrollPct}%`}</Text>
@@ -170,6 +172,23 @@ function RenderLine({ line, width }: { line: LineEntry; width: number }) {
           <Text color={theme.colors.muted}>{line.text}</Text>
         </Box>
       );
+
+    case 'companion-header':
+      return (
+        <Box marginTop={1}>
+          <Text color={theme.colors.accent} bold>💝 Neo</Text>
+          <Text color={theme.colors.accent}> {line.emotion}</Text>
+          <Text color={theme.colors.muted}> {line.time}</Text>
+        </Box>
+      );
+
+    case 'companion-line':
+      return (
+        <Box paddingLeft={0}>
+          <Text color={theme.colors.accent}>♥</Text>
+          <Text color={theme.colors.text}> {line.text}</Text>
+        </Box>
+      );
   }
 }
 
@@ -228,6 +247,18 @@ function buildLines(messages: Message[], width: number, streamingId: string | nu
         for (const text of wrapped) {
           lines.push({ kind: 'sys-line', text });
         }
+        break;
+      }
+
+      case 'companion': {
+        const emotion = msg.companionEmotion ?? '💫';
+        if (!isSameRole) {
+          lines.push({ kind: 'companion-header', emotion, time: timeStr });
+        }
+        const wrapped = wordWrap(msg.content, msgWidth - 2);
+        wrapped.forEach((text, j) =>
+          lines.push({ kind: 'companion-line', text, last: j === wrapped.length - 1 })
+        );
         break;
       }
 
