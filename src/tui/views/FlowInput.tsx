@@ -51,6 +51,12 @@ const COMMANDS: CmdDef[] = [
   { cmd: '/agents',    desc: '切换到 Agent (Ctrl+4)' },
   { cmd: '/plugins',   desc: '切换到插件 (Ctrl+5)' },
   { cmd: '/companion', short: '/mate', desc: '打开 Neo 关系看板 (Ctrl+6)' },
+  // 语音 & 情报
+  { cmd: '/voice',     short: '/v',   desc: '开关语音  (Ctrl+V)',  args: '[on|off|<音色名>]' },
+  { cmd: '/intel',     short: '/i',   desc: '查看最新情报' },
+  { cmd: '/search',    short: '/sr',  desc: '网络搜索 (Brave)',    args: '<关键词>' },
+  { cmd: '/fetch',     desc: '抓取 URL 内容',                      args: '<url>' },
+  // 系统
   { cmd: '/new',       desc: '新建对话 (Ctrl+N)' },
   { cmd: '/clear',     short: '/cl', desc: '清空 (Ctrl+L)' },
   { cmd: '/help',      short: '/h',  desc: '帮助 (?)' },
@@ -64,10 +70,12 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
   chat: [
     { key: '/c', label: '代码' },
     { key: '/d', label: '调试' },
-    { key: '/rs', label: '研究' },
+    { key: '/sr', label: '搜索' },
     { key: '/plan', label: '规划' },
     { key: '@neo', label: '和助理聊' },
     { key: '^6', label: '助理看板' },
+    { key: '^V', label: '语音' },
+    { key: '/i', label: '情报' },
   ],
   tasks: [
     { key: 'Enter', label: '创建任务' },

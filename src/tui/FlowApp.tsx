@@ -37,6 +37,8 @@ import { autonomousEngine, type AutonomousTask } from './agents/AutonomousEngine
 import { companion, type CompanionMessage } from './companion/Companion.js';
 import { companionMemory } from './companion/CompanionMemory.js';
 import { CompanionDashboard } from './views/CompanionDashboard.js';
+import { voiceEngine } from './companion/voice/VoiceEngine.js';
+import { intelEngine } from './intel/IntelEngine.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -132,6 +134,13 @@ export default function FlowApp() {
   // Companion state — messages appear inline in main chat
   const [companionThinking, setCompanionThinking] = useState(false);
   const [showCompanionDash, setShowCompanionDash] = useState(false);
+
+  // Voice state (reflects voiceEngine singleton)
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voicePlaying, setVoicePlaying] = useState(false);
+
+  // Intel unread badge
+  const [intelUnread, setIntelUnread] = useState(0);
 
   // Pomodoro timer
   const [timer, setTimer] = useState<TimerState>({
@@ -268,6 +277,33 @@ export default function FlowApp() {
     );
     return () => companion.destroy();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Init intel engine — start background collection
+  useEffect(() => {
+    intelEngine.init({}, (newItems) => {
+      setIntelUnread(prev => prev + newItems.length);
+      // Push important items (score ≥ 80) as system messages
+      const hot = newItems.filter(i => i.score >= 80);
+      for (const item of hot) {
+        setMessages(prev => [...prev, {
+          id: `intel-${item.id}`,
+          role: 'system',
+          content: `📡 [情报] ${item.title}`,
+          timestamp: new Date(),
+        }]);
+      }
+    });
+    return () => intelEngine.destroy();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Voice status polling (every 500ms when playing)
+  useEffect(() => {
+    const t = setInterval(() => {
+      const playing = voiceEngine.isPlaying;
+      setVoicePlaying(prev => prev !== playing ? playing : prev);
+    }, 500);
+    return () => clearInterval(t);
+  }, []);
 
   // ── Layout ────────────────────────────────────────────────────────────────
   const headerHeight = 1;
@@ -455,6 +491,62 @@ export default function FlowApp() {
         case 'companion': case 'mate': case 'neo':
           setShowCompanionDash(true);
           return;
+
+        // ── Voice control ────────────────────────────────────────────────
+        case 'voice': case 'v': {
+          if (arg === 'off') {
+            voiceEngine.updateConfig({ enabled: false });
+            setVoiceEnabled(false);
+            sysMsg('🔇 语音已关闭');
+          } else if (arg === 'on') {
+            voiceEngine.updateConfig({ enabled: true });
+            setVoiceEnabled(true);
+            sysMsg(`🔊 语音已开启 (${voiceEngine.providerLabel()})`);
+          } else if (!arg) {
+            const on = voiceEngine.toggle();
+            setVoiceEnabled(on);
+            sysMsg(on ? `🔊 语音已开启 (${voiceEngine.providerLabel()})` : '🔇 语音已关闭');
+          } else {
+            // /voice <voice-name>
+            voiceEngine.updateConfig({ voice: arg as Parameters<typeof voiceEngine.updateConfig>[0]['voice'] });
+            sysMsg(`🎵 音色已切换`);
+          }
+          return;
+        }
+
+        // ── Intel / search ────────────────────────────────────────────────
+        case 'intel': case 'i': {
+          const stats = intelEngine.getStats();
+          const recent = intelEngine.getRecent(5);
+          const lines = recent.length > 0
+            ? recent.map(item => `  [${item.source}] ${item.title}`).join('\n')
+            : '  (暂无数据，正在采集中...)';
+          sysMsg(`📡 情报中心 — ${stats.total} 条, ${stats.unread} 条未读\n${lines}`);
+          setIntelUnread(0);
+          return;
+        }
+        case 'search': case 'sr': {
+          if (!arg) { sysMsg('用法: /search <关键词>'); return; }
+          sysMsg(`🔍 搜索中: ${arg}...`);
+          void intelEngine.search(arg).then(items => {
+            if (items.length === 0) {
+              sysMsg('🔍 未找到结果 (请配置 Brave API Key: /key add brave <key>)');
+            } else {
+              const lines = items.slice(0, 5).map(i => `  • ${i.title}`).join('\n');
+              sysMsg(`🔍 搜索结果 "${arg}":\n${lines}`);
+            }
+          });
+          return;
+        }
+        case 'fetch': {
+          if (!arg) { sysMsg('用法: /fetch <url>'); return; }
+          sysMsg(`📥 抓取中: ${arg}`);
+          void intelEngine.scrapeURL(arg, arg.slice(0, 30)).then(items => {
+            if (items.length > 0) sysMsg(`✓ 已抓取: ${items[0]?.title ?? arg}`);
+            else sysMsg('⚠ 抓取失败');
+          });
+          return;
+        }
 
         // ── Chat management ─────────────────────────────────────────────
         case 'clear': case 'cl':
@@ -745,6 +837,13 @@ export default function FlowApp() {
     if (key.ctrl && ch === '4') { setMode('agents');  return; }
     if (key.ctrl && ch === '5') { setMode('plugins'); return; }
     if (key.ctrl && ch === '6') { setShowCompanionDash(p => !p); return; }
+    // Ctrl+V — toggle voice
+    if (key.ctrl && ch === 'v') {
+      const on = voiceEngine.toggle();
+      setVoiceEnabled(on);
+      sysMsg(on ? `🔊 语音已开启` : '🔇 语音已关闭');
+      return;
+    }
 
     // Quick capture: Ctrl+T = task, Ctrl+Shift+N = note (without Ctrl+N conflict)
     if (key.ctrl && ch === 't') { setCapture({ mode: 'task', text: '' }); return; }
@@ -847,6 +946,16 @@ export default function FlowApp() {
           {totalTokens > 0 && (
             <Text color={theme.colors.muted}>{formatTokens(totalTokens)}  </Text>
           )}
+          {/* Voice indicator */}
+          {voiceEnabled && (
+            <Text color={voicePlaying ? theme.colors.accent : theme.colors.success}>
+              {voicePlaying ? '🔊 ' : '🔈 '}
+            </Text>
+          )}
+          {/* Intel unread badge */}
+          {intelUnread > 0 && (
+            <Text color={theme.colors.warning}>📡{intelUnread}  </Text>
+          )}
           {/* Companion mood — always visible, click Ctrl+6 to open dashboard */}
           {companionThinking ? (
             <Text color={theme.colors.accent}>💝 ✦  </Text>
@@ -855,7 +964,7 @@ export default function FlowApp() {
           )}
           {/* Provider/Model + hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^6 ^M ^K ?</Text>
+          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^6 ^V ^K ?</Text>
         </Box>
       </Box>
 

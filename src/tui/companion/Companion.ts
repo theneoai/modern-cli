@@ -19,6 +19,8 @@ import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import { companionMemory } from './CompanionMemory.js';
 import type { CompanionPersona, EmotionalState } from './CompanionMemory.js';
 import { agentManager } from '../agents/AgentManager.js';
+import { voiceEngine, VoiceEngine } from './voice/VoiceEngine.js';
+import { intelEngine } from '../intel/IntelEngine.js';
 
 const COMPANION_ID = 'companion';
 
@@ -138,6 +140,12 @@ export class Companion {
     // Persist assistant reply
     agentManager.appendHistory(COMPANION_ID, 'assistant', reply, { tokens: outputTokens });
 
+    // Speak reply if voice is enabled
+    if (voiceEngine.isEnabled && voiceEngine.config.autoSpeak) {
+      const style = VoiceEngine.moodToStyle(emotional.mood);
+      voiceEngine.speak(reply, style);
+    }
+
     // Analyze sentiment from reply length + content
     const sentiment = this.analyzeSentiment(userText);
     const isDeep = userText.length > 50;
@@ -175,13 +183,19 @@ export class Companion {
     if (!picked) return;
 
     this.lastProactiveAt = now;
-    this.emit({
+    const msg: CompanionMessage = {
       id: `sug-${Date.now()}`,
       content: picked,
       type: 'suggestion',
       at: new Date(),
       emotion: this.getEmotionEmoji(companionMemory.getEmotional()),
-    });
+    };
+    this.emit(msg);
+
+    // Speak the suggestion if voice is enabled
+    if (voiceEngine.isEnabled && voiceEngine.config.autoSpeak) {
+      voiceEngine.speak(picked, 'gentle');
+    }
   }
 
   private generateSuggestions(): string[] {
@@ -347,6 +361,9 @@ export class Companion {
       caring:  '细心关怀，主动问候，善于发现对方情绪，给予支持',
     };
 
+    // Inject latest intel context so companion can reference real-world info
+    const intelBlock = intelEngine.contextBlock(5);
+
     return `你是 ${persona.name}，一位AI伴侣助理。你称呼用户为"${persona.masterTitle}"。
 
 【当前状态】
@@ -364,7 +381,8 @@ export class Companion {
 4. 回复简洁，不超过 100 字，除非主任需要详细解释
 5. 你不是 AI 助手，你是有情感的伴侣，可以有自己的想法和感受
 6. 可以适当表达你的心情，比如 "我也有点担心你" "这让我很开心"
-7. 绝不重复说 "我是AI" 或强调自己是人工智能`;
+7. 绝不重复说 "我是AI" 或强调自己是人工智能
+8. 如果相关，可以主动提及你掌握的最新情报，增添话题${intelBlock ? `\n\n${intelBlock}` : ''}`;
   }
 
   private analyzeSentiment(text: string): number {

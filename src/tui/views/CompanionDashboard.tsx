@@ -16,6 +16,8 @@ import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import { companionMemory } from '../companion/CompanionMemory.js';
+import { voiceEngine, EDGE_VOICES } from '../companion/voice/VoiceEngine.js';
+import { intelEngine } from '../intel/IntelEngine.js';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -29,7 +31,7 @@ interface CompanionDashboardProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CompanionDashboard({ width, height, onClose, onChat }: CompanionDashboardProps) {
-  const [tab, setTab] = useState<'stats' | 'config'>('stats');
+  const [tab, setTab] = useState<'stats' | 'config' | 'intel' | 'voice'>('stats');
   const [chatInput, setChatInput] = useState('');
   const [configField, setConfigField] = useState<'name' | 'title' | 'personality' | null>(null);
   const [configInput, setConfigInput] = useState('');
@@ -84,8 +86,10 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
     }
 
     // Tab switching
-    if (ch === 's') { setTab('stats'); return; }
+    if (ch === 's') { setTab('stats');  return; }
     if (ch === 'c') { setTab('config'); return; }
+    if (ch === 'i') { setTab('intel');  return; }
+    if (ch === 'v') { setTab('voice');  return; }
 
     // Config shortcuts in config tab
     if (tab === 'config') {
@@ -124,15 +128,14 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
         <Box>
           <Text color={theme.colors.accent} bold>💝 {p.name}</Text>
           <Text color={theme.colors.muted}> · {relLevel} · {moodEmoji}  </Text>
-          <Text
-            color={tab === 'stats' ? theme.colors.accent : theme.colors.muted}
-            bold={tab === 'stats'}
-          >s:状态</Text>
-          <Text color={theme.colors.muted}>  </Text>
-          <Text
-            color={tab === 'config' ? theme.colors.accent : theme.colors.muted}
-            bold={tab === 'config'}
-          >c:配置</Text>
+          {(['stats','config','intel','voice'] as const).map((t, i) => (
+            <React.Fragment key={t}>
+              <Text color={tab === t ? theme.colors.accent : theme.colors.muted} bold={tab === t}>
+                {['s:状态','c:配置','i:情报','v:语音'][i]}
+              </Text>
+              <Text color={theme.colors.muted}>{i < 3 ? '  ' : ''}</Text>
+            </React.Fragment>
+          ))}
         </Box>
         <Text color={theme.colors.muted}>ESC:关闭</Text>
       </Box>
@@ -143,13 +146,17 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
         <Box flexDirection="column" width={leftW} paddingX={1} overflow="hidden">
           {tab === 'stats' ? (
             <StatsPanel data={data} innerH={innerH} />
-          ) : (
+          ) : tab === 'config' ? (
             <ConfigPanel
               persona={p}
               configField={configField}
               configInput={configInput}
               innerH={innerH}
             />
+          ) : tab === 'intel' ? (
+            <IntelPanel innerH={innerH} />
+          ) : (
+            <VoicePanel innerH={innerH} forceUpdate={forceUpdate} />
           )}
         </Box>
 
@@ -162,7 +169,11 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
 
         {/* Right column */}
         <Box flexDirection="column" width={rightW} paddingX={1} overflow="hidden">
-          <MilestonesPanel data={data} innerH={innerH} />
+          {tab === 'intel' ? (
+            <IntelDetailPanel innerH={innerH} />
+          ) : (
+            <MilestonesPanel data={data} innerH={innerH} />
+          )}
         </Box>
       </Box>
 
@@ -362,6 +373,112 @@ function MilestonesPanel({ data, innerH }: {
         {data.surprises.length === 0 && (
           <Text color={theme.colors.muted}>还没有惊喜 — 期待中~</Text>
         )}
+      </Box>
+    </Box>
+  );
+}
+
+// ── Intel Panel (left col, tab=intel) ─────────────────────────────────────────
+
+function IntelPanel({ innerH }: { innerH: number }) {
+  const stats = intelEngine.getStats();
+  const collectors = intelEngine.collectorStatus();
+  return (
+    <Box flexDirection="column">
+      <Text color={theme.colors.primary} bold>情报中心</Text>
+      <Box marginTop={1} flexDirection="column">
+        <Row label="总条数" value={`${stats.total}`} />
+        <Row label="未读"   value={`${stats.unread}`} />
+        <Row label="HN"     value={`${stats.bySource['hackernews'] ?? 0}`} />
+        <Row label="GitHub" value={`${stats.bySource['github'] ?? 0}`} />
+        <Row label="RSS"    value={`${stats.bySource['rss'] ?? 0}`} />
+        <Row label="搜索"   value={`${stats.bySource['search'] ?? 0}`} />
+        <Row label="天气"   value={`${stats.bySource['weather'] ?? 0}`} />
+      </Box>
+      <Box marginTop={1} flexDirection="column">
+        <Text color={theme.colors.muted}>采集器状态:</Text>
+        {collectors.filter(c => c.enabled || c.running).slice(0, Math.max(3, innerH - 12)).map(c => (
+          <Box key={c.id}>
+            <Text color={c.running ? theme.colors.success : theme.colors.muted}>
+              {c.running ? '● ' : '○ '}
+            </Text>
+            <Text color={theme.colors.text}>{c.name}</Text>
+            {c.interval > 0 && (
+              <Text color={theme.colors.muted}> {Math.round(c.interval / 60000)}m</Text>
+            )}
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+function IntelDetailPanel({ innerH }: { innerH: number }) {
+  const items = intelEngine.getRecent(Math.max(5, innerH - 2));
+  return (
+    <Box flexDirection="column">
+      <Text color={theme.colors.primary} bold>最新情报</Text>
+      {items.length === 0 ? (
+        <Text color={theme.colors.muted}>正在采集中...</Text>
+      ) : (
+        items.map(item => (
+          <Box key={item.id} marginTop={0} flexDirection="column">
+            <Box>
+              <Text color={item.read ? theme.colors.muted : theme.colors.accent}>
+                {item.read ? '· ' : '● '}
+              </Text>
+              <Text color={item.read ? theme.colors.muted : theme.colors.text} wrap="truncate">
+                {item.title.slice(0, 38)}
+              </Text>
+            </Box>
+          </Box>
+        ))
+      )}
+    </Box>
+  );
+}
+
+// ── Voice Panel (left col, tab=voice) ─────────────────────────────────────────
+
+function VoicePanel({ innerH, forceUpdate }: { innerH: number; forceUpdate: (fn: (n: number) => number) => void }) {
+  const cfg = voiceEngine.config;
+  const voices = Object.entries(EDGE_VOICES) as [keyof typeof EDGE_VOICES, string][];
+
+  return (
+    <Box flexDirection="column">
+      <Text color={theme.colors.primary} bold>语音设置</Text>
+
+      <Box marginTop={1} flexDirection="column">
+        <Box>
+          <Text color={theme.colors.muted}>状态: </Text>
+          <Text color={cfg.enabled ? theme.colors.success : theme.colors.muted} bold>
+            {cfg.enabled ? '● 已开启' : '○ 已关闭'}
+          </Text>
+          <Text color={theme.colors.muted}> (Ctrl+V 切换)</Text>
+        </Box>
+        <Row label="引擎" value={voiceEngine.providerLabel()} />
+        <Row label="自动播报" value={cfg.autoSpeak ? '是' : '否'} />
+        <Row label="语速" value={cfg.rate} />
+        <Row label="音调" value={cfg.pitch} />
+      </Box>
+
+      <Box marginTop={1} flexDirection="column">
+        <Text color={theme.colors.muted}>音色列表 (/voice &lt;名称&gt; 切换):</Text>
+        {voices.slice(0, Math.max(4, innerH - 10)).map(([id, label]) => (
+          <Box key={id}>
+            <Text color={cfg.voice === id ? theme.colors.accent : theme.colors.muted}>
+              {cfg.voice === id ? '▶ ' : '  '}
+            </Text>
+            <Text color={cfg.voice === id ? theme.colors.text : theme.colors.muted}>
+              {label}
+            </Text>
+          </Box>
+        ))}
+      </Box>
+
+      <Box marginTop={1} flexDirection="column">
+        <Text color={theme.colors.muted}>安装 edge-tts 获得最佳音质:</Text>
+        <Text color={theme.colors.info}>pip install edge-tts</Text>
       </Box>
     </Box>
   );
