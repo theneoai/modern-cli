@@ -34,10 +34,12 @@ import { recordRound } from './plugins/token-counter.js';
 import { recordAnalyticsRound, type TaskType } from './plugins/analytics.js';
 import type { LoadedPlugin, StatusContext, PluginContext } from '../sdk/plugin.js';
 import { autonomousEngine, type AutonomousTask } from './agents/AutonomousEngine.js';
+import { companion, type CompanionMessage } from './companion/Companion.js';
+import { CompanionView } from './views/CompanionView.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'chat' | 'tasks' | 'notes' | 'agents' | 'plugins';
+export type AppMode = 'chat' | 'tasks' | 'notes' | 'agents' | 'plugins' | 'companion';
 
 export interface Message {
   id: string;
@@ -125,6 +127,11 @@ export default function FlowApp() {
   const [pluginList, setPluginList] = useState<LoadedPlugin[]>([]);
   const [statusWidgets, setStatusWidgets] = useState<string[]>([]);
   const [, forceUpdate] = useState(0);  // for plugin widget refresh
+
+  // Companion state
+  const [companionMessages, setCompanionMessages] = useState<CompanionMessage[]>([]);
+  const [companionThinking, setCompanionThinking] = useState(false);
+  const [companionBadge, setCompanionBadge] = useState(0);  // unseen messages
 
   // Pomodoro timer
   const [timer, setTimer] = useState<TimerState>({
@@ -244,6 +251,23 @@ export default function FlowApp() {
     return () => autonomousEngine.destroy();
   }, []);
 
+  // Init companion
+  useEffect(() => {
+    companion.init(
+      sendMessageStream,
+      (msg: CompanionMessage) => {
+        setCompanionMessages(prev => [...prev, msg]);
+        // Badge increment if not currently viewing companion
+        setCompanionBadge(prev => prev + 1);
+      },
+      () => {
+        // Emotional state changed — re-render
+        forceUpdate(n => n + 1);
+      },
+    );
+    return () => companion.destroy();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Layout ────────────────────────────────────────────────────────────────
   const headerHeight = 1;
   const inputHeight = 3;
@@ -342,6 +366,19 @@ export default function FlowApp() {
   // Keep ref current so makePluginCtx can call sendToAI without circular dep
   useEffect(() => { sendToAIRef.current = sendToAI; }, [sendToAI]);
 
+  // Keep companion context updated
+  useEffect(() => {
+    companion.updateContext({
+      pendingTaskCount: tasks.filter(t => t.status !== 'done').length,
+      activeTaskTitles: tasks.filter(t => t.status === 'in_progress').map(t => t.title),
+      noteCount: notes.length,
+      timerActive: timer.active,
+      timerSeconds: timer.seconds,
+      currentMode: mode,
+      currentHour: new Date().getHours(),
+    });
+  }, [tasks, notes, timer.active, timer.seconds, mode]);
+
   // ── Task Operations ───────────────────────────────────────────────────────
   const addTask = useCallback((title: string, priority: Task['priority'] = 'normal') => {
     const t: Task = { id: Date.now().toString(), title, status: 'pending', priority, createdAt: new Date() };
@@ -409,11 +446,15 @@ export default function FlowApp() {
 
       switch (cmd) {
         // ── Mode switching ──────────────────────────────────────────────
-        case 'chat':   case '1': setMode('chat');    return;
-        case 'tasks':  case '2': setMode('tasks');   return;
-        case 'notes':  case '3': setMode('notes');   return;
-        case 'agents': case '4': setMode('agents');  return;
-        case 'plugins':case '5': setMode('plugins'); return;
+        case 'chat':      case '1': setMode('chat');      return;
+        case 'tasks':     case '2': setMode('tasks');     return;
+        case 'notes':     case '3': setMode('notes');     return;
+        case 'agents':    case '4': setMode('agents');    return;
+        case 'plugins':   case '5': setMode('plugins');   return;
+        case 'companion': case 'mate': case '6':
+          setMode('companion');
+          setCompanionBadge(0);
+          return;
 
         // ── Chat management ─────────────────────────────────────────────
         case 'clear': case 'cl':
@@ -638,6 +679,18 @@ export default function FlowApp() {
       return;
     }
 
+    // COMPANION mode → chat with companion
+    if (mode === 'companion') {
+      setCompanionThinking(true);
+      try {
+        const reply = await companion.chat(input);
+        setCompanionMessages(prev => [...prev, reply]);
+      } finally {
+        setCompanionThinking(false);
+      }
+      return;
+    }
+
     // Default: send to AI
     await sendToAI(input);
   }, [addNote, addTask, exit, mode, sysMsg, sendToAI, tasks, makePluginCtx]);
@@ -671,11 +724,12 @@ export default function FlowApp() {
     if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
-    if (key.ctrl && ch === '1') { setMode('chat');    return; }
-    if (key.ctrl && ch === '2') { setMode('tasks');   return; }
-    if (key.ctrl && ch === '3') { setMode('notes');   return; }
-    if (key.ctrl && ch === '4') { setMode('agents');  return; }
-    if (key.ctrl && ch === '5') { setMode('plugins'); return; }
+    if (key.ctrl && ch === '1') { setMode('chat');      return; }
+    if (key.ctrl && ch === '2') { setMode('tasks');     return; }
+    if (key.ctrl && ch === '3') { setMode('notes');     return; }
+    if (key.ctrl && ch === '4') { setMode('agents');    return; }
+    if (key.ctrl && ch === '5') { setMode('plugins');   return; }
+    if (key.ctrl && ch === '6') { setMode('companion'); setCompanionBadge(0); return; }
 
     // Quick capture: Ctrl+T = task, Ctrl+Shift+N = note (without Ctrl+N conflict)
     if (key.ctrl && ch === 't') { setCapture({ mode: 'task', text: '' }); return; }
@@ -751,11 +805,12 @@ export default function FlowApp() {
         {/* Left: logo + numbered mode tabs */}
         <Box flexShrink={0}>
           <Text color={theme.colors.primary} bold>◆ </Text>
-          <CompactTab n={1} label="CHAT"    badge={undefined}             mode="chat"    active={mode} onClick={setMode} />
+          <CompactTab n={1} label="CHAT"     badge={undefined}             mode="chat"      active={mode} onClick={setMode} />
           <CompactTab n={2} label="TASKS"   badge={pendingCount || undefined} mode="tasks"   active={mode} onClick={setMode} />
           <CompactTab n={3} label="NOTES"   badge={notes.length || undefined} mode="notes"   active={mode} onClick={setMode} />
           <CompactTab n={4} label="AGENTS"  badge={runningAgents > 0 ? runningAgents : undefined} mode="agents"  active={mode} onClick={setMode} />
           <CompactTab n={5} label="PLUGINS" badge={activePlugins > 0 ? activePlugins : undefined} mode="plugins" active={mode} onClick={setMode} />
+          <CompactTab n={6} label="NEO♥"    badge={companionBadge > 0 ? companionBadge : undefined} mode="companion" active={mode} onClick={(m) => { setMode(m); setCompanionBadge(0); }} />
         </Box>
 
         {/* Right: status (minimal) */}
@@ -841,6 +896,24 @@ export default function FlowApp() {
               setPluginList(pluginRegistry.list());
             }}
             statusCtx={statusCtx}
+          />
+        )}
+        {mode === 'companion' && (
+          <CompanionView
+            messages={companionMessages}
+            height={contentHeight}
+            width={termSize.width}
+            isFocused={!focusOnInput}
+            isThinking={companionThinking}
+            onSendMessage={async (text) => {
+              setCompanionThinking(true);
+              try {
+                const reply = await companion.chat(text);
+                setCompanionMessages(prev => [...prev, reply]);
+              } finally {
+                setCompanionThinking(false);
+              }
+            }}
           />
         )}
       </Box>

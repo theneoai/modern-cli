@@ -96,22 +96,30 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
     { key: 'j/k', label: '导航' },
     { key: 'Tab', label: '详情' },
   ],
+  companion: [
+    { key: 'Enter', label: '发送消息' },
+    { key: 'Tab→↑↓', label: '滚动记录' },
+    { key: 'c', label: '配置伴侣' },
+    { key: 'Ctrl+6', label: '切换' },
+  ],
 };
 
 const MODE_COLORS: Record<AppMode, string> = {
-  chat:    theme.colors.primary,
-  tasks:   theme.colors.success,
-  notes:   theme.colors.info,
-  agents:  theme.colors.accent,
-  plugins: theme.colors.warning,
+  chat:      theme.colors.primary,
+  tasks:     theme.colors.success,
+  notes:     theme.colors.info,
+  agents:    theme.colors.accent,
+  plugins:   theme.colors.warning,
+  companion: theme.colors.accent,
 };
 
 const MODE_ICONS: Record<AppMode, string> = {
-  chat:    '◆',
-  tasks:   '☐',
-  notes:   '📝',
-  agents:  '🤖',
-  plugins: '⚡',
+  chat:      '◆',
+  tasks:     '☐',
+  notes:     '📝',
+  agents:    '🤖',
+  plugins:   '⚡',
+  companion: '💝',
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -352,11 +360,12 @@ function buildHint(
 
 function getPlaceholder(mode: AppMode): string {
   switch (mode) {
-    case 'chat':    return '发消息给 AI，或 / 触发命令';
-    case 'tasks':   return '直接输入即创建任务，/ 触发命令';
-    case 'notes':   return '直接输入即记录笔记，/ 触发命令';
-    case 'agents':  return '描述 Agent 目标，或 Tab 选择';
-    case 'plugins': return '搜索插件或输入命令';
+    case 'chat':      return '发消息给 AI，或 / 触发命令';
+    case 'tasks':     return '直接输入即创建任务，/ 触发命令';
+    case 'notes':     return '直接输入即记录笔记，/ 触发命令';
+    case 'agents':    return '描述 Agent 目标，或 Tab 选择';
+    case 'plugins':   return '搜索插件或输入命令';
+    case 'companion': return '和 Neo 聊天...';
   }
 }
 
