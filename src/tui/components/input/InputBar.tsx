@@ -11,7 +11,7 @@ import { useToast } from '../../contexts/ToastContext.js';
 import { useModal, type PaletteItem } from '../../contexts/ModalContext.js';
 import { useTUI } from '../../contexts/TUIProvider.js';
 
-interface InputBarProps {
+export interface InputBarProps {
   onSubmit?: (input: string) => void;
   placeholder?: string;
   mode?: 'command' | 'chat';

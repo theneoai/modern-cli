@@ -13,7 +13,7 @@ import type { CalendarEvent, Email, Meeting } from '../../types/ui.js';
 
 type TabType = 'calendar' | 'email' | 'meetings';
 
-interface SidebarProps {
+export interface SidebarProps {
   events: CalendarEvent[];
   emails: Email[];
   meetings: Meeting[];

@@ -6,12 +6,12 @@
  * 整合团队工作、个人任务、沟通协作于一体
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout, Spacer } from 'ink';
-import { tuiTheme as theme, icons, layout, formatTime, formatDate, truncate } from '../theme/index.js';
-import type { 
-  Team, TeamMember, Channel, Message, TeamWorkflow, 
-  WorkflowExecution, PresenceStatus, Task as TeamTask 
+import { tuiTheme as theme, icons, layout, formatTime, truncate } from '../theme/index.js';
+import type {
+  Team, TeamMember, Channel, Message, TeamWorkflow,
+  PresenceStatus,
 } from '../types/collaboration.js';
 
 // 工作台主区域类型
@@ -41,11 +41,11 @@ interface Notification {
 }
 
 export default function Workbench() {
-  const { exit } = useApp();
+  useApp();
   const { stdout } = useStdout();
   
   // 核心状态
-  const [currentUser, setCurrentUser] = useState({
+  const [currentUser] = useState({
     id: 'user-1',
     name: 'Alex Chen',
     avatar: '👤',
@@ -53,7 +53,7 @@ export default function Workbench() {
     status: 'online' as PresenceStatus,
   });
   
-  const [currentTeam, setCurrentTeam] = useState<Team | null>({
+  const [currentTeam] = useState<Team | null>({
     id: 'team-1',
     name: 'Product Squad',
     description: 'Core product development team',
@@ -99,27 +99,27 @@ export default function Workbench() {
     { id: '4', title: 'Prepare presentation', completed: true, priority: 'high', category: 'work' },
   ]);
   
-  const [channels, setChannels] = useState<Channel[]>([
+  const [channels] = useState<Channel[]>([
     { id: 'general', teamId: 'team-1', name: 'general', displayName: '🏠 general', type: 'public', createdBy: 'user-1', createdAt: new Date(), updatedAt: new Date(), members: [], settings: { allowThreads: true, allowReactions: true, allowFiles: true, allowAgentCommands: true, slowModeSeconds: 0 } },
     { id: 'dev', teamId: 'team-1', name: 'dev', displayName: '💻 development', type: 'public', createdBy: 'user-1', createdAt: new Date(), updatedAt: new Date(), members: [], settings: { allowThreads: true, allowReactions: true, allowFiles: true, allowAgentCommands: true, slowModeSeconds: 0 } },
     { id: 'design', teamId: 'team-1', name: 'design', displayName: '🎨 design', type: 'public', createdBy: 'user-1', createdAt: new Date(), updatedAt: new Date(), members: [], settings: { allowThreads: true, allowReactions: true, allowFiles: true, allowAgentCommands: true, slowModeSeconds: 0 } },
     { id: 'random', teamId: 'team-1', name: 'random', displayName: '😄 random', type: 'public', createdBy: 'user-1', createdAt: new Date(), updatedAt: new Date(), members: [], settings: { allowThreads: true, allowReactions: true, allowFiles: true, allowAgentCommands: true, slowModeSeconds: 0 } },
   ]);
   
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages] = useState<Message[]>([
     { id: '1', channelId: 'general', teamId: 'team-1', authorId: 'user-2', authorName: 'Sarah', type: 'text', content: 'Good morning team! ☀️', createdAt: new Date(Date.now() - 3600000), reactions: [], attachments: [], mentions: [], isAgent: false },
     { id: '2', channelId: 'general', teamId: 'team-1', authorId: 'agent-1', authorName: 'Assistant', type: 'agent', content: 'Daily standup summary is ready. 3 tasks completed yesterday, 2 pending.', createdAt: new Date(Date.now() - 3500000), reactions: [], attachments: [], mentions: [], isAgent: true, agentId: 'agent-1' },
     { id: '3', channelId: 'general', teamId: 'team-1', authorId: 'user-3', authorName: 'Mike', type: 'text', content: '@alex can you review the PR when you have a moment?', createdAt: new Date(Date.now() - 300000), reactions: [], attachments: [], mentions: ['user-1'], isAgent: false },
   ]);
   
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
+  const [teamMembers] = useState<TeamMember[]>([
     { id: '1', teamId: 'team-1', userId: 'user-1', userName: 'Alex Chen', role: 'owner', joinedAt: new Date(), lastActiveAt: new Date(), presence: 'online', preferences: { notifications: { email: true, push: true, mention: true, workflow: true }, theme: 'dark', language: 'en' }, isAgent: false },
     { id: '2', teamId: 'team-1', userId: 'user-2', userName: 'Sarah Kim', role: 'admin', joinedAt: new Date(), lastActiveAt: new Date(), presence: 'online', preferences: { notifications: { email: true, push: true, mention: true, workflow: true }, theme: 'dark', language: 'en' }, isAgent: false },
     { id: '3', teamId: 'team-1', userId: 'user-3', userName: 'Mike Ross', role: 'member', joinedAt: new Date(), lastActiveAt: new Date(), presence: 'away', preferences: { notifications: { email: true, push: true, mention: true, workflow: true }, theme: 'dark', language: 'en' }, isAgent: false },
     { id: '4', teamId: 'team-1', userId: 'agent-1', userName: 'Work Assistant', role: 'member', joinedAt: new Date(), lastActiveAt: new Date(), presence: 'online', preferences: { notifications: { email: false, push: false, mention: false, workflow: false }, theme: 'dark', language: 'en' }, isAgent: true, agentId: 'agent-1' },
   ]);
   
-  const [workflows, setWorkflows] = useState<TeamWorkflow[]>([
+  const [workflows] = useState<TeamWorkflow[]>([
     { id: '1', teamId: 'team-1', name: 'Daily Standup', description: 'Automated daily standup collection', createdBy: 'user-1', createdAt: new Date(), updatedAt: new Date(), isActive: true, trigger: { type: 'schedule', config: { cron: '0 9 * * 1-5' } }, steps: [], variables: {}, permissions: { canEdit: [], canExecute: [], canView: [] } },
     { id: '2', teamId: 'team-1', name: 'Code Review', description: 'Assign code reviewers automatically', createdBy: 'user-1', createdAt: new Date(), updatedAt: new Date(), isActive: true, trigger: { type: 'event', config: { event: 'pr.created' } }, steps: [], variables: {}, permissions: { canEdit: [], canExecute: [], canView: [] } },
   ]);
@@ -270,7 +270,7 @@ export default function Workbench() {
       {showCommandPalette && (
         <CommandPalette 
           onClose={() => setShowCommandPalette(false)}
-          onSelect={(command) => {
+          onSelect={(_command) => {
             // 处理命令
             setShowCommandPalette(false);
           }}

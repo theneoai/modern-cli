@@ -9,6 +9,7 @@ import type {
   Tool,
   ToolUseBlock,
   ToolResultBlockParam,
+  ContentBlock,
 } from '@anthropic-ai/sdk/resources/messages.js';
 import type { AIResponse, StreamCallback } from '../client.js';
 import type { ProviderAdapter, SendOptions } from './registry.js';
@@ -41,7 +42,7 @@ export class AnthropicAdapter implements ProviderAdapter {
         messages,
       });
       return {
-        content: resp.content.filter(b => b.type === 'text').map(b => b.type === 'text' ? b.text : '').join(''),
+        content: resp.content.filter((b: ContentBlock) => b.type === 'text').map((b: ContentBlock) => b.type === 'text' ? b.text : '').join(''),
         usage: { inputTokens: resp.usage.input_tokens, outputTokens: resp.usage.output_tokens },
         model: resp.model,
         stopReason: resp.stop_reason,
@@ -142,5 +143,5 @@ export class AnthropicAdapter implements ProviderAdapter {
 
 async function buildTools(): Promise<Tool[]> {
   const active = await getActiveTools();
-  return active.map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+  return active.map((t: { name: string; description: string; input_schema: Tool['input_schema'] }) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
 }

@@ -10,7 +10,7 @@ import { FocusLayer } from '../../contexts/FocusContext.js';
 import { Focusable } from '../ui/Focusable.js';
 import type { Task } from '../../types/ui.js';
 
-interface StatsPanelProps {
+export interface StatsPanelProps {
   tasks: Task[];
   events?: number;
   emails?: number;

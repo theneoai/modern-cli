@@ -48,9 +48,9 @@ function toOAIMessages(
   for (const m of messages) {
     const content = typeof m.content === 'string'
       ? m.content
-      : m.content
+      : (m.content as Array<{ type: string; text?: string }>)
           .filter(b => b.type === 'text')
-          .map(b => b.type === 'text' ? b.text : '')
+          .map(b => b.text ?? '')
           .join('');
     out.push({ role: m.role, content });
   }

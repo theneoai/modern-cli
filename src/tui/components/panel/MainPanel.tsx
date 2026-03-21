@@ -11,7 +11,7 @@ import { FocusLayer } from '../../contexts/FocusContext.js';
 import { Focusable } from '../ui/Focusable.js';
 import type { Message } from '../../types/ui.js';
 
-interface MainPanelProps {
+export interface MainPanelProps {
   messages: Message[];
   height: number;
   width: number;

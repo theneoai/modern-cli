@@ -13,7 +13,7 @@
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import { getConfig } from '../utils/config.js';
 import { keyStore } from './keystore.js';
-import { PROVIDERS, getProvider } from './providers/registry.js';
+import { getProvider } from './providers/registry.js';
 import { AnthropicAdapter } from './providers/anthropic-adapter.js';
 import { OpenAICompatAdapter } from './providers/openai-compat-adapter.js';
 import type { ProviderAdapter } from './providers/registry.js';

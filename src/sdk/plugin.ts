@@ -195,6 +195,9 @@ export function definePlugin(def: PluginDefinition): PluginDefinition {
   return def;
 }
 
+/** Alias for backwards compatibility */
+export type PluginDef = PluginDefinition;
+
 /** 类型安全的 defineSkill 帮助函数 */
 export function defineSkill(
   name: string,

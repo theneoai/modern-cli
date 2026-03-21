@@ -19,12 +19,11 @@
  * SSML 情感风格: chat / affectionate / cheerful / gentle / sad / excited
  */
 
-import { writeFileSync, unlinkSync, existsSync } from 'fs';
+import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir, platform } from 'os';
 import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
-import { randomUUID } from 'crypto';
 import { keyStore } from '../../../ai/keystore.js';
 
 const execFileAsync = promisify(execFile);

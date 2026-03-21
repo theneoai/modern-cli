@@ -12,7 +12,7 @@ import { useToast } from '../../contexts/ToastContext.js';
 import { SelectableItem } from '../ui/Selectable.js';
 import type { Task, TaskStatus, TaskPriority } from '../../types/ui.js';
 
-interface TaskPanelProps {
+export interface TaskPanelProps {
   tasks: Task[];
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onCompleteTask: (id: string) => void;

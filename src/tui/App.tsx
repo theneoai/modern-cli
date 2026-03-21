@@ -36,8 +36,7 @@ export default function App() {
   const { stdout } = useStdout();
   const [messages, setMessages] = useState<Message[]>([]);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [activePanel, setActivePanel] = useState<'main' | 'sidebar' | 'tasks'>('main');
-  const [inputMode, setInputMode] = useState<'command' | 'chat'>('chat');
+  const [inputMode] = useState<'command' | 'chat'>('chat');
   const [terminalSize, setTerminalSize] = useState({
     width: stdout.columns || 120,
     height: stdout.rows || 40,
@@ -48,7 +47,7 @@ export default function App() {
   
   const { tasks, addTask, updateTask, completeTask, deleteTask, hasPendingTasks } = useTasks();
   const { events, emails, meetings, loading, refreshData } = useGoogleData();
-  const { parseCommand, executeCommand } = useCommandParser();
+  const { executeCommand } = useCommandParser();
 
   // Toast helper
   const showToast = useCallback((type: ToastMessage['type'], content: string, duration = 3000) => {
@@ -85,9 +84,6 @@ export default function App() {
       },
     ]);
   }, []);
-
-  // Check terminal size
-  const isTerminalTooSmall = terminalSize.width < layout.minWidth || terminalSize.height < layout.minHeight;
 
   // Calculate dynamic layout sizes
   const layoutSizes = useMemo(() => {

@@ -18,7 +18,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import type { AgentDef, AgentType } from './AgentDef.js';
+import type { AgentDef, AgentType, AgentCapabilityDef } from './AgentDef.js';
 import { BUILTIN_AGENT_DEFS, now } from './AgentDef.js';
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ export class AgentRegistry {
       ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
       persona: patch.persona ? { ...existing.persona, ...patch.persona } : existing.persona,
       capabilities: patch.capabilities
-        ? { ...existing.capabilities, ...patch.capabilities }
+        ? { ...existing.capabilities, ...patch.capabilities } as AgentCapabilityDef
         : existing.capabilities,
       memory: patch.memory ? { ...existing.memory, ...patch.memory } : existing.memory,
       meta: { ...existing.meta, updatedAt: now() },

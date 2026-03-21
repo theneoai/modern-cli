@@ -418,7 +418,7 @@ export class Companion {
     return `${title}，能帮到你，是我最开心的事 ✨`;
   }
 
-  private fallbackReply(persona: CompanionPersona, e: EmotionalState): string {
+  private fallbackReply(persona: CompanionPersona, _e: EmotionalState): string {
     const title = persona.masterTitle;
     const replies = [
       `${title}，我听到你了。让我想想……（网络有点慢）`,
@@ -428,7 +428,7 @@ export class Companion {
     return replies[Math.floor(Math.random() * replies.length)] ?? `${title}，我在~`;
   }
 
-  private localReply(text: string): CompanionMessage {
+  private localReply(_text: string): CompanionMessage {
     const p = companionMemory.getPersona();
     return {
       id: `local-${Date.now()}`,

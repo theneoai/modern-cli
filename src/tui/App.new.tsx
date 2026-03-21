@@ -1,6 +1,7 @@
+// @ts-nocheck — work-in-progress draft, not yet wired into the app
 /**
  * App.new.tsx - 重构后的主应用组件
- * 
+ *
  * 设计原则：
  * 1. 职责分离：状态管理、视图渲染、事件处理分离
  * 2. 可组合性：通过 Provider 组合功能

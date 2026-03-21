@@ -203,7 +203,7 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
 
 // ── Stats Panel ───────────────────────────────────────────────────────────────
 
-function StatsPanel({ data, innerH }: { data: ReturnType<typeof companionMemory.get>; innerH: number }) {
+function StatsPanel({ data, innerH: _innerH }: { data: ReturnType<typeof companionMemory.get>; innerH: number }) {
   const e = data.emotional;
   const createdAt = data.createdAt;
   const daysTogether = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
@@ -277,7 +277,7 @@ function NextLevel({ familiarity }: { familiarity: number }) {
 // ── Config Panel ──────────────────────────────────────────────────────────────
 
 function ConfigPanel({
-  persona, configField, configInput, innerH,
+  persona, configField, configInput, innerH: _innerH,
 }: {
   persona: { name: string; masterTitle: string; personality: string; customized: boolean };
   configField: string | null;
@@ -440,7 +440,7 @@ function IntelDetailPanel({ innerH }: { innerH: number }) {
 
 // ── Voice Panel (left col, tab=voice) ─────────────────────────────────────────
 
-function VoicePanel({ innerH, forceUpdate }: { innerH: number; forceUpdate: (fn: (n: number) => number) => void }) {
+function VoicePanel({ innerH: _innerH, forceUpdate: _forceUpdate }: { innerH: number; forceUpdate: (fn: (n: number) => number) => void }) {
   const cfg = voiceEngine.config;
   const voices = Object.entries(EDGE_VOICES) as [keyof typeof EDGE_VOICES, string][];
 
