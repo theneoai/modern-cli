@@ -17,6 +17,7 @@
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import type { AIResponse } from '../../ai/client.js';
 import { agentMemory } from '../../memory/agentMemory.js';
+import { agentManager } from './AgentManager.js';
 import { AGENT_TOOLS, parseToolCalls, buildToolDocs } from './tools.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -40,6 +41,8 @@ export interface AutonomousTask {
   id: string;
   goal: string;
   role: string;
+  /** Optional link to AgentRegistry — enables config/prompt lookup */
+  agentDefId?: string;
   status: TaskStatus;
   freeRoam: boolean;
   schedule?: Schedule;
@@ -169,6 +172,7 @@ export class AutonomousEngine {
   createTask(config: {
     goal: string;
     role?: string;
+    agentDefId?: string;
     freeRoam?: boolean;
     schedule?: Schedule;
     stopConditions?: StopCondition[];
@@ -179,6 +183,7 @@ export class AutonomousEngine {
       id: `auto-${Date.now()}`,
       goal: config.goal,
       role: config.role || 'Assistant',
+      agentDefId: config.agentDefId,
       status: 'idle',
       freeRoam: config.freeRoam ?? false,
       schedule: config.schedule,
@@ -313,6 +318,9 @@ export class AutonomousEngine {
           break;
         }
 
+        // Persist conversation turn to history
+        agentManager.appendHistory(task.id, 'user', prompt, { agentRound: task.currentRound });
+
         // Execute any tool calls embedded in the response
         const toolCalls = parseToolCalls(response);
         if (toolCalls.length > 0) {
@@ -341,15 +349,18 @@ export class AutonomousEngine {
             { role: 'assistant', content: response },
           );
         }
+
+        // Persist assistant response
+        agentManager.appendHistory(task.id, 'assistant', response, { agentRound: task.currentRound });
         task.currentRound++;
 
-        // Extract milestones — also save as agent memories for experience reuse
+        // Extract milestones — save as agent memories (via agentManager) for experience reuse
         const milestoneMatch = response.match(/\[MILESTONE\]\s*(.+)/g);
         if (milestoneMatch) {
           const extracted = milestoneMatch.map(m => m.replace('[MILESTONE]', '').trim());
           task.milestones.push(...extracted);
           for (const ms of extracted) {
-            agentMemory.add(task.id, ms, 'experience', {
+            agentManager.addMemory(task.id, ms, 'experience', {
               tags: ['milestone', task.role.toLowerCase()],
               importance: 0.7,
             });
@@ -363,7 +374,7 @@ export class AutonomousEngine {
           task.result = stopResult;
           task.progress = 100;
           // Save task result as a high-importance memory
-          agentMemory.add(task.id, `任务完成: ${task.goal} → ${stopResult}`, 'experience', {
+          agentManager.addMemory(task.id, `任务完成: ${task.goal} → ${stopResult}`, 'experience', {
             tags: ['task-complete', task.role.toLowerCase()],
             importance: 0.9,
           });

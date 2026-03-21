@@ -25,27 +25,8 @@ import {
   type AutonomousTask,
   type StopCondition,
 } from '../agents/AutonomousEngine.js';
-
-// ── Built-in Agent Definitions ───────────────────────────────────────────────
-
-interface AgentDef {
-  id: string;
-  name: string;
-  icon: string;
-  role: string;
-  description: string;
-  defaultGoal: string;
-  color: string;
-}
-
-const BUILTIN_AGENTS: AgentDef[] = [
-  { id: 'researcher',  name: '研究员', icon: '🔍', role: 'Researcher',  description: '深度分析、需求调研、信息综合',   defaultGoal: '研究并分析相关主题', color: 'blue' },
-  { id: 'planner',     name: '规划师', icon: '📋', role: 'Planner',     description: '任务分解、项目规划、优先级排序', defaultGoal: '制定执行计划', color: 'cyan' },
-  { id: 'coder',       name: '工程师', icon: '⚙',  role: 'Coder',       description: '代码实现、调试修复、技术方案',   defaultGoal: '实现功能并完成测试', color: 'green' },
-  { id: 'reviewer',    name: '审查员', icon: '✓',  role: 'Reviewer',    description: '代码审查、质量保证、风险识别',   defaultGoal: '审查代码质量', color: 'yellow' },
-  { id: 'writer',      name: '作家',   icon: '✍',  role: 'Writer',      description: '文档撰写、内容创作、报告生成',   defaultGoal: '撰写高质量文档', color: 'magenta' },
-  { id: 'analyst',     name: '分析师', icon: '📊', role: 'Analyst',     description: '数据分析、洞察挖掘、趋势判断',   defaultGoal: '分析数据并给出建议', color: 'blue' },
-];
+import { agentManager } from '../agents/AgentManager.js';
+import type { AgentDef } from '../agents/AgentDef.js';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -67,6 +48,9 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
   const [autoTasks, setAutoTasks] = useState<AutonomousTask[]>([]);
   const [notification, setNotification] = useState('');
 
+  // Load task agents from registry (excludes companion)
+  const taskAgents = agentManager.listAgents('task').filter(a => a.enabled);
+
   const notify = useCallback((msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(''), 2000);
@@ -81,7 +65,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
     setAutoTasks(autonomousEngine.list());
   }, []);
 
-  const selectedAgent = BUILTIN_AGENTS[agentCursor];
+  const selectedAgent = taskAgents[agentCursor];
   const selectedTask = autoTasks[taskCursor];
 
   useInput((ch, key) => {
@@ -93,12 +77,13 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
       if (key.return) {
         if (!goalInput.trim()) { setInputMode('none'); return; }
         if (inputMode === 'goal' && selectedAgent) {
-          onRunAgent(selectedAgent.role, goalInput.trim());
-          notify(`▶ 启动 ${selectedAgent.name}`);
+          onRunAgent(selectedAgent.persona.role, goalInput.trim());
+          notify(`▶ 启动 ${selectedAgent.persona.name}`);
         } else if (inputMode === 'newtask') {
           const task = autonomousEngine.createTask({
             goal: goalInput.trim(),
-            role: selectedAgent?.role ?? 'Assistant',
+            role: selectedAgent?.persona.role ?? 'Assistant',
+            agentDefId: selectedAgent?.id,
             freeRoam,
             stopConditions: [
               { type: 'rounds', value: 10 } as StopCondition,
@@ -126,10 +111,12 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
 
     if (pane === 'agents') {
       if (key.upArrow || ch === 'k') setAgentCursor(p => Math.max(0, p - 1));
-      else if (key.downArrow || ch === 'j') setAgentCursor(p => Math.min(BUILTIN_AGENTS.length - 1, p + 1));
+      else if (key.downArrow || ch === 'j') setAgentCursor(p => Math.min(taskAgents.length - 1, p + 1));
       else if (key.return || ch === ' ') {
-        onRunAgent(selectedAgent.role, selectedAgent.defaultGoal);
-        notify(`▶ ${selectedAgent.name} 已启动`);
+        if (selectedAgent) {
+          onRunAgent(selectedAgent.persona.role, selectedAgent.persona.description);
+          notify(`▶ ${selectedAgent.persona.name} 已启动`);
+        }
       }
       else if (ch === 'i') { setInputMode('goal'); setGoalInput(''); }
       else if (ch === 'n') { setInputMode('newtask'); setGoalInput(''); }
@@ -191,7 +178,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
       {inputMode !== 'none' && (
         <Box height={1} flexShrink={0} paddingX={2}>
           <Text color={theme.colors.primary} bold>
-            {inputMode === 'goal' ? `${selectedAgent?.icon} 目标: ` : '🤖 自主任务: '}
+            {inputMode === 'goal' ? `${selectedAgent?.persona.avatar ?? '🤖'} 目标: ` : '🤖 自主任务: '}
           </Text>
           <Text color={theme.colors.text}>{goalInput}</Text>
           <Text color={theme.colors.primary} backgroundColor={theme.colors.primary}> </Text>
@@ -209,9 +196,9 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
           paddingX={1}
         >
           <Box height={1} flexShrink={0}>
-            <Text color={theme.colors.muted} bold>内置角色 (Enter:运行 i:输入目标)</Text>
+            <Text color={theme.colors.muted} bold>Agent 角色 (Enter:运行 i:输入目标)</Text>
           </Box>
-          {BUILTIN_AGENTS.slice(0, listHeight).map((agent, idx) => {
+          {taskAgents.slice(0, listHeight).map((agent: AgentDef, idx: number) => {
             const sel = pane === 'agents' && isFocused && idx === agentCursor;
             return (
               <Box key={agent.id} paddingX={sel ? 1 : 0}
@@ -219,9 +206,9 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
                 marginBottom={0}
               >
                 <Text color={sel ? theme.colors.primary : theme.colors.muted} bold={sel}>
-                  {agent.icon} {agent.name}
+                  {agent.persona.avatar} {agent.persona.name}
                 </Text>
-                {sel && <Text color={theme.colors.muted}> — {agent.description.slice(0, leftWidth - 12)}</Text>}
+                {sel && <Text color={theme.colors.muted}> — {agent.persona.description.slice(0, leftWidth - 12)}</Text>}
               </Box>
             );
           })}

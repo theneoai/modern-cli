@@ -18,6 +18,9 @@
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import { companionMemory } from './CompanionMemory.js';
 import type { CompanionPersona, EmotionalState } from './CompanionMemory.js';
+import { agentManager } from '../agents/AgentManager.js';
+
+const COMPANION_ID = 'companion';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,7 +66,6 @@ export class Companion {
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private lastProactiveAt = 0;
   private lastSurpriseAt = 0;
-  private chatHistory: MessageParam[] = [];
   private isThinking = false;
   private initialized = false;
 
@@ -74,6 +76,9 @@ export class Companion {
     this.onMessage = onMessage;
     this.onEmotionChange = onEmotionChange;
     this.initialized = true;
+
+    // Sync all agent personas to agentMemory on startup
+    agentManager.syncPersonas();
 
     // Proactive check every 5 minutes
     this.tickTimer = setInterval(() => {
@@ -105,28 +110,33 @@ export class Companion {
     const persona = companionMemory.getPersona();
     const emotional = companionMemory.getEmotional();
 
-    this.chatHistory.push({ role: 'user', content: userText });
-    // Keep history short (last 10 exchanges)
-    if (this.chatHistory.length > 20) this.chatHistory = this.chatHistory.slice(-20);
+    // Persist user message
+    agentManager.appendHistory(COMPANION_ID, 'user', userText);
+
+    // Load recent history (last 20 rounds) for context
+    const history: MessageParam[] = agentManager.getHistory(COMPANION_ID, 20);
 
     const systemPrompt = this.buildSystemPrompt(persona, emotional);
 
     let reply = '';
+    let outputTokens = 0;
     try {
       this.isThinking = true;
       const result = await this.sendFn(
-        this.chatHistory,
+        history,
         (delta) => { reply += delta; },
         systemPrompt,
       );
       reply = result.content || reply;
+      outputTokens = result.usage.outputTokens;
     } catch {
       reply = this.fallbackReply(persona, emotional);
     } finally {
       this.isThinking = false;
     }
 
-    this.chatHistory.push({ role: 'assistant', content: reply });
+    // Persist assistant reply
+    agentManager.appendHistory(COMPANION_ID, 'assistant', reply, { tokens: outputTokens });
 
     // Analyze sentiment from reply length + content
     const sentiment = this.analyzeSentiment(userText);
