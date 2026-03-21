@@ -32,7 +32,7 @@ export interface StopCondition {
 
 export interface Schedule {
   type: 'once' | 'interval' | 'daily' | 'cron';
-  /** interval: ms; daily: "HH:MM"; cron: "*/30m" */
+  /** interval: ms; daily: "HH:MM"; cron: star-slash-30m */
   value?: string | number;
   runAt?: Date;
 }

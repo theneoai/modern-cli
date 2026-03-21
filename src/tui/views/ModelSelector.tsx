@@ -178,7 +178,7 @@ export function ModelSelector({ width, height, onSelect, onClose }: ModelSelecto
       {/* Footer */}
       <Box height={1} flexShrink={0} paddingX={1}>
         <Text color={theme.colors.muted}>
-          ✓ = key 已配置  ✗ = 未配置   /key add {selectedProvider?.id ?? '<provider>'} <api-key>
+          ✓ = key 已配置  ✗ = 未配置   /key add {selectedProvider?.id ?? '<provider>'} {'<api-key>'}
         </Text>
       </Box>
     </Box>
