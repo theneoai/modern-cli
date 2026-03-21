@@ -16,6 +16,7 @@
 
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import type { AIResponse } from '../../ai/client.js';
+import { agentMemory } from '../../memory/agentMemory.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,9 @@ function buildSystemPrompt(task: AutonomousTask): string {
     return '';
   }).filter(Boolean).join('; ');
 
+  // Inject agent persona + relevant memories
+  const memCtx = agentMemory.buildSystemContext(task.id, task.goal);
+
   return `你是一个自主运行的 AI Agent，角色: ${task.role}。
 ${roamMode}
 
@@ -89,6 +93,7 @@ ${roamMode}
 当前进度: 第 ${task.currentRound + 1} / ${task.maxRounds} 轮
 终止条件: ${stopInfo}
 ${task.contextSummary ? `\n上下文摘要:\n${task.contextSummary}` : ''}
+${memCtx ? `\n${memCtx}` : ''}
 
 执行规则:
 1. 每轮给出清晰的行动和结果
@@ -312,10 +317,17 @@ export class AutonomousEngine {
         );
         task.currentRound++;
 
-        // Extract milestones
+        // Extract milestones — also save as agent memories for experience reuse
         const milestoneMatch = response.match(/\[MILESTONE\]\s*(.+)/g);
         if (milestoneMatch) {
-          task.milestones.push(...milestoneMatch.map(m => m.replace('[MILESTONE]', '').trim()));
+          const extracted = milestoneMatch.map(m => m.replace('[MILESTONE]', '').trim());
+          task.milestones.push(...extracted);
+          for (const ms of extracted) {
+            agentMemory.add(task.id, ms, 'experience', {
+              tags: ['milestone', task.role.toLowerCase()],
+              importance: 0.7,
+            });
+          }
         }
 
         // Check stop conditions
@@ -324,6 +336,11 @@ export class AutonomousEngine {
           task.status = 'done';
           task.result = stopResult;
           task.progress = 100;
+          // Save task result as a high-importance memory
+          agentMemory.add(task.id, `任务完成: ${task.goal} → ${stopResult}`, 'experience', {
+            tags: ['task-complete', task.role.toLowerCase()],
+            importance: 0.9,
+          });
           break;
         }
 

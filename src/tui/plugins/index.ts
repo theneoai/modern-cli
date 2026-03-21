@@ -17,11 +17,13 @@ import emailReminderPlugin from './email-reminder.js';
 import tokenCounterPlugin from './token-counter.js';
 import weatherTimePlugin from './weather-time.js';
 import { messagingPlugin } from './messaging.js';
+import { analyticsPlugin } from './analytics.js';
 
 // 注册内置插件 (默认启用)
 pluginRegistry.register(emailReminderPlugin, true);
 pluginRegistry.register(tokenCounterPlugin, true);
 pluginRegistry.register(weatherTimePlugin, true);
 pluginRegistry.register(messagingPlugin, true);
+pluginRegistry.register(analyticsPlugin, true);
 
 export { pluginRegistry };

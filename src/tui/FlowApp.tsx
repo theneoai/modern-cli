@@ -14,9 +14,11 @@
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
-import { sendMessageStream } from '../ai/client.js';
+import { sendMessageStream, resetClient } from '../ai/client.js';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import { tuiTheme as theme } from '../theme/index.js';
+import { switchProvider, switchModel, getConfig } from '../utils/config.js';
+import { keyStore } from '../ai/keystore.js';
 import { ChatView } from './views/ChatView.js';
 import { TasksView } from './views/TasksView.js';
 import { AgentsView } from './views/AgentsView.js';
@@ -24,10 +26,12 @@ import { NotesView } from './views/NotesView.js';
 import { PluginsView } from './views/PluginsView.js';
 import { FlowInput } from './views/FlowInput.js';
 import { HelpOverlay } from './views/HelpOverlay.js';
+import { ModelSelector } from './views/ModelSelector.js';
 import { CommandPaletteOverlay } from './views/CommandPaletteOverlay.js';
 import type { Note } from './views/NotesView.js';
 import { pluginRegistry } from './plugins/index.js';
 import { recordRound } from './plugins/token-counter.js';
+import { recordAnalyticsRound } from './plugins/analytics.js';
 import type { LoadedPlugin, StatusContext, PluginContext } from '../sdk/plugin.js';
 import { autonomousEngine, type AutonomousTask } from './agents/AutonomousEngine.js';
 
@@ -99,8 +103,12 @@ export default function FlowApp() {
         '  /rs <主题>  → 深度研究',
         '  /plan       → AI 规划今日',
         '',
+        '  /stats → 成本收益分析  /price → 价格表  /news → 资讯',
+        '  /key add <provider> <key> → 配置 API Key',
+        '  /model (Ctrl+M) → 切换模型/Provider',
+        '',
         '  Ctrl+1/2/3/4/5 → CHAT/TASKS/NOTES/AGENTS/PLUGINS',
-        '  Ctrl+K → 命令面板   ? → 帮助',
+        '  Ctrl+K → 命令面板   Ctrl+M → 模型选择  ? → 帮助',
       ].join('\n'),
       timestamp: new Date(),
     },
@@ -129,6 +137,9 @@ export default function FlowApp() {
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [activeProvider, setActiveProvider] = useState(() => getConfig().provider);
+  const [activeModel, setActiveModel] = useState(() => getConfig().model);
   const [focusOnInput, setFocusOnInput] = useState(true);
   const [pluginList, setPluginList] = useState<LoadedPlugin[]>([]);
   const [statusWidgets, setStatusWidgets] = useState<string[]>([]);
@@ -325,6 +336,13 @@ export default function FlowApp() {
         result.model,
         userText.slice(0, 80),
       );
+      // Record in analytics (detect task type from command prefix)
+      const taskType = userText.startsWith('/c ') || userText.startsWith('/code ') ? 'code'
+        : userText.startsWith('/d ') || userText.startsWith('/debug ') ? 'debug'
+        : userText.startsWith('/rs ') || userText.startsWith('/research ') ? 'research'
+        : userText.startsWith('/w ') || userText.startsWith('/write ') ? 'write'
+        : 'chat';
+      recordAnalyticsRound(result.usage.inputTokens, result.usage.outputTokens, taskType);
 
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -535,6 +553,49 @@ export default function FlowApp() {
           return;
         }
 
+        // ── Model/Provider selector ────────────────────────────────────
+        case 'model': case 'm':
+          setShowModelSelector(true);
+          return;
+
+        // ── Analytics shortcuts (handled by plugin above; this is a fallback) ──
+        case 'stats': case 'price': case 'news': case 'roi':
+          sysMsg(`${cmd}: analytics 插件未加载。确认插件已启用 (/5 → PLUGINS)`);
+          return;
+
+        // ── API Key management ─────────────────────────────────────────
+        case 'key': {
+          const sub = parts[1]?.toLowerCase();
+          const rest = parts.slice(2);
+          if (!sub || sub === 'list' || sub === 'ls') {
+            const keys = keyStore.listKeys('configure');
+            if (keys.length === 0) { sysMsg('暂无已配置的 API Key。用 /key add <provider> <key>'); return; }
+            const lines = keys.map(k =>
+              `  ${k.active ? '●' : '○'} ${k.providerId.padEnd(12)} ${k.label.padEnd(16)} ${k.hint}`
+            ).join('\n');
+            sysMsg(`已配置的 Key:\n${lines}`);
+          } else if (sub === 'add') {
+            const [pid, ...keyParts] = rest;
+            const rawKey = keyParts.join(' ').trim();
+            if (!pid || !rawKey) { sysMsg('用法: /key add <provider> <api-key>'); return; }
+            try {
+              keyStore.addKey(pid, rawKey);
+              resetClient();
+              sysMsg(`✓ Key 已添加: ${pid}`);
+            } catch (e) {
+              sysMsg(`✗ 添加失败: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          } else if (sub === 'rm' || sub === 'remove' || sub === 'del') {
+            const id = rest[0];
+            if (!id) { sysMsg('用法: /key rm <provider>'); return; }
+            const removed = keyStore.removeKey(id, 'admin');
+            sysMsg(removed ? `✓ Key 已删除: ${id}` : `未找到 Key: ${id}`);
+          } else {
+            sysMsg('key 子命令: list | add <provider> <key> | rm <provider>');
+          }
+          return;
+        }
+
         case 'exit': case 'quit': case 'q':
           exit();
           return;
@@ -614,6 +675,7 @@ export default function FlowApp() {
     if (showPalette || showHelp) return;
 
     if (key.ctrl && ch === 'k') { setShowPalette(true); return; }
+    if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
     if (key.ctrl && ch === '1') { setMode('chat');    return; }
@@ -720,9 +782,9 @@ export default function FlowApp() {
           {totalTokens > 0 && (
             <Text color={theme.colors.muted}>{formatTokens(totalTokens)}  </Text>
           )}
-          {/* Model + hints */}
+          {/* Provider/Model + hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> claude  ⌘K ?</Text>
+          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^M ^K ?</Text>
         </Box>
       </Box>
 
@@ -803,6 +865,20 @@ export default function FlowApp() {
       </Box>
 
       {/* ── Overlays ── */}
+      {showModelSelector && (
+        <ModelSelector
+          width={Math.min(90, termSize.width - 4)}
+          height={Math.min(28, termSize.height - 4)}
+          onSelect={(pid, mid) => {
+            switchProvider(pid, mid);
+            resetClient();
+            setActiveProvider(pid);
+            setActiveModel(mid);
+            sysMsg(`✓ 切换到 ${pid}/${mid}`);
+          }}
+          onClose={() => setShowModelSelector(false)}
+        />
+      )}
       {showHelp && (
         <HelpOverlay
           width={Math.min(76, termSize.width - 4)}
