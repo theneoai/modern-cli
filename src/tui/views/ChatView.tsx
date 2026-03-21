@@ -1,12 +1,14 @@
 /**
- * ChatView.tsx - AI 对话视图
+ * ChatView.tsx — 心流对话视图
  *
- * 功能:
- * - 流式 token 显示 (打字机效果)
- * - 消息气泡布局 (用户右对齐, AI 左对齐)
- * - 键盘滚动: ↑/↓, PgUp/PgDn, g/G (vim style)
- * - 工具调用内联可视
- * - 滚动位置指示器
+ * 视觉层次设计:
+ *   用户消息  ▸ 右边距  accent 色标注
+ *   AI 消息   │ 左边线  primary 色缩进块
+ *   系统消息  ── 分割线  muted 色居中
+ *
+ * 消息分组: 同角色连续消息合并头部，减少视觉噪音
+ * 流式光标: 末尾闪烁块，清晰感知生成状态
+ * 滚动感知: 顶/底指示仅在溢出时显示
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -22,70 +24,49 @@ interface ChatViewProps {
   streamingId: string | null;
 }
 
+// A rendered "line" unit for the scroll buffer
+type LineEntry =
+  | { kind: 'spacer' }
+  | { kind: 'divider'; time: string }
+  | { kind: 'user-header'; time: string }
+  | { kind: 'user-line'; text: string; last: boolean }
+  | { kind: 'ai-header'; streaming: boolean; tokCount?: number; time: string }
+  | { kind: 'ai-line'; text: string; streaming: boolean; last: boolean }
+  | { kind: 'sys-line'; text: string };
+
 export function ChatView({ messages, height, width, isFocused, streamingId }: ChatViewProps) {
   const [scrollOffset, setScrollOffset] = useState(0);
   const prevMsgCount = useRef(messages.length);
 
-  // Estimate lines per message for scroll calculations
-  const lineEst = (msg: Message) => {
-    const lines = msg.content.split('\n').length;
-    const wrapLines = Math.ceil(msg.content.length / Math.max(1, width - 10));
-    return Math.max(lines, wrapLines) + 2; // +2 for header + padding
-  };
+  const innerWidth = Math.max(20, width - 4); // inside border padding
 
-  // Content height minus header and footer hints
-  const usableHeight = height - 2;
-
-  // Compute visible window
-  const allLines: { msgIdx: number; line: string }[] = [];
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    // Message header
-    allLines.push({ msgIdx: i, line: `__header__:${i}` });
-    // Content lines
-    const contentLines = renderMessageLines(msg, width);
-    for (const l of contentLines) {
-      allLines.push({ msgIdx: i, line: l });
-    }
-    // Separator
-    allLines.push({ msgIdx: i, line: '' });
-  }
-
-  const totalLines = allLines.length;
+  // Build line buffer
+  const lines = buildLines(messages, innerWidth, streamingId);
+  const totalLines = lines.length;
+  const usableHeight = height - 2; // minus border
   const maxScroll = Math.max(0, totalLines - usableHeight);
 
-  // Auto-scroll when new messages arrive (or streaming)
+  // Auto-scroll to bottom on new messages / streaming
   useEffect(() => {
-    const newCount = messages.length;
-    const isNewMsg = newCount !== prevMsgCount.current;
-    prevMsgCount.current = newCount;
-    if (isNewMsg || streamingId) {
-      setScrollOffset(maxScroll);
-    }
+    const isNew = messages.length !== prevMsgCount.current;
+    prevMsgCount.current = messages.length;
+    if (isNew || streamingId) setScrollOffset(maxScroll);
   }, [messages.length, streamingId, maxScroll]);
 
-  // Keyboard scrolling (vim + arrows)
   useInput((ch, key) => {
     if (!isFocused) return;
-
-    if (key.upArrow || ch === 'k') {
-      setScrollOffset(prev => Math.max(0, prev - 1));
-    } else if (key.downArrow || ch === 'j') {
-      setScrollOffset(prev => Math.min(maxScroll, prev + 1));
-    } else if (key.pageUp || (key.ctrl && ch === 'u')) {
-      setScrollOffset(prev => Math.max(0, prev - Math.floor(usableHeight / 2)));
-    } else if (key.pageDown || (key.ctrl && ch === 'd')) {
-      setScrollOffset(prev => Math.min(maxScroll, prev + Math.floor(usableHeight / 2)));
-    } else if (ch === 'g') {
-      setScrollOffset(0);
-    } else if (ch === 'G') {
-      setScrollOffset(maxScroll);
-    }
+    if (key.upArrow   || ch === 'k') setScrollOffset(p => Math.max(0, p - 1));
+    else if (key.downArrow  || ch === 'j') setScrollOffset(p => Math.min(maxScroll, p + 1));
+    else if (key.pageUp     || (key.ctrl && ch === 'u')) setScrollOffset(p => Math.max(0, p - Math.floor(usableHeight / 2)));
+    else if (key.pageDown   || (key.ctrl && ch === 'd')) setScrollOffset(p => Math.min(maxScroll, p + Math.floor(usableHeight / 2)));
+    else if (ch === 'g') setScrollOffset(0);
+    else if (ch === 'G') setScrollOffset(maxScroll);
   });
 
-  const visibleLines = allLines.slice(scrollOffset, scrollOffset + usableHeight);
+  const visible = lines.slice(scrollOffset, scrollOffset + usableHeight);
   const atBottom = scrollOffset >= maxScroll;
   const atTop = scrollOffset === 0;
+  const scrollPct = maxScroll > 0 ? Math.floor((scrollOffset / maxScroll) * 100) : 100;
 
   return (
     <Box
@@ -96,141 +77,219 @@ export function ChatView({ messages, height, width, isFocused, streamingId }: Ch
       borderColor={isFocused ? theme.colors.primary : theme.colors.border}
       overflow="hidden"
     >
-      {/* Scroll indicator bar */}
+      {/* Top bar: scroll indicator */}
       <Box height={1} flexShrink={0} paddingX={1}>
-        <Text color={theme.colors.muted}>
-          {isFocused ? (
-            <>
-              <Text color={theme.colors.accent}>● 对话</Text>
-              <Text> j/k:滚动 g/G:顶/底 PgUp/PgDn</Text>
-              {!atTop && <Text color={theme.colors.warning}>  ▲ 上方有更多</Text>}
-              {!atBottom && <Text color={theme.colors.warning}>  ▼ 下方有更多</Text>}
-            </>
-          ) : (
-            <>
-              <Text color={theme.colors.muted}>○ 对话</Text>
-              <Text color={theme.colors.muted}>  Tab:聚焦此面板</Text>
-            </>
-          )}
+        {!atTop && (
+          <Text color={theme.colors.warning}>↑ </Text>
+        )}
+        <Text color={isFocused ? theme.colors.accent : theme.colors.muted} bold={isFocused}>
+          {isFocused ? '● ' : '○ '}
         </Text>
+        <Text color={theme.colors.muted}>
+          {messages.length > 0 ? `${messages.length} 条消息` : '对话'}
+        </Text>
+        {maxScroll > 0 && (
+          <Text color={theme.colors.muted}>{`  ${scrollPct}%`}</Text>
+        )}
+        {isFocused && maxScroll > 0 && (
+          <Text color={theme.colors.muted}>  j/k  g/G  PgUp/PgDn</Text>
+        )}
+        {!atBottom && (
+          <Text color={theme.colors.warning}> ↓ 更多</Text>
+        )}
       </Box>
 
-      {/* Messages */}
+      {/* Message area */}
       <Box flexDirection="column" flexGrow={1} overflow="hidden" paddingX={1}>
         {messages.length === 0 ? (
-          <Box marginTop={2} flexDirection="column">
-            <Text color={theme.colors.muted}>
-              {' '}欢迎使用 HyperTerminal AI 对话{'\n'}
-              {' '}• 直接输入消息与 AI 对话{'\n'}
-              {' '}• 输入 /help 查看命令{'\n'}
-              {' '}• 按 Ctrl+K 打开命令面板{'\n'}
-              {' '}• 按 ? 查看快捷键帮助
-            </Text>
-          </Box>
+          <EmptyState />
         ) : (
-          visibleLines.map((item, idx) => {
-            if (item.line === '') return <Box key={`sep-${idx}`} height={1} />;
-
-            if (item.line.startsWith('__header__:')) {
-              const msgIdx = parseInt(item.line.split(':')[1]);
-              const msg = messages[msgIdx];
-              if (!msg) return null;
-              return <MessageHeader key={`hdr-${msgIdx}`} message={msg} isStreaming={msg.id === streamingId} />;
-            }
-
-            const msg = messages[item.msgIdx];
-            if (!msg) return null;
-            return <MessageLine key={`${item.msgIdx}-${idx}`} line={item.line} role={msg.role} />;
-          })
+          visible.map((line, i) => <RenderLine key={i} line={line} width={innerWidth} />)
         )}
       </Box>
     </Box>
   );
 }
 
-// ── Sub-components ──────────────────────────────────────────────────────────
+// ── Line Renderer ─────────────────────────────────────────────────────────────
 
-function MessageHeader({ message, isStreaming }: { message: Message; isStreaming: boolean }) {
-  const timeStr = formatTime(message.timestamp);
-  switch (message.role) {
-    case 'user':
+function RenderLine({ line, width }: { line: LineEntry; width: number }) {
+  switch (line.kind) {
+    case 'spacer':
+      return <Box height={1} />;
+
+    case 'divider':
       return (
-        <Box marginTop={1}>
-          <Text color={theme.colors.accent} bold>▶ 你</Text>
-          <Text color={theme.colors.muted}> {timeStr}</Text>
+        <Box>
+          <Text color={theme.colors.border}>{'─'.repeat(Math.floor(width * 0.3))}</Text>
+          <Text color={theme.colors.muted}> {line.time} </Text>
+          <Text color={theme.colors.border}>{'─'.repeat(Math.floor(width * 0.3))}</Text>
         </Box>
       );
-    case 'assistant':
+
+    case 'user-header':
+      return (
+        <Box marginTop={1}>
+          <Text color={theme.colors.accent} bold>▸ 你</Text>
+          <Text color={theme.colors.muted}> {line.time}</Text>
+        </Box>
+      );
+
+    case 'user-line':
+      return (
+        <Box paddingLeft={2}>
+          <Text color={theme.colors.text}>{line.text}</Text>
+          {line.last && <Text color={theme.colors.accent}>  </Text>}
+        </Box>
+      );
+
+    case 'ai-header':
       return (
         <Box marginTop={1}>
           <Text color={theme.colors.primary} bold>◆ Claude</Text>
-          {isStreaming && <Text color={theme.colors.warning}> ⠿ 生成中...</Text>}
-          {!isStreaming && message.tokenCount && (
-            <Text color={theme.colors.muted}> {message.tokenCount} tok</Text>
+          {line.streaming && <StreamCursor />}
+          {!line.streaming && line.tokCount != null && line.tokCount > 0 && (
+            <Text color={theme.colors.muted}> {line.tokCount}tok</Text>
           )}
-          <Text color={theme.colors.muted}> {timeStr}</Text>
+          <Text color={theme.colors.muted}> {line.time}</Text>
         </Box>
       );
-    case 'tool':
+
+    case 'ai-line':
       return (
-        <Box marginTop={1}>
-          <Text color={theme.colors.info} bold>🔧 工具</Text>
-          <Text color={theme.colors.muted}> {timeStr}</Text>
+        <Box paddingLeft={0}>
+          <Text color={theme.colors.primary}>│</Text>
+          <Text color={theme.colors.text}> {line.text}</Text>
+          {line.streaming && line.last && <StreamCursor />}
         </Box>
       );
-    default:
+
+    case 'sys-line':
       return (
-        <Box marginTop={1}>
-          <Text color={theme.colors.muted}>── 系统 {timeStr} ──</Text>
+        <Box paddingLeft={1}>
+          <Text color={theme.colors.muted}>{line.text}</Text>
         </Box>
       );
   }
 }
 
-function MessageLine({ line, role }: { line: string; role: Message['role'] }) {
-  const indent = role === 'user' ? '  ' : '  ';
-  const color =
-    role === 'user'
-      ? theme.colors.text
-      : role === 'assistant'
-      ? theme.colors.text
-      : role === 'tool'
-      ? theme.colors.info
-      : theme.colors.muted;
+// ── Build Line Buffer ─────────────────────────────────────────────────────────
 
+function buildLines(messages: Message[], width: number, streamingId: string | null): LineEntry[] {
+  const lines: LineEntry[] = [];
+  const msgWidth = Math.max(20, width - 6);
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const prev = messages[i - 1];
+    const isStreaming = msg.id === streamingId;
+    const timeStr = fmtTime(msg.timestamp);
+
+    // Show divider if gap > 5 min between user-messages
+    if (prev && msg.role === 'user' && prev.role !== 'user') {
+      const gap = msg.timestamp.getTime() - prev.timestamp.getTime();
+      if (gap > 5 * 60 * 1000) {
+        lines.push({ kind: 'divider', time: timeStr });
+      }
+    }
+
+    const isSameRole = prev?.role === msg.role;
+
+    switch (msg.role) {
+      case 'user': {
+        if (!isSameRole) {
+          lines.push({ kind: 'user-header', time: timeStr });
+        }
+        const wrapped = wordWrap(msg.content, msgWidth);
+        wrapped.forEach((text, j) =>
+          lines.push({ kind: 'user-line', text, last: j === wrapped.length - 1 })
+        );
+        break;
+      }
+
+      case 'assistant': {
+        if (!isSameRole) {
+          lines.push({ kind: 'ai-header', streaming: isStreaming, tokCount: msg.tokenCount, time: timeStr });
+        } else if (isStreaming) {
+          // Update last header streaming status (can't mutate, so just add indicator)
+          lines.push({ kind: 'sys-line', text: '' });
+        }
+        const content = msg.content || (isStreaming ? '…' : '');
+        const wrapped = wordWrap(content, msgWidth - 2); // -2 for border char
+        wrapped.forEach((text, j) =>
+          lines.push({ kind: 'ai-line', text, streaming: isStreaming, last: j === wrapped.length - 1 })
+        );
+        break;
+      }
+
+      case 'system': {
+        lines.push({ kind: 'spacer' });
+        const wrapped = wordWrap(msg.content, msgWidth);
+        for (const text of wrapped) {
+          lines.push({ kind: 'sys-line', text });
+        }
+        break;
+      }
+
+      default: {
+        const wrapped = wordWrap(msg.content, msgWidth);
+        for (const text of wrapped) {
+          lines.push({ kind: 'sys-line', text });
+        }
+      }
+    }
+  }
+
+  return lines;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function StreamCursor() {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const t = setInterval(() => setOn(p => !p), 500);
+    return () => clearInterval(t);
+  }, []);
+  return <Text color={theme.colors.warning}>{on ? ' █' : '  '}</Text>;
+}
+
+function EmptyState() {
   return (
-    <Box>
-      <Text color={color}>{indent}{line}</Text>
+    <Box flexDirection="column" paddingX={1} paddingTop={1}>
+      <Text color={theme.colors.primary} bold>◆ NEO — AI 原生超级终端</Text>
+      <Box marginTop={1} flexDirection="column">
+        <Text color={theme.colors.muted}>直接输入与 AI 对话，或使用快捷命令:</Text>
+        <Text color={theme.colors.muted}> </Text>
+        <Text color={theme.colors.text}>  /c  <Text color={theme.colors.muted}>生成代码</Text>   /d  <Text color={theme.colors.muted}>调试分析</Text>   /rs <Text color={theme.colors.muted}>深度研究</Text></Text>
+        <Text color={theme.colors.text}>  /w  <Text color={theme.colors.muted}>写作助手</Text>   /tr <Text color={theme.colors.muted}>翻译</Text>      /sm <Text color={theme.colors.muted}>摘要总结</Text></Text>
+        <Text color={theme.colors.muted}> </Text>
+        <Text color={theme.colors.text}>  /plan  <Text color={theme.colors.muted}>规划今日</Text>   /sup <Text color={theme.colors.muted}>站会内容</Text>   /rev <Text color={theme.colors.muted}>工作回顾</Text></Text>
+        <Text color={theme.colors.muted}> </Text>
+        <Text color={theme.colors.muted}>  Ctrl+K 命令面板   Ctrl+T 快速任务   Ctrl+N 新对话</Text>
+      </Box>
     </Box>
   );
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function renderMessageLines(msg: Message, width: number): string[] {
-  const maxWidth = Math.max(20, width - 8);
-  const lines: string[] = [];
-  for (const rawLine of msg.content.split('\n')) {
-    if (rawLine.length <= maxWidth) {
-      lines.push(rawLine);
-    } else {
-      // Word wrap
-      const words = rawLine.split(' ');
-      let current = '';
-      for (const w of words) {
-        if ((current + ' ' + w).trimStart().length <= maxWidth) {
-          current = current ? current + ' ' + w : w;
-        } else {
-          if (current) lines.push(current);
-          current = w;
-        }
-      }
-      if (current) lines.push(current);
+function wordWrap(text: string, maxWidth: number): string[] {
+  const result: string[] = [];
+  for (const raw of text.split('\n')) {
+    if (raw.length <= maxWidth) { result.push(raw); continue; }
+    const words = raw.split(' ');
+    let cur = '';
+    for (const w of words) {
+      const candidate = cur ? `${cur} ${w}` : w;
+      if (candidate.length <= maxWidth) { cur = candidate; }
+      else { if (cur) result.push(cur); cur = w; }
     }
+    if (cur) result.push(cur);
   }
-  return lines;
+  return result.length > 0 ? result : [''];
 }
 
-function formatTime(d: Date): string {
+function fmtTime(d: Date): string {
   return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }

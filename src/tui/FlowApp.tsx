@@ -154,6 +154,11 @@ export default function FlowApp() {
   }, [timer.active]);
 
   const conversationRef = useRef<MessageParam[]>([]);
+  // Stable ref to sendToAI, avoids circular hook dependency
+  const sendToAIRef = useRef<(text: string, sys?: string) => Promise<void>>(async () => {});
+
+  // ── Quick Capture (Ctrl+T/Shift+N without mode switch) ───────────────────
+  const [capture, setCapture] = useState<{ mode: 'task' | 'note'; text: string } | null>(null);
 
   // ── Status Context (for plugins) ─────────────────────────────────────────
   const statusCtx = useMemo<StatusContext>(() => ({
@@ -195,7 +200,8 @@ export default function FlowApp() {
     getNotes: () => notes.map(n => ({
       id: n.id, title: n.title, content: n.content, tags: n.tags,
     })),
-    sendToAI: async (prompt, sys) => { await sendToAI(prompt, sys); },
+    // sendToAI resolved at call time via closure (defined below)
+    sendToAI: async (prompt, sys) => { await (sendToAIRef.current)(prompt, sys); },
     getTokenStats: () => ({
       totalInput: 0, totalOutput: totalTokens, totalTokens,
       sessionCost: totalTokens * 0.000003, model: 'claude-sonnet',
@@ -333,6 +339,9 @@ export default function FlowApp() {
       setStreamingId(null);
     }
   }, [isStreaming]);
+
+  // Keep ref current so makePluginCtx can call sendToAI without circular dep
+  useEffect(() => { sendToAIRef.current = sendToAI; }, [sendToAI]);
 
   // ── Task Operations ───────────────────────────────────────────────────────
   const addTask = useCallback((title: string, priority: Task['priority'] = 'normal') => {
@@ -581,6 +590,27 @@ export default function FlowApp() {
 
   // ── Global Keyboard ───────────────────────────────────────────────────────
   useInput((ch, key) => {
+    // Quick capture modal keyboard
+    if (capture) {
+      if (key.escape) { setCapture(null); return; }
+      if (key.return) {
+        if (capture.text.trim()) {
+          if (capture.mode === 'task') {
+            addTask(capture.text.trim());
+            sysMsg(`✓ 任务: ${capture.text.trim()}`);
+          } else {
+            const n = addNote(capture.text.trim());
+            sysMsg(`📝 已记录: ${n.title}`);
+          }
+        }
+        setCapture(null);
+        return;
+      }
+      if (key.backspace) { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
+      if (ch && !key.ctrl && !key.meta) { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
+      return;
+    }
+
     if (showPalette || showHelp) return;
 
     if (key.ctrl && ch === 'k') { setShowPalette(true); return; }
@@ -591,6 +621,9 @@ export default function FlowApp() {
     if (key.ctrl && ch === '3') { setMode('notes');   return; }
     if (key.ctrl && ch === '4') { setMode('agents');  return; }
     if (key.ctrl && ch === '5') { setMode('plugins'); return; }
+
+    // Quick capture: Ctrl+T = task, Ctrl+Shift+N = note (without Ctrl+N conflict)
+    if (key.ctrl && ch === 't') { setCapture({ mode: 'task', text: '' }); return; }
 
     if (key.ctrl && ch === 'n') {
       setMessages([]);
@@ -620,58 +653,76 @@ export default function FlowApp() {
 
   const pendingCount = tasks.filter(t => t.status !== 'done').length;
   const runningAgents = autonomousEngine.list().filter(t => t.status === 'running').length;
-  const timerPct = timer.active && timer.total > 0
-    ? Math.floor((timer.seconds / timer.total) * 100)
-    : 0;
+  const timerPct = timer.active && timer.total > 0 ? Math.floor((timer.seconds / timer.total) * 100) : 0;
+  const activePlugins = pluginList.filter(p => p.enabled).length;
 
   return (
     <Box flexDirection="column" width={termSize.width} height={termSize.height}>
-      {/* ── Header ── */}
+
+      {/* ── Quick Capture Overlay ── */}
+      {capture && (
+        <Box
+          position="absolute"
+          marginTop={0}
+          marginLeft={2}
+          borderStyle="double"
+          borderColor={capture.mode === 'task' ? theme.colors.success : theme.colors.info}
+          paddingX={2}
+          paddingY={0}
+          width={Math.min(60, termSize.width - 8)}
+        >
+          <Text color={capture.mode === 'task' ? theme.colors.success : theme.colors.info} bold>
+            {capture.mode === 'task' ? '☐ 快速任务  ' : '📝 快速笔记  '}
+          </Text>
+          <Text color={theme.colors.text}>{capture.text}</Text>
+          <Text color={theme.colors.primary} backgroundColor={theme.colors.primary}> </Text>
+          <Text color={theme.colors.muted}>  Enter:保存  ESC:取消</Text>
+        </Box>
+      )}
+
+      {/* ── Header: compact one-line ── */}
       <Box
         height={headerHeight}
         flexShrink={0}
         borderStyle="single"
-        borderColor={timer.active && timer.type === 'focus' ? theme.colors.warning : theme.colors.primary}
+        borderColor={
+          timer.active && timer.type === 'focus'
+            ? theme.colors.warning
+            : isStreaming ? theme.colors.accent : theme.colors.primary
+        }
         paddingX={1}
         alignItems="center"
       >
+        {/* Left: logo + numbered mode tabs */}
         <Box flexShrink={0}>
-          <Text color={theme.colors.primary} bold>◆ NEO </Text>
-          <ModeTab label="CHAT"  mode="chat"   active={mode} onClick={setMode} />
-          <Text color={theme.colors.muted}> </Text>
-          <ModeTab
-            label={`TASKS${pendingCount > 0 ? `(${pendingCount})` : ''}`}
-            mode="tasks" active={mode} onClick={setMode}
-          />
-          <Text color={theme.colors.muted}> </Text>
-          <ModeTab label={`NOTES(${notes.length})`} mode="notes"  active={mode} onClick={setMode} />
-          <Text color={theme.colors.muted}> </Text>
-          <ModeTab
-            label={`AGENTS${runningAgents > 0 ? `(${runningAgents}▶)` : ''}`}
-            mode="agents" active={mode} onClick={setMode}
-          />
-          <Text color={theme.colors.muted}> </Text>
-          <ModeTab
-            label={`PLUGINS(${pluginList.filter(p => p.enabled).length})`}
-            mode="plugins" active={mode} onClick={setMode}
-          />
+          <Text color={theme.colors.primary} bold>◆ </Text>
+          <CompactTab n={1} label="CHAT"    badge={undefined}             mode="chat"    active={mode} onClick={setMode} />
+          <CompactTab n={2} label="TASKS"   badge={pendingCount || undefined} mode="tasks"   active={mode} onClick={setMode} />
+          <CompactTab n={3} label="NOTES"   badge={notes.length || undefined} mode="notes"   active={mode} onClick={setMode} />
+          <CompactTab n={4} label="AGENTS"  badge={runningAgents > 0 ? runningAgents : undefined} mode="agents"  active={mode} onClick={setMode} />
+          <CompactTab n={5} label="PLUGINS" badge={activePlugins > 0 ? activePlugins : undefined} mode="plugins" active={mode} onClick={setMode} />
         </Box>
 
+        {/* Right: status (minimal) */}
         <Box flexGrow={1} justifyContent="flex-end">
-          {/* Plugin status widgets */}
-          {statusWidgets.map((w, i) => (
-            <Text key={i} color={theme.colors.muted}>{w}  </Text>
-          ))}
-          {/* Timer */}
+          {/* Plugin widgets — collapsed to icons */}
+          {statusWidgets.length > 0 && (
+            <Text color={theme.colors.muted}>{statusWidgets.join('  ')}  </Text>
+          )}
+          {/* Timer bar */}
           {timer.active && (
             <Text color={timer.type === 'focus' ? theme.colors.warning : theme.colors.success} bold>
-              {timer.type === 'focus' ? '⏱' : '☕'} {formatTimer(timer.seconds)} {timerPct}%
+              {timer.type === 'focus' ? '⏱' : '☕'} {formatTimer(timer.seconds)}
+              <Text color={theme.colors.muted}> {timerPct}%  </Text>
             </Text>
           )}
-          {isStreaming && <Text color={theme.colors.warning}><StreamingDots /> 思考  </Text>}
-          {totalTokens > 0 && <Text color={theme.colors.muted}>{formatTokens(totalTokens)}tok  </Text>}
-          <Text color={theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> sonnet  ⌘K ?</Text>
+          {/* Token count (compact) */}
+          {totalTokens > 0 && (
+            <Text color={theme.colors.muted}>{formatTokens(totalTokens)}  </Text>
+          )}
+          {/* Model + hints */}
+          <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
+          <Text color={theme.colors.muted}> claude  ⌘K ?</Text>
         </Box>
       </Box>
 
@@ -777,34 +828,31 @@ export default function FlowApp() {
 
 // ── Helper Components ─────────────────────────────────────────────────────────
 
-function ModeTab({
-  label, mode, active, onClick,
+/** Compact numbered mode tab: "¹CHAT" or "²TASKS(3)" */
+function CompactTab({
+  n, label, badge, mode, active, onClick,
 }: {
+  n: number;
   label: string;
+  badge?: number;
   mode: AppMode;
   active: AppMode;
   onClick: (m: AppMode) => void;
 }) {
   const isActive = mode === active;
+  const sup = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'][n] ?? String(n);
+  const badgeStr = badge != null ? `(${badge})` : '';
   return (
     <Text
       color={isActive ? theme.colors.background : theme.colors.muted}
       backgroundColor={isActive ? theme.colors.primary : undefined}
       bold={isActive}
     >
-      {' '}{label}{' '}
+      {' '}{sup}{label}{badgeStr}{' '}
     </Text>
   );
 }
 
-function StreamingDots() {
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setFrame(f => (f + 1) % 4), 250);
-    return () => clearInterval(t);
-  }, []);
-  return <Text>{['⠋', '⠙', '⠹', '⠸'][frame]}</Text>;
-}
 
 function formatTokens(n: number): string {
   if (n < 1000) return String(n);
