@@ -1,42 +1,18 @@
 #!/usr/bin/env node
 /**
- * FlowApp.tsx - 键盘优先的心流体验 TUI
+ * FlowApp.tsx — NEO  键盘优先 · AI 原生 · 心流体验
  *
- * 设计哲学:
- * - 模态交互 (Modal): 四模式架构, 类 vim 理念
- * - 心流 (Flow): 最小认知负担, 上下文感知按键提示
- * - 键盘优先: 全程无需鼠标, 快捷键覆盖所有操作
- * - 真实 AI: 流式响应, token 逐字显示
+ * 模式: CHAT / TASKS / NOTES / AGENTS / PLUGINS
+ * 按键: Ctrl+1-5 切换模式  Ctrl+K 命令面板  ? 帮助
  *
- * 布局:
- * ┌────────────────────────────────────────────────────────┐
- * │  ◆ HYPER  [CHAT] [TASKS] [NOTES] [AGENTS]  ● sonnet  │ ← header
- * ├────────────────────────────────────────────────────────┤
- * │                                                        │
- * │  CHAT   → AI 流式对话 (研究/写作/答疑/规划...)          │
- * │  TASKS  → Vim 风格任务管理 (j/k/s/d/v/gg/G)           │
- * │  NOTES  → 快速笔记双栏 (j/k/p/d//)                    │
- * │  AGENTS → 6 Agent 网格 (研究/规划/编码/审查/写作/分析)  │
- * │                                                        │
- * ├────────────────────────────────────────────────────────┤
- * │  ❯ [智能输入 + 命令补全 + 历史]       ⌘K:面板 ?:帮助   │ ← 输入
- * └────────────────────────────────────────────────────────┘
- *
- * 自然语言快捷语:
- *   "todo X"   → 创建任务
- *   "note X"   → 快速记录
- *   "timer N"  → 番茄钟
- *   "plan"     → AI 生成日计划
- *   "standup"  → AI 生成站会内容
- *
- * 按键总览 (打断计算: 同窗口内 = 0 打断, 切换应用 = 1 打断):
- *   Ctrl+1/2/3/4  切换模式 (0 打断)
- *   Ctrl+K        命令面板 (0 打断)
- *   Tab           焦点切换 (0 打断)
- *   ?             帮助面板 (0 打断)
+ * 命令 (短命令优先):
+ *   /c  代码   /d  调试   /e  解释   /w  写作
+ *   /tr 翻译   /sm 摘要   /rs 研究   /rf 重构
+ *   /t  任务   /n  笔记   /ti 计时器
+ *   /plan /sup /rev  AI 效率工具
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { sendMessageStream } from '../ai/client.js';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
@@ -45,16 +21,19 @@ import { ChatView } from './views/ChatView.js';
 import { TasksView } from './views/TasksView.js';
 import { AgentsView } from './views/AgentsView.js';
 import { NotesView } from './views/NotesView.js';
+import { PluginsView } from './views/PluginsView.js';
 import { FlowInput } from './views/FlowInput.js';
 import { HelpOverlay } from './views/HelpOverlay.js';
 import { CommandPaletteOverlay } from './views/CommandPaletteOverlay.js';
 import type { Note } from './views/NotesView.js';
+import { pluginRegistry } from './plugins/index.js';
+import { recordRound } from './plugins/token-counter.js';
+import type { LoadedPlugin, StatusContext, PluginContext } from '../sdk/plugin.js';
+import { autonomousEngine, type AutonomousTask } from './agents/AutonomousEngine.js';
 
-// ============================================================================
-// Types
-// ============================================================================
+// ── Types ────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'chat' | 'tasks' | 'notes' | 'agents';
+export type AppMode = 'chat' | 'tasks' | 'notes' | 'agents' | 'plugins';
 
 export interface Message {
   id: string;
@@ -74,7 +53,6 @@ export interface Task {
   doneAt?: Date;
 }
 
-// ── Pomodoro Timer State ─────────────────────────────────────────────────────
 interface TimerState {
   active: boolean;
   seconds: number;
@@ -83,13 +61,12 @@ interface TimerState {
   type: 'focus' | 'break';
 }
 
-// ============================================================================
-// FlowApp - Main Component
-// ============================================================================
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function FlowApp() {
   const { exit } = useApp();
   const { stdout } = useStdout();
+  const appStartRef = useRef(Date.now());
 
   // Terminal size
   const [termSize, setTermSize] = useState({
@@ -103,25 +80,27 @@ export default function FlowApp() {
     return () => { stdout?.off('resize', onResize); };
   }, [stdout]);
 
-  // ── Core State ──────────────────────────────────────────────────────────────
+  // ── Core State ───────────────────────────────────────────────────────────────
   const [mode, setMode] = useState<AppMode>('chat');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'system',
       content: [
-        '◆ HyperTerminal — AI 原生超级终端  v0.3.0',
+        '◆ NEO — AI 原生超级终端  v0.4.0',
         '',
-        '快速开始:',
-        '  直接输入 → 与 AI 对话 (真实 Claude 流式响应)',
-        '  todo 买菜  → 创建任务',
-        '  note 想法  → 快速记录',
-        '  timer 25   → 25分钟番茄钟',
-        '  plan        → AI 生成今日计划',
-        '  standup     → AI 生成站会内容',
+        '快速开始 (短命令版):',
+        '  直接输入    → AI 对话 (Claude 实时流式)',
+        '  t 买菜      → 创建任务   (或 /t)',
+        '  n 想法      → 快速记录   (或 /n)',
+        '  ti 25       → 25分钟番茄钟',
+        '  /c <需求>   → 生成代码',
+        '  /d <错误>   → 调试分析',
+        '  /rs <主题>  → 深度研究',
+        '  /plan       → AI 规划今日',
         '',
-        '  Ctrl+K → 命令面板   ? → 快捷键帮助',
-        '  Ctrl+1/2/3/4 → 切换 CHAT/TASKS/NOTES/AGENTS',
+        '  Ctrl+1/2/3/4/5 → CHAT/TASKS/NOTES/AGENTS/PLUGINS',
+        '  Ctrl+K → 命令面板   ? → 帮助',
       ].join('\n'),
       timestamp: new Date(),
     },
@@ -143,15 +122,6 @@ export default function FlowApp() {
       createdAt: new Date(Date.now() - 86400000),
       updatedAt: new Date(Date.now() - 3600000),
     },
-    {
-      id: 'n2',
-      title: '每周回顾',
-      content: '本周完成: API 重构, 测试覆盖率提升至 85%\n下周目标: 上线新功能, 优化数据库查询',
-      tags: ['回顾'],
-      pinned: false,
-      createdAt: new Date(Date.now() - 172800000),
-      updatedAt: new Date(Date.now() - 172800000),
-    },
   ]);
 
   const [totalTokens, setTotalTokens] = useState(0);
@@ -160,8 +130,11 @@ export default function FlowApp() {
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [focusOnInput, setFocusOnInput] = useState(true);
+  const [pluginList, setPluginList] = useState<LoadedPlugin[]>([]);
+  const [statusWidgets, setStatusWidgets] = useState<string[]>([]);
+  const [, forceUpdate] = useState(0);  // for plugin widget refresh
 
-  // ── Timer (Pomodoro) ─────────────────────────────────────────────────────
+  // Pomodoro timer
   const [timer, setTimer] = useState<TimerState>({
     active: false, seconds: 0, total: 0, label: '', type: 'focus',
   });
@@ -171,7 +144,7 @@ export default function FlowApp() {
       setTimer(prev => {
         if (prev.seconds <= 1) {
           clearInterval(t);
-          sysMsg(`⏰ ${prev.label} 结束！`);
+          sysMsg(`⏰ ${prev.label} 结束！休息一下 ☕`);
           return { ...prev, active: false, seconds: 0 };
         }
         return { ...prev, seconds: prev.seconds - 1 };
@@ -180,16 +153,106 @@ export default function FlowApp() {
     return () => clearInterval(t);
   }, [timer.active]);
 
-  // Conversation history for AI context
   const conversationRef = useRef<MessageParam[]>([]);
 
-  // ── Layout ──────────────────────────────────────────────────────────────────
+  // ── Status Context (for plugins) ─────────────────────────────────────────
+  const statusCtx = useMemo<StatusContext>(() => ({
+    now: new Date(),
+    getConfig: () => undefined,
+    getTokenStats: () => ({
+      totalInput: 0,
+      totalOutput: totalTokens,
+      totalTokens,
+      sessionCost: totalTokens * 0.000003,
+      model: 'claude-sonnet',
+    }),
+  }), [totalTokens]);
+
+  // ── Plugin Context ────────────────────────────────────────────────────────
+  const makePluginCtx = useCallback((): PluginContext => ({
+    addMessage: (content, role = 'system') => {
+      setMessages(prev => [...prev, {
+        id: `plug-${Date.now()}`,
+        role: role as Message['role'],
+        content,
+        timestamp: new Date(),
+      }]);
+    },
+    notify: (content) => {
+      setMessages(prev => [...prev, {
+        id: `notif-${Date.now()}`,
+        role: 'system',
+        content: `ℹ ${content}`,
+        timestamp: new Date(),
+      }]);
+    },
+    setMode: (m) => setMode(m),
+    getConfig: () => undefined,
+    setConfig: () => {},
+    getTasks: () => tasks.map(t => ({
+      id: t.id, title: t.title, status: t.status, priority: t.priority,
+    })),
+    getNotes: () => notes.map(n => ({
+      id: n.id, title: n.title, content: n.content, tags: n.tags,
+    })),
+    sendToAI: async (prompt, sys) => { await sendToAI(prompt, sys); },
+    getTokenStats: () => ({
+      totalInput: 0, totalOutput: totalTokens, totalTokens,
+      sessionCost: totalTokens * 0.000003, model: 'claude-sonnet',
+    }),
+  }), [tasks, notes, totalTokens]);
+
+  // ── Init Plugins ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const ctx = makePluginCtx();
+    void pluginRegistry.init(ctx).then(() => {
+      setPluginList(pluginRegistry.list());
+    });
+
+    // Widget refresh every second
+    const widgetTimer = setInterval(() => {
+      const ctx2: StatusContext = {
+        now: new Date(),
+        getConfig: () => undefined,
+        getTokenStats: () => ({
+          totalInput: 0, totalOutput: totalTokens,
+          totalTokens, sessionCost: totalTokens * 0.000003, model: 'claude-sonnet',
+        }),
+      };
+      setStatusWidgets(pluginRegistry.getStatusWidgets(ctx2));
+      forceUpdate(n => n + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(widgetTimer);
+      pluginRegistry.destroy();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Init autonomous engine with real AI call
+  useEffect(() => {
+    autonomousEngine.init(
+      sendMessageStream,
+      (updatedTasks) => {
+        // Log completed tasks to chat
+        for (const t of updatedTasks) {
+          if (t.status === 'done' && t.result && t.milestones.length > 0) {
+            const lastMilestone = t.milestones[t.milestones.length - 1];
+            if (lastMilestone?.startsWith('✓')) return; // already logged
+          }
+        }
+      },
+    );
+    return () => autonomousEngine.destroy();
+  }, []);
+
+  // ── Layout ────────────────────────────────────────────────────────────────
   const headerHeight = 1;
   const inputHeight = 3;
   const contentHeight = termSize.height - headerHeight - inputHeight;
   const tooSmall = termSize.width < 60 || termSize.height < 12;
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const sysMsg = useCallback((content: string) => {
     setMessages(prev => [...prev, {
       id: `sys-${Date.now()}`,
@@ -197,13 +260,11 @@ export default function FlowApp() {
       content,
       timestamp: new Date(),
     }]);
-    setMode('chat');
   }, []);
 
-  // ── AI Streaming ─────────────────────────────────────────────────────────
+  // ── AI Streaming ──────────────────────────────────────────────────────────
   const sendToAI = useCallback(async (userText: string, systemOverride?: string) => {
     if (isStreaming) return;
-
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -213,10 +274,7 @@ export default function FlowApp() {
     setMessages(prev => [...prev, userMsg]);
     setMode('chat');
 
-    conversationRef.current = [
-      ...conversationRef.current,
-      { role: 'user', content: userText },
-    ];
+    conversationRef.current = [...conversationRef.current, { role: 'user', content: userText }];
 
     const aiId = `ai-${Date.now()}`;
     setMessages(prev => [...prev, {
@@ -226,6 +284,7 @@ export default function FlowApp() {
     setStreamingId(aiId);
 
     let accumulated = '';
+    const inputStart = Date.now();
     try {
       const result = await sendMessageStream(
         conversationRef.current,
@@ -242,7 +301,9 @@ export default function FlowApp() {
         ...conversationRef.current,
         { role: 'assistant', content: result.content || accumulated },
       ];
-      setTotalTokens(prev => prev + result.usage.inputTokens + result.usage.outputTokens);
+
+      const newTokens = result.usage.inputTokens + result.usage.outputTokens;
+      setTotalTokens(prev => prev + newTokens);
       setMessages(prev =>
         prev.map(m =>
           m.id === aiId
@@ -250,6 +311,15 @@ export default function FlowApp() {
             : m
         )
       );
+
+      // Record in token-counter plugin
+      void recordRound(
+        result.usage.inputTokens,
+        result.usage.outputTokens,
+        result.model,
+        userText.slice(0, 80),
+      );
+
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setMessages(prev =>
@@ -258,12 +328,13 @@ export default function FlowApp() {
         )
       );
     } finally {
+      void inputStart; // suppress unused warning
       setIsStreaming(false);
       setStreamingId(null);
     }
   }, [isStreaming]);
 
-  // ── Task Operations ──────────────────────────────────────────────────────
+  // ── Task Operations ───────────────────────────────────────────────────────
   const addTask = useCallback((title: string, priority: Task['priority'] = 'normal') => {
     const t: Task = { id: Date.now().toString(), title, status: 'pending', priority, createdAt: new Date() };
     setTasks(prev => [t, ...prev]);
@@ -288,38 +359,27 @@ export default function FlowApp() {
     ));
   }, []);
 
-  // ── Note Operations ──────────────────────────────────────────────────────
+  // ── Note Operations ───────────────────────────────────────────────────────
   const addNote = useCallback((content: string, tags: string[] = []) => {
     const words = content.split(' ').slice(0, 6).join(' ');
     const title = words.length > 30 ? words.slice(0, 30) + '…' : words;
     const n: Note = {
-      id: `n-${Date.now()}`,
-      title,
-      content,
-      tags,
-      pinned: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      id: `n-${Date.now()}`, title, content, tags,
+      pinned: false, createdAt: new Date(), updatedAt: new Date(),
     };
     setNotes(prev => [n, ...prev]);
     return n;
   }, []);
 
-  const deleteNote = useCallback((id: string) => {
-    setNotes(prev => prev.filter(n => n.id !== id));
-  }, []);
-
-  const pinNote = useCallback((id: string) => {
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n));
-  }, []);
-
+  const deleteNote = useCallback((id: string) => setNotes(prev => prev.filter(n => n.id !== id)), []);
+  const pinNote = useCallback((id: string) => setNotes(prev => prev.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n)), []);
   const addNoteTag = useCallback((id: string, tag: string) => {
     setNotes(prev => prev.map(n =>
       n.id === id && !n.tags.includes(tag) ? { ...n, tags: [...n.tags, tag] } : n
     ));
   }, []);
 
-  // ── Command Handling ─────────────────────────────────────────────────────
+  // ── Command Handler ───────────────────────────────────────────────────────
   const handleInput = useCallback(async (raw: string) => {
     const input = raw.trim();
     if (!input) return;
@@ -330,15 +390,25 @@ export default function FlowApp() {
       const cmd = parts[0].toLowerCase();
       const arg = parts.slice(1).join(' ');
 
-      switch (cmd) {
-        // Mode switching
-        case 'chat':   setMode('chat');   return;
-        case 'tasks':  setMode('tasks');  return;
-        case 'notes':  setMode('notes');  return;
-        case 'agents': setMode('agents'); return;
+      // Try plugin commands first
+      const pluginCtx = makePluginCtx();
+      const handled = await pluginRegistry.handleCommand(cmd, arg, {
+        ...pluginCtx,
+        args: arg,
+        raw: input,
+      });
+      if (handled) return;
 
-        // Chat management
-        case 'clear':
+      switch (cmd) {
+        // ── Mode switching ──────────────────────────────────────────────
+        case 'chat':   case '1': setMode('chat');    return;
+        case 'tasks':  case '2': setMode('tasks');   return;
+        case 'notes':  case '3': setMode('notes');   return;
+        case 'agents': case '4': setMode('agents');  return;
+        case 'plugins':case '5': setMode('plugins'); return;
+
+        // ── Chat management ─────────────────────────────────────────────
+        case 'clear': case 'cl':
           setMessages([]);
           conversationRef.current = [];
           return;
@@ -348,36 +418,35 @@ export default function FlowApp() {
           setMode('chat');
           return;
 
-        // Help
-        case 'help':
+        // ── Help ────────────────────────────────────────────────────────
+        case 'help': case 'h':
           setShowHelp(true);
           return;
 
-        // Task creation
-        case 'task':
-        case 'todo': {
-          if (!arg) { sysMsg('用法: /task <标题>'); return; }
+        // ── Task: /t or /task or /todo ──────────────────────────────────
+        case 'task': case 'todo': case 't': {
+          if (!arg) { sysMsg('用法: /t <标题>  [!紧急]'); return; }
           const isPrio = arg.includes('紧急') || arg.includes('urgent') || arg.includes('!');
           const t = addTask(arg, isPrio ? 'high' : 'normal');
           sysMsg(`✓ 任务: ${t.title}`);
           return;
         }
 
-        // Note creation
-        case 'note': {
-          if (!arg) { sysMsg('用法: /note <内容>'); return; }
+        // ── Note: /n or /note ───────────────────────────────────────────
+        case 'note': case 'n': {
+          if (!arg) { sysMsg('用法: /n <内容>'); return; }
           const n = addNote(arg);
           sysMsg(`📝 笔记: ${n.title}`);
           setMode('notes');
           return;
         }
 
-        // Timer (Pomodoro)
-        case 'timer': {
+        // ── Timer: /ti or /timer ────────────────────────────────────────
+        case 'timer': case 'ti': {
           const mins = parseInt(arg) || 25;
-          const label = mins <= 5 ? '休息' : `专注 ${mins}m`;
+          const label = mins <= 5 ? `休息 ${mins}m` : `专注 ${mins}m`;
           setTimer({ active: true, seconds: mins * 60, total: mins * 60, label, type: mins <= 5 ? 'break' : 'focus' });
-          sysMsg(`⏱ 计时开始: ${label}`);
+          sysMsg(`⏱ ${label} 开始`);
           return;
         }
         case 'stop':
@@ -385,134 +454,111 @@ export default function FlowApp() {
           sysMsg('⏹ 计时已停止');
           return;
 
-        // AI-powered productivity shortcuts
+        // ── AI productivity: /plan /sup /rev ───────────────────────────
         case 'plan': {
           const taskList = tasks.filter(t => t.status !== 'done').map(t => `- ${t.title} [${t.priority}]`).join('\n');
-          const prompt = `请帮我规划今天的工作日程。当前待办任务:\n${taskList || '(暂无任务)'}\n\n请给出今天的时间块安排，优先级排序，以及开始建议。`;
-          await sendToAI(prompt, '你是一个高效的日程规划师。请给出简洁、可执行的每日计划。');
-          return;
-        }
-
-        case 'standup': {
-          const doneTasks = tasks.filter(t => t.status === 'done').slice(0, 5).map(t => `- ${t.title}`).join('\n');
-          const pendingTaskList = tasks.filter(t => t.status !== 'done').slice(0, 5).map(t => `- ${t.title}`).join('\n');
-          const prompt = `请帮我生成今日站会内容:\n\n昨日完成:\n${doneTasks || '(暂无)'}\n\n今日计划:\n${pendingTaskList || '(暂无)'}\n\n请生成简洁的站会发言稿，包括昨日、今日、是否有阻塞。`;
-          await sendToAI(prompt, '你是一个敏捷开发助手。生成简洁专业的站会内容。');
-          return;
-        }
-
-        case 'review': {
-          const allTasks = tasks.slice(0, 10).map(t => `[${t.status}] ${t.title}`).join('\n');
-          const prompt = `请帮我做今日工作回顾:\n\n任务情况:\n${allTasks}\n\n请分析完成情况，识别未完成原因，给出明日改进建议。`;
-          await sendToAI(prompt, '你是一个效能教练。给出建设性的每日回顾分析。');
-          return;
-        }
-
-        case 'research': {
-          if (!arg) { sysMsg('用法: /research <主题>'); return; }
           await sendToAI(
-            `请深入研究以下主题，给出全面的分析报告:\n\n${arg}\n\n包括: 背景介绍, 关键要点, 优缺点分析, 实践建议, 推荐资源。`,
-            '你是一个专业研究员。给出深度、有见地的分析。'
+            `请帮我规划今天的工作。待办任务:\n${taskList || '(暂无)'}\n\n给出时间块安排和开始建议。`,
+            '你是高效的日程规划师。给出简洁可执行的每日计划。'
+          );
+          return;
+        }
+        case 'standup': case 'sup': {
+          const done = tasks.filter(t => t.status === 'done').slice(0, 5).map(t => `- ${t.title}`).join('\n');
+          const pending = tasks.filter(t => t.status !== 'done').slice(0, 5).map(t => `- ${t.title}`).join('\n');
+          await sendToAI(
+            `生成站会内容:\n昨日完成:\n${done || '(暂无)'}\n今日计划:\n${pending || '(暂无)'}`,
+            '你是敏捷开发助手。生成简洁专业的站会发言。'
+          );
+          return;
+        }
+        case 'review': case 'rev': {
+          const all = tasks.slice(0, 10).map(t => `[${t.status}] ${t.title}`).join('\n');
+          await sendToAI(
+            `工作回顾:\n${all}\n\n分析完成情况，给出明日改进建议。`,
+            '你是效能教练。给出建设性的每日回顾。'
           );
           return;
         }
 
-        case 'code': {
-          if (!arg) { sysMsg('用法: /code <需求描述>'); return; }
+        // ── AI tools: short commands ────────────────────────────────────
+        case 'code': case 'c': {
+          if (!arg) { sysMsg('用法: /c <需求>'); return; }
+          await sendToAI(`实现以下功能:\n\n${arg}\n\n给出完整代码、注释和使用示例。`, '你是资深工程师。写出高质量可维护的代码。');
+          return;
+        }
+        case 'debug': case 'd': {
+          if (!arg) { sysMsg('用法: /d <错误或代码>'); return; }
+          await sendToAI(`调试以下问题:\n\n${arg}\n\n分析原因，给出修复方案。`, '你是调试专家。系统性分析问题根因。');
+          return;
+        }
+        case 'explain': case 'e': {
+          if (!arg) { sysMsg('用法: /e <代码或概念>'); return; }
+          await sendToAI(`解释以下内容:\n\n${arg}\n\n用清晰语言解释工作原理和使用场景。`, '你是技术讲师。用简单方式解释复杂概念。');
+          return;
+        }
+        case 'refactor': case 'rf': {
+          if (!arg) { sysMsg('用法: /rf <代码>'); return; }
+          await sendToAI(`重构以下代码，改进可读性、性能、设计:\n\n${arg}`, '你是代码质量专家。给出优雅高效的重构方案。');
+          return;
+        }
+        case 'write': case 'w': {
+          if (!arg) { sysMsg('用法: /w <写作需求>'); return; }
+          await sendToAI(`写作需求:\n\n${arg}\n\n结构清晰、语言流畅。`, '你是专业写作助手。给出高质量原创内容。');
+          return;
+        }
+        case 'translate': case 'tr': {
+          if (!arg) { sysMsg('用法: /tr <文本>'); return; }
+          await sendToAI(`翻译 (中英互译):\n\n${arg}`, '你是专业翻译。给出准确自然的翻译。');
+          return;
+        }
+        case 'summary': case 'sm': {
+          if (!arg) { sysMsg('用法: /sm <文本>'); return; }
+          await sendToAI(`摘要总结 (5条以内):\n\n${arg}`, '你是信息提炼专家。给出精准结构化的摘要。');
+          return;
+        }
+        case 'research': case 'rs': {
+          if (!arg) { sysMsg('用法: /rs <主题>'); return; }
           await sendToAI(
-            `请实现以下功能:\n\n${arg}\n\n给出完整的代码实现，包括注释说明和使用示例。`,
-            '你是一个资深工程师。给出高质量、可维护的代码实现。'
+            `深入研究: ${arg}\n\n包括: 背景、关键要点、优缺点、实践建议、推荐资源。`,
+            '你是专业研究员。给出深度有见地的分析。'
           );
           return;
         }
 
-        case 'debug': {
-          if (!arg) { sysMsg('用法: /debug <错误信息或代码>'); return; }
-          await sendToAI(
-            `请帮我调试以下问题:\n\n${arg}\n\n请分析错误原因，给出修复方案和预防措施。`,
-            '你是一个调试专家。系统性分析问题根因，给出明确的解决步骤。'
-          );
-          return;
-        }
-
-        case 'explain': {
-          if (!arg) { sysMsg('用法: /explain <代码或概念>'); return; }
-          await sendToAI(
-            `请解释以下内容:\n\n${arg}\n\n用清晰简单的语言解释，包括工作原理、使用场景和注意事项。`,
-            '你是一个优秀的技术讲师。用简单易懂的方式解释复杂概念。'
-          );
-          return;
-        }
-
-        case 'refactor': {
-          if (!arg) { sysMsg('用法: /refactor <代码>'); return; }
-          await sendToAI(
-            `请重构以下代码:\n\n${arg}\n\n改进: 可读性、性能、设计模式。给出重构后代码和改动说明。`,
-            '你是一个代码质量专家。给出优雅、高效的重构方案。'
-          );
-          return;
-        }
-
-        case 'write': {
-          if (!arg) { sysMsg('用法: /write <写作需求>'); return; }
-          await sendToAI(
-            `请写作以下内容:\n\n${arg}\n\n要求: 结构清晰、语言流畅、内容充实。`,
-            '你是一个专业写作助手。给出高质量的原创内容。'
-          );
-          return;
-        }
-
-        case 'translate': {
-          if (!arg) { sysMsg('用法: /translate <文本>'); return; }
-          await sendToAI(
-            `请翻译以下内容 (中英互译，根据语言自动判断方向):\n\n${arg}`,
-            '你是一个专业翻译。给出准确、自然的翻译结果。'
-          );
-          return;
-        }
-
-        case 'summary': {
-          if (!arg) { sysMsg('用法: /summary <文本或主题>'); return; }
-          await sendToAI(
-            `请对以下内容进行摘要总结:\n\n${arg}\n\n给出核心要点 (5条以内)。`,
-            '你是一个信息提炼专家。给出精准、结构化的摘要。'
-          );
-          return;
-        }
-
-        case 'exit':
-        case 'quit':
+        case 'exit': case 'quit': case 'q':
           exit();
           return;
 
         default:
-          sysMsg(`未知命令: /${cmd}  输入 /help 查看所有命令`);
+          sysMsg(`未知命令: /${cmd}  输入 /h 查看帮助`);
           return;
       }
     }
 
+    // ── Natural Language: plugin routing first ────────────────────────────
+    const pluginCtx = makePluginCtx();
+    const pluginHandled = await pluginRegistry.handleNatural(input, pluginCtx);
+    if (pluginHandled) return;
+
     // ── Natural Language Shortcuts ────────────────────────────────────────
     const lc = input.toLowerCase();
 
-    // "todo X" / "任务 X"
-    if (lc.startsWith('todo ') || lc.startsWith('任务 ')) {
-      const title = input.replace(/^(todo|任务)\s+/i, '');
-      const t = addTask(title);
-      sysMsg(`✓ 任务: ${t.title}`);
-      return;
+    // "t X" or "todo X" or "任务 X"  — but avoid single "t" (too short)
+    if (/^(todo|任务)\s+/i.test(input) || (lc.startsWith('t ') && input.length > 2)) {
+      const title = input.replace(/^(todo|任务|t)\s+/i, '');
+      if (title) { addTask(title); sysMsg(`✓ 任务: ${title}`); return; }
     }
 
-    // "note X" / "记录 X" / "笔记 X"
-    if (lc.startsWith('note ') || lc.startsWith('记录 ') || lc.startsWith('笔记 ')) {
-      const content = input.replace(/^(note|记录|笔记)\s+/i, '');
-      const n = addNote(content);
-      sysMsg(`📝 已记录: ${n.title}`);
-      return;
+    // "n X" or "note X" or "记录/笔记 X"
+    if (/^(note|记录|笔记)\s+/i.test(input) || (lc.startsWith('n ') && input.length > 2)) {
+      const content = input.replace(/^(note|记录|笔记|n)\s+/i, '');
+      if (content) { const n = addNote(content); sysMsg(`📝 已记录: ${n.title}`); return; }
     }
 
-    // "timer N" / "番茄 N"
-    if (lc.startsWith('timer ') || lc.startsWith('番茄 ')) {
-      const mins = parseInt(input.replace(/^(timer|番茄)\s+/i, '')) || 25;
+    // "ti N" or "timer N" or "番茄 N"
+    if (/^(timer|番茄|ti)\s+\d+/i.test(input)) {
+      const mins = parseInt(input.replace(/^(timer|番茄|ti)\s+/i, '')) || 25;
       setTimer({ active: true, seconds: mins * 60, total: mins * 60, label: `专注 ${mins}m`, type: 'focus' });
       sysMsg(`⏱ 开始 ${mins} 分钟番茄钟`);
       return;
@@ -520,31 +566,31 @@ export default function FlowApp() {
 
     // "plan" / "规划今天"
     if (lc === 'plan' || lc === '规划今天' || lc === '今日计划') {
-      handleInput('/plan');
+      void handleInput('/plan');
       return;
     }
-
     // "standup" / "站会"
-    if (lc === 'standup' || lc === '站会') {
-      handleInput('/standup');
+    if (lc === 'standup' || lc === 'sup' || lc === '站会') {
+      void handleInput('/sup');
       return;
     }
 
     // Default: send to AI
     await sendToAI(input);
-  }, [addNote, addTask, exit, sysMsg, sendToAI, tasks]);
+  }, [addNote, addTask, exit, sysMsg, sendToAI, tasks, makePluginCtx]);
 
-  // ── Global Keyboard ──────────────────────────────────────────────────────
+  // ── Global Keyboard ───────────────────────────────────────────────────────
   useInput((ch, key) => {
     if (showPalette || showHelp) return;
 
     if (key.ctrl && ch === 'k') { setShowPalette(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
-    if (key.ctrl && ch === '1') { setMode('chat');   return; }
-    if (key.ctrl && ch === '2') { setMode('tasks');  return; }
-    if (key.ctrl && ch === '3') { setMode('notes');  return; }
-    if (key.ctrl && ch === '4') { setMode('agents'); return; }
+    if (key.ctrl && ch === '1') { setMode('chat');    return; }
+    if (key.ctrl && ch === '2') { setMode('tasks');   return; }
+    if (key.ctrl && ch === '3') { setMode('notes');   return; }
+    if (key.ctrl && ch === '4') { setMode('agents');  return; }
+    if (key.ctrl && ch === '5') { setMode('plugins'); return; }
 
     if (key.ctrl && ch === 'n') {
       setMessages([]);
@@ -562,7 +608,7 @@ export default function FlowApp() {
     if (key.tab) { setFocusOnInput(prev => !prev); return; }
   });
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   if (tooSmall) {
     return (
       <Box flexDirection="column" width={termSize.width} height={termSize.height} padding={1}>
@@ -573,6 +619,7 @@ export default function FlowApp() {
   }
 
   const pendingCount = tasks.filter(t => t.status !== 'done').length;
+  const runningAgents = autonomousEngine.list().filter(t => t.status === 'running').length;
   const timerPct = timer.active && timer.total > 0
     ? Math.floor((timer.seconds / timer.total) * 100)
     : 0;
@@ -589,7 +636,7 @@ export default function FlowApp() {
         alignItems="center"
       >
         <Box flexShrink={0}>
-          <Text color={theme.colors.primary} bold>◆ HYPER </Text>
+          <Text color={theme.colors.primary} bold>◆ NEO </Text>
           <ModeTab label="CHAT"  mode="chat"   active={mode} onClick={setMode} />
           <Text color={theme.colors.muted}> </Text>
           <ModeTab
@@ -599,14 +646,26 @@ export default function FlowApp() {
           <Text color={theme.colors.muted}> </Text>
           <ModeTab label={`NOTES(${notes.length})`} mode="notes"  active={mode} onClick={setMode} />
           <Text color={theme.colors.muted}> </Text>
-          <ModeTab label="AGENTS" mode="agents" active={mode} onClick={setMode} />
+          <ModeTab
+            label={`AGENTS${runningAgents > 0 ? `(${runningAgents}▶)` : ''}`}
+            mode="agents" active={mode} onClick={setMode}
+          />
+          <Text color={theme.colors.muted}> </Text>
+          <ModeTab
+            label={`PLUGINS(${pluginList.filter(p => p.enabled).length})`}
+            mode="plugins" active={mode} onClick={setMode}
+          />
         </Box>
 
         <Box flexGrow={1} justifyContent="flex-end">
-          {/* Timer display */}
+          {/* Plugin status widgets */}
+          {statusWidgets.map((w, i) => (
+            <Text key={i} color={theme.colors.muted}>{w}  </Text>
+          ))}
+          {/* Timer */}
           {timer.active && (
             <Text color={timer.type === 'focus' ? theme.colors.warning : theme.colors.success} bold>
-              {timer.type === 'focus' ? '⏱' : '☕'} {formatTimer(timer.seconds)}  {timerPct}%
+              {timer.type === 'focus' ? '⏱' : '☕'} {formatTimer(timer.seconds)} {timerPct}%
             </Text>
           )}
           {isStreaming && <Text color={theme.colors.warning}><StreamingDots /> 思考  </Text>}
@@ -636,10 +695,7 @@ export default function FlowApp() {
             onToggle={toggleTask}
             onDelete={deleteTask}
             onSetStatus={setTaskStatus}
-            onAddTask={(title) => {
-              addTask(title);
-              sysMsg(`✓ 任务: ${title}`);
-            }}
+            onAddTask={(title) => { addTask(title); sysMsg(`✓ 任务: ${title}`); }}
           />
         )}
         {mode === 'notes' && (
@@ -660,8 +716,25 @@ export default function FlowApp() {
             isFocused={!focusOnInput}
             onRunAgent={(agentName, goal) => {
               setMode('chat');
-              handleInput(`作为 ${agentName}, 请帮我: ${goal}`);
+              void handleInput(`作为 ${agentName}, 请帮我: ${goal}`);
             }}
+            onAutoTask={(task: AutonomousTask) => {
+              sysMsg(`🤖 自主任务已启动: ${task.goal.slice(0, 50)}`);
+            }}
+          />
+        )}
+        {mode === 'plugins' && (
+          <PluginsView
+            plugins={pluginList}
+            height={contentHeight}
+            width={termSize.width}
+            isFocused={!focusOnInput}
+            onToggle={async (id) => {
+              const p = pluginList.find(x => x.def.id === id);
+              if (p) await pluginRegistry.setEnabled(id, !p.enabled);
+              setPluginList(pluginRegistry.list());
+            }}
+            statusCtx={statusCtx}
           />
         )}
       </Box>
@@ -693,7 +766,7 @@ export default function FlowApp() {
           mode={mode}
           onSelect={(cmd) => {
             setShowPalette(false);
-            handleInput(cmd);
+            void handleInput(cmd);
           }}
           onClose={() => setShowPalette(false)}
         />
@@ -702,9 +775,7 @@ export default function FlowApp() {
   );
 }
 
-// ============================================================================
-// Helper Components
-// ============================================================================
+// ── Helper Components ─────────────────────────────────────────────────────────
 
 function ModeTab({
   label, mode, active, onClick,
