@@ -133,7 +133,9 @@ export class AgentManager {
     opts: { tokens?: number; agentRound?: number } = {},
   ): void {
     const def = this.registry.get(agentId);
-    if (!def?.memory.persistHistory) return;
+    // Only skip if the agent is explicitly configured with persistHistory=false.
+    // Unknown agents (e.g. autonomous task IDs) default to writing history.
+    if (def && def.memory.persistHistory === false) return;
     this.history.append(agentId, role, content, opts);
   }
 

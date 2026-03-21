@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme, icons } from '../../../theme/index.js';
 import { useScrollable, useScrollableKeyboard } from '../../hooks/useScrollable.js';
 import { type Key } from 'ink';
@@ -165,7 +165,6 @@ interface KeyboardCaptureProps {
 }
 
 function KeyboardCapture({ onKey }: KeyboardCaptureProps) {
-  const { useInput } = require('ink');
   useInput((input: string, key: Key) => {
     onKey(input, key);
   });
@@ -216,7 +215,6 @@ export function ScrollableList<T>({
   selectedIndex,
   height,
   width,
-  onSelect,
   keyExtractor = (_, index) => String(index),
   emptyText = 'No items',
 }: ScrollableListProps<T>) {

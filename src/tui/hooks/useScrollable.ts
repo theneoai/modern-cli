@@ -149,7 +149,7 @@ export function useScrollableKeyboard(
 ) {
   const { enabled = true } = options;
   
-  const handleKey = useCallback((input: string, key: Key): boolean => {
+  const handleKey = useCallback((_input: string, key: Key): boolean => {
     if (!enabled) return false;
     
     if (key.upArrow) {

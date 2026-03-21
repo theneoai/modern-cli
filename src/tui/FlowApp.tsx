@@ -12,12 +12,12 @@
  *   /plan /sup /rev  AI 效率工具
  */
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { sendMessageStream, resetClient } from '../ai/client.js';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import { tuiTheme as theme } from '../theme/index.js';
-import { switchProvider, switchModel, getConfig } from '../utils/config.js';
+import { switchProvider, getConfig } from '../utils/config.js';
 import { keyStore } from '../ai/keystore.js';
 import { ChatView } from './views/ChatView.js';
 import { TasksView } from './views/TasksView.js';
@@ -75,8 +75,6 @@ interface TimerState {
 export default function FlowApp() {
   const { exit } = useApp();
   const { stdout } = useStdout();
-  const appStartRef = useRef(Date.now());
-
   // Terminal size
   const [termSize, setTermSize] = useState({
     width: stdout?.columns || 120,
@@ -309,7 +307,6 @@ export default function FlowApp() {
     setStreamingId(aiId);
 
     let accumulated = '';
-    const inputStart = Date.now();
     try {
       const result = await sendMessageStream(
         conversationRef.current,
@@ -360,7 +357,6 @@ export default function FlowApp() {
         )
       );
     } finally {
-      void inputStart; // suppress unused warning
       setIsStreaming(false);
       setStreamingId(null);
     }
@@ -787,8 +783,6 @@ export default function FlowApp() {
   // Companion mood from memory
   const companionEmotional = companionMemory.getEmotional();
   const companionMoodEmoji = companionEmotional.mood > 0.5 ? '😊' : companionEmotional.mood > 0.1 ? '🙂' : companionEmotional.mood > -0.2 ? '😐' : '😔';
-  const companionPersona = companionMemory.getPersona();
-
   return (
     <Box flexDirection="column" width={termSize.width} height={termSize.height}>
 
@@ -829,11 +823,11 @@ export default function FlowApp() {
         {/* Left: logo + numbered mode tabs */}
         <Box flexShrink={0}>
           <Text color={theme.colors.primary} bold>◆ </Text>
-          <CompactTab n={1} label="CHAT"    badge={undefined}             mode="chat"    active={mode} onClick={setMode} />
-          <CompactTab n={2} label="TASKS"   badge={pendingCount || undefined} mode="tasks"   active={mode} onClick={setMode} />
-          <CompactTab n={3} label="NOTES"   badge={notes.length || undefined} mode="notes"   active={mode} onClick={setMode} />
-          <CompactTab n={4} label="AGENTS"  badge={runningAgents > 0 ? runningAgents : undefined} mode="agents"  active={mode} onClick={setMode} />
-          <CompactTab n={5} label="PLUGINS" badge={activePlugins > 0 ? activePlugins : undefined} mode="plugins" active={mode} onClick={setMode} />
+          <CompactTab n={1} label="CHAT"    badge={undefined}             mode="chat"    active={mode} />
+          <CompactTab n={2} label="TASKS"   badge={pendingCount || undefined} mode="tasks"   active={mode} />
+          <CompactTab n={3} label="NOTES"   badge={notes.length || undefined} mode="notes"   active={mode} />
+          <CompactTab n={4} label="AGENTS"  badge={runningAgents > 0 ? runningAgents : undefined} mode="agents"  active={mode} />
+          <CompactTab n={5} label="PLUGINS" badge={activePlugins > 0 ? activePlugins : undefined} mode="plugins" active={mode} />
         </Box>
 
         {/* Right: status (minimal) */}
@@ -1014,14 +1008,13 @@ export default function FlowApp() {
 
 /** Compact numbered mode tab: "¹CHAT" or "²TASKS(3)" */
 function CompactTab({
-  n, label, badge, mode, active, onClick,
+  n, label, badge, mode, active,
 }: {
   n: number;
   label: string;
   badge?: number;
   mode: AppMode;
   active: AppMode;
-  onClick: (m: AppMode) => void;
 }) {
   const isActive = mode === active;
   const sup = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'][n] ?? String(n);
