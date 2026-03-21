@@ -90,26 +90,7 @@ export default function FlowApp() {
     {
       id: 'welcome',
       role: 'system',
-      content: [
-        '◆ NEO — AI 原生超级终端  v0.4.0',
-        '',
-        '快速开始 (短命令版):',
-        '  直接输入    → AI 对话 (Claude 实时流式)',
-        '  t 买菜      → 创建任务   (或 /t)',
-        '  n 想法      → 快速记录   (或 /n)',
-        '  ti 25       → 25分钟番茄钟',
-        '  /c <需求>   → 生成代码',
-        '  /d <错误>   → 调试分析',
-        '  /rs <主题>  → 深度研究',
-        '  /plan       → AI 规划今日',
-        '',
-        '  /stats → 成本收益分析  /price → 价格表  /news → 资讯',
-        '  /key add <provider> <key> → 配置 API Key',
-        '  /model (Ctrl+M) → 切换模型/Provider',
-        '',
-        '  Ctrl+1/2/3/4/5 → CHAT/TASKS/NOTES/AGENTS/PLUGINS',
-        '  Ctrl+K → 命令面板   Ctrl+M → 模型选择  ? → 帮助',
-      ].join('\n'),
+      content: '◆ NEO  直接输入对话 · / 触发命令 · Ctrl+K 面板 · ? 帮助',
       timestamp: new Date(),
     },
   ]);
@@ -645,9 +626,21 @@ export default function FlowApp() {
       return;
     }
 
+    // ── Mode-aware default: TASKS → create task, NOTES → create note ─────────
+    if (mode === 'tasks') {
+      const t = addTask(input);
+      sysMsg(`✓ 任务: ${t.title}`);
+      return;
+    }
+    if (mode === 'notes') {
+      const n = addNote(input);
+      sysMsg(`📝 已记录: ${n.title}`);
+      return;
+    }
+
     // Default: send to AI
     await sendToAI(input);
-  }, [addNote, addTask, exit, sysMsg, sendToAI, tasks, makePluginCtx]);
+  }, [addNote, addTask, exit, mode, sysMsg, sendToAI, tasks, makePluginCtx]);
 
   // ── Global Keyboard ───────────────────────────────────────────────────────
   useInput((ch, key) => {

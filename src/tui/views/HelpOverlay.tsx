@@ -47,7 +47,7 @@ export function HelpOverlay({ width, height, onClose }: HelpOverlayProps) {
     >
       {/* Title + tabs */}
       <Box height={1} paddingX={2} alignItems="center">
-        <Text color={theme.colors.primary} bold>⌨  HyperTerminal 使用指南</Text>
+        <Text color={theme.colors.primary} bold>⌨  NEO 使用指南</Text>
         <Box flexGrow={1} />
         <TabBtn label="1:快捷键" active={tab === 'keys'} />
         <Text color={theme.colors.muted}> </Text>
@@ -137,40 +137,34 @@ function WorkflowsTab({ width }: { height: number; width: number }) {
 
   const workflows = [
     {
-      title: '🌅 晨间规划 (传统: 5次切换)',
-      traditional: ['打开日历 App (切换1)', '查看邮件 App (切换2)', '打开 Todo App (切换3)', '打开笔记 App (切换4)', '手写或整理计划 (切换5)'],
-      cli: ['❯ plan', '  → AI 读取任务列表生成时间块', '  → 直接建议优先级', '  → 一句话补充: todo 重要会议'],
-      interrupts: { before: 5, after: 0 },
+      title: '🌅 晨间规划',
+      traditional: ['打开日历 App', '查看邮件 App', '打开 Todo App', '打开笔记整理计划'],
+      cli: ['❯ /plan', '  → AI 读取任务列表生成时间块', '  → 直接建议优先级', '  → todo 重要会议'],
     },
     {
-      title: '💼 项目管理 (传统: 8次切换)',
-      traditional: ['Jira/Linear (切换1)', 'Slack 沟通 (切换2)', 'GitHub PR (切换3)', 'Email 跟进 (切换4)', '文档工具 (切换5+)'],
-      cli: ['❯ todo 完成 PR #42 代码审查', '❯ /code 帮我实现用户认证', '❯ /debug 这个报错是什么意思...', '❯ /review  ← 一键回顾今日'],
-      interrupts: { before: 8, after: 1 },
+      title: '💼 项目跟进',
+      traditional: ['Jira 看板更新', 'Slack 同步进度', 'GitHub PR 审查', 'Email 跟进'],
+      cli: ['❯ todo 完成 PR #42 代码审查', '❯ /code 帮我实现用户认证', '❯ /debug 这个报错是什么意思', '❯ /review'],
     },
     {
-      title: '📚 学习研究 (传统: 6次切换)',
-      traditional: ['Google 搜索 (切换1)', '多标签页浏览 (切换2-4)', '复制到笔记 (切换5)', '整理思维导图 (切换6)'],
-      cli: ['❯ /research React 18 并发特性', '  → AI 深度分析, 来源梳理', '❯ note 并发渲染原理: startTransition...', '❯ Ctrl+3 → 查看刚记录的笔记'],
-      interrupts: { before: 6, after: 0 },
+      title: '📚 学习研究',
+      traditional: ['Google 搜索', '多标签页浏览', '复制粘贴到笔记', '整理思维导图'],
+      cli: ['❯ /research React 18 并发特性', '  → AI 深度分析梳理', '❯ note 并发渲染原理...', '❯ Ctrl+3 查看笔记'],
     },
     {
-      title: '💻 开发编码 (传统: 10次切换)',
-      traditional: ['IDE 编码', 'Stack Overflow (切换1)', 'GitHub Copilot (切换2)', 'Terminal 测试 (切换3)', 'Docs 查阅 (切换4+)'],
-      cli: ['❯ /explain async/await 原理', '❯ /code 实现 JWT 认证中间件', '❯ /debug Cannot read property of undefined', '❯ /refactor [粘贴代码] 请优化'],
-      interrupts: { before: 10, after: 0 },
+      title: '💻 开发编码',
+      traditional: ['IDE 编码', 'Stack Overflow 搜索', 'Terminal 测试', 'Docs 文档查阅'],
+      cli: ['❯ /explain async/await 原理', '❯ /code 实现 JWT 认证中间件', '❯ /debug Cannot read property...', '❯ /refactor [粘贴代码]'],
     },
     {
-      title: '✍ 写作创作 (传统: 4次切换)',
-      traditional: ['文档工具 (切换1)', '参考资料 (切换2)', '拼写检查工具 (切换3)', '格式调整 (切换4)'],
-      cli: ['❯ /write 给团队写一封发布通知邮件', '❯ /translate 翻译以上内容为英文', '❯ /summary 帮我总结上面这段', 'note 关键措辞备忘...'],
-      interrupts: { before: 4, after: 0 },
+      title: '✍ 写作创作',
+      traditional: ['打开文档工具', '查阅参考资料', '切换拼写检查', '手动格式调整'],
+      cli: ['❯ /write 给团队写发布通知邮件', '❯ /translate 翻译为英文', '❯ /summary 总结上面这段', '❯ note 关键措辞备忘'],
     },
     {
-      title: '🍅 专注工作 (传统: 无法计时)',
-      traditional: ['找计时器 App (切换1)', '设置时间 (切换2)', '切换回工作 (切换3)', '看时间 (频繁切换)'],
-      cli: ['❯ timer 25', '  → 标题栏显示 ⏱ 24:59 实时倒计时', '  → 到点自动提醒', '❯ timer 5  ← 休息'],
-      interrupts: { before: 4, after: 0 },
+      title: '🍅 专注计时',
+      traditional: ['找计时器 App', '设置时间', '切回工作', '频繁看时间'],
+      cli: ['❯ timer 25', '  → 标题栏 ⏱ 24:59 实时倒计时', '  → 到点自动提醒', '❯ timer 5  ← 休息'],
     },
   ];
 
@@ -191,14 +185,10 @@ function WorkflowsTab({ width }: { height: number; width: number }) {
 }
 
 function WorkflowCard({ wf, width }: {
-  wf: {
-    title: string;
-    traditional: string[];
-    cli: string[];
-    interrupts: { before: number; after: number };
-  };
+  wf: { title: string; traditional: string[]; cli: string[] };
   width: number;
 }) {
+  const half = Math.floor(width / 2) - 2;
   return (
     <Box
       flexDirection="column"
@@ -209,16 +199,16 @@ function WorkflowCard({ wf, width }: {
       borderColor={theme.colors.border}
       paddingX={1}
     >
-      <Text color={theme.colors.accent} bold>{wf.title}</Text>
       <Box>
-        <Text color={theme.colors.error}>传统 {wf.interrupts.before} 次打断</Text>
+        <Text color={theme.colors.accent} bold>{wf.title}  </Text>
+        <Text color={theme.colors.muted}>传统步骤</Text>
         <Text color={theme.colors.muted}> → </Text>
-        <Text color={theme.colors.success} bold>CLI {wf.interrupts.after} 次打断</Text>
+        <Text color={theme.colors.success}>NEO</Text>
       </Box>
       <Box flexDirection="row">
-        <Box flexDirection="column" width={Math.floor(width / 2) - 2} marginRight={1}>
+        <Box flexDirection="column" width={half} marginRight={1}>
           {wf.traditional.slice(0, 3).map((s, i) => (
-            <Text key={i} color={theme.colors.muted}>{s}</Text>
+            <Text key={i} color={theme.colors.muted}>· {s}</Text>
           ))}
         </Box>
         <Box flexDirection="column" flexGrow={1}>

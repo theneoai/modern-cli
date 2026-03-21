@@ -69,20 +69,20 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
     { key: '⌘K', label: '面板' },
   ],
   tasks: [
-    { key: '/t', label: '新建' },
-    { key: 'j/k', label: '导航' },
+    { key: 'Enter', label: '创建任务' },
+    { key: 'Tab→j/k', label: '导航' },
     { key: 'Space', label: '完成' },
     { key: 'd', label: '删除' },
     { key: 's', label: '状态' },
-    { key: 'Tab', label: '聚焦' },
+    { key: '/plan', label: '规划' },
   ],
   notes: [
-    { key: '/n', label: '记录' },
-    { key: 'j/k', label: '导航' },
+    { key: 'Enter', label: '记录笔记' },
+    { key: 'Tab→j/k', label: '导航' },
     { key: 'p', label: '置顶' },
     { key: 'd', label: '删除' },
     { key: '/', label: '搜索' },
-    { key: 'Tab', label: '聚焦' },
+    { key: 'Ctrl+T', label: '快捷捕获' },
   ],
   agents: [
     { key: 'Enter', label: '运行' },
@@ -352,11 +352,11 @@ function buildHint(
 
 function getPlaceholder(mode: AppMode): string {
   switch (mode) {
-    case 'chat':    return '输入消息... 或 /c /d /rs /plan';
-    case 'tasks':   return '快速添加: t 买菜  或  /t 买菜 !紧急';
-    case 'notes':   return '快速记录: n 想法  或  /n 内容';
-    case 'agents':  return '描述 Agent 目标... 或 Tab 选择 Agent';
-    case 'plugins': return '搜索插件或输入命令...';
+    case 'chat':    return '发消息给 AI，或 / 触发命令';
+    case 'tasks':   return '直接输入即创建任务，/ 触发命令';
+    case 'notes':   return '直接输入即记录笔记，/ 触发命令';
+    case 'agents':  return '描述 Agent 目标，或 Tab 选择';
+    case 'plugins': return '搜索插件或输入命令';
   }
 }
 

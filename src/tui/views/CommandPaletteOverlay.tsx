@@ -18,45 +18,42 @@ interface PaletteItem {
 }
 
 const ALL_COMMANDS: PaletteItem[] = [
-  // 视图切换
-  { label: '对话 CHAT',   value: '/chat',   desc: 'AI 流式对话',          icon: '💬', category: '视图', shortcut: 'Ctrl+1' },
-  { label: '任务 TASKS',  value: '/tasks',  desc: 'Vim 风格任务管理',       icon: '✓',  category: '视图', shortcut: 'Ctrl+2' },
-  { label: '笔记 NOTES',  value: '/notes',  desc: '快速笔记双栏视图',       icon: '📝', category: '视图', shortcut: 'Ctrl+3' },
-  { label: 'AGENTS',     value: '/agents', desc: '6 个内置 AI Agent',      icon: '⚙',  category: '视图', shortcut: 'Ctrl+4' },
-
-  // AI 对话
-  { label: '新建对话',    value: '/new',    desc: '清空历史开始新对话',      icon: '✦',  category: 'AI',  shortcut: 'Ctrl+N' },
-  { label: '清空对话',    value: '/clear',  desc: '清空当前对话',            icon: '○',  category: 'AI',  shortcut: 'Ctrl+L' },
-
-  // 效率工具
-  { label: '今日规划',    value: '/plan',      desc: 'AI 生成今日时间块计划',  icon: '📅', category: '效率' },
-  { label: '站会内容',    value: '/standup',   desc: 'AI 生成站会发言稿',     icon: '🗣', category: '效率' },
+  // 效率 — AI 生产力工具
+  { label: '今日规划',    value: '/plan',      desc: 'AI 制定今日时间块计划',  icon: '📅', category: '效率' },
+  { label: '站会发言',    value: '/standup',   desc: 'AI 生成站会发言稿',     icon: '🗣', category: '效率' },
   { label: '每日回顾',    value: '/review',    desc: 'AI 分析今日完成情况',   icon: '🔄', category: '效率' },
   { label: '番茄 25min', value: '/timer 25',  desc: '开始 25 分钟专注计时',  icon: '⏱', category: '效率' },
   { label: '休息 5min',  value: '/timer 5',   desc: '开始 5 分钟休息计时',   icon: '☕', category: '效率' },
-  { label: '停止计时',    value: '/stop',      desc: '停止当前番茄计时',      icon: '⏹', category: '效率' },
-
-  // 任务
-  { label: '创建任务',    value: '/task ',     desc: '添加新任务 (补充标题)', icon: '＋', category: '任务' },
-
-  // 笔记
-  { label: '快速记录',    value: '/note ',     desc: '添加笔记 (补充内容)',   icon: '✏', category: '笔记' },
+  { label: '停止计时',    value: '/stop',      desc: '停止当前计时器',        icon: '⏹', category: '效率' },
 
   // 开发
-  { label: '代码生成',    value: '/code ',     desc: '用 AI 实现功能代码',    icon: '⚙', category: '开发' },
-  { label: '调试助手',    value: '/debug ',    desc: '分析错误并给出修复方案', icon: '🔧', category: '开发' },
+  { label: '代码生成',    value: '/code ',     desc: 'AI 实现功能代码',       icon: '⚙', category: '开发' },
+  { label: '调试分析',    value: '/debug ',    desc: '分析错误并给出修复方案', icon: '🔧', category: '开发' },
   { label: '代码解释',    value: '/explain ',  desc: '解释代码或技术概念',    icon: '💡', category: '开发' },
   { label: '代码重构',    value: '/refactor ', desc: '重构优化代码质量',      icon: '♻', category: '开发' },
 
-  // 写作
+  // 写作 & 研究
   { label: '内容写作',    value: '/write ',    desc: '生成各类文字内容',      icon: '✍', category: '写作' },
   { label: '深度研究',    value: '/research ', desc: '深入分析某个主题',      icon: '🔍', category: '写作' },
   { label: '内容总结',    value: '/summary ',  desc: '提炼核心要点',          icon: '📋', category: '写作' },
   { label: '翻译',        value: '/translate ',desc: '中英文互译',            icon: '🌐', category: '写作' },
 
+  // 捕获
+  { label: '创建任务',    value: '/task ',     desc: '添加新任务',            icon: '☐', category: '捕获' },
+  { label: '快速笔记',    value: '/note ',     desc: '记录想法或内容',        icon: '✏', category: '捕获' },
+  { label: '快速任务',    value: '',           desc: 'Ctrl+T 悬浮捕获',      icon: '⚡', category: '捕获', shortcut: 'Ctrl+T' },
+
+  // 分析
+  { label: '用量统计',    value: '/stats',     desc: '查看 Token 消耗与成本', icon: '📊', category: '分析' },
+  { label: '价格表',      value: '/price',     desc: '所有 Provider 模型价格', icon: '💰', category: '分析' },
+  { label: '技术资讯',    value: '/news',      desc: 'Hacker News 热门摘要',  icon: '📰', category: '分析' },
+
   // 系统
-  { label: '快捷键帮助',  value: '/help',   desc: '查看完整快捷键参考',      icon: '?',  category: '系统', shortcut: '?' },
-  { label: '退出',        value: '/exit',   desc: '退出 HyperTerminal',      icon: '×',  category: '系统' },
+  { label: '切换模型',    value: '/model',     desc: '选择 Provider 和模型',  icon: '◈', category: '系统', shortcut: 'Ctrl+M' },
+  { label: '配置 Key',    value: '/key list',  desc: '查看 API Key 配置',    icon: '🔑', category: '系统' },
+  { label: '新建对话',    value: '/new',       desc: '清空历史开始新对话',    icon: '✦', category: '系统', shortcut: 'Ctrl+N' },
+  { label: '快捷键帮助',  value: '/help',      desc: '查看完整快捷键参考',    icon: '?',  category: '系统', shortcut: '?' },
+  { label: '退出',        value: '/exit',      desc: '退出 NEO',             icon: '×',  category: '系统' },
 ];
 
 interface CommandPaletteOverlayProps {
