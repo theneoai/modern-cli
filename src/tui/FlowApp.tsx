@@ -31,7 +31,7 @@ import { CommandPaletteOverlay } from './views/CommandPaletteOverlay.js';
 import type { Note } from './views/NotesView.js';
 import { pluginRegistry } from './plugins/index.js';
 import { recordRound } from './plugins/token-counter.js';
-import { recordAnalyticsRound } from './plugins/analytics.js';
+import { recordAnalyticsRound, type TaskType } from './plugins/analytics.js';
 import type { LoadedPlugin, StatusContext, PluginContext } from '../sdk/plugin.js';
 import { autonomousEngine, type AutonomousTask } from './agents/AutonomousEngine.js';
 
@@ -337,7 +337,7 @@ export default function FlowApp() {
         userText.slice(0, 80),
       );
       // Record in analytics (detect task type from command prefix)
-      const taskType = userText.startsWith('/c ') || userText.startsWith('/code ') ? 'code'
+      const taskType: TaskType = userText.startsWith('/c ') || userText.startsWith('/code ') ? 'code'
         : userText.startsWith('/d ') || userText.startsWith('/debug ') ? 'debug'
         : userText.startsWith('/rs ') || userText.startsWith('/research ') ? 'research'
         : userText.startsWith('/w ') || userText.startsWith('/write ') ? 'write'

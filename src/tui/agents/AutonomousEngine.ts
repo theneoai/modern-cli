@@ -17,6 +17,7 @@
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import type { AIResponse } from '../../ai/client.js';
 import { agentMemory } from '../../memory/agentMemory.js';
+import { AGENT_TOOLS, parseToolCalls, buildToolDocs } from './tools.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +102,9 @@ ${memCtx ? `\n${memCtx}` : ''}
 3. 完成目标时输出: DONE: <一句话总结>
 4. 需要用户输入时输出: WAIT: <问题>
 5. 遇到阻塞时输出: BLOCKED: <原因>
-6. 低 token 优先: 简洁输出, 避免重复已知信息`;
+6. 低 token 优先: 简洁输出, 避免重复已知信息
+
+${buildToolDocs()}`;
 }
 
 // ── Context Compression ──────────────────────────────────────────────────────
@@ -310,11 +313,34 @@ export class AutonomousEngine {
           break;
         }
 
-        // Store in context
-        task.recentMessages.push(
-          { role: 'user', content: prompt },
-          { role: 'assistant', content: response },
-        );
+        // Execute any tool calls embedded in the response
+        const toolCalls = parseToolCalls(response);
+        if (toolCalls.length > 0) {
+          const toolResults: string[] = [];
+          for (const { tool, args } of toolCalls) {
+            const t = AGENT_TOOLS[tool];
+            if (!t) {
+              toolResults.push(`[工具错误] 未知工具: ${tool}`);
+              continue;
+            }
+            const result = await t.run(args, task.id);
+            toolResults.push(result);
+            task.tokensUsed += Math.ceil(result.length / 4); // rough token estimate
+          }
+          // Append tool results to context as a user turn
+          const toolFeedback = toolResults.join('\n\n');
+          task.recentMessages.push(
+            { role: 'user',      content: prompt },
+            { role: 'assistant', content: response },
+            { role: 'user',      content: `[工具执行结果]\n${toolFeedback}` },
+          );
+        } else {
+          // Store in context
+          task.recentMessages.push(
+            { role: 'user',      content: prompt },
+            { role: 'assistant', content: response },
+          );
+        }
         task.currentRound++;
 
         // Extract milestones — also save as agent memories for experience reuse

@@ -56,38 +56,32 @@ export const MODEL_PRICES: ModelPrice[] = [
 
 // ── Session Stats ─────────────────────────────────────────────────────────────
 
+export type TaskType = 'chat' | 'code' | 'research' | 'write' | 'debug' | 'agent';
+
 interface SessionStats {
   totalInputTokens: number;
   totalOutputTokens: number;
   rounds: number;
-  tasksSaved: number;
-  notesSaved: number;
   agentRounds: number;
   sessionStartAt: number;
-  // Estimated time saved in minutes
-  timeSavedMin: number;
+  byType: Record<TaskType, number>;
 }
 
 let _stats: SessionStats = {
-  totalInputTokens: 0, totalOutputTokens: 0, rounds: 0,
-  tasksSaved: 0, notesSaved: 0, agentRounds: 0,
-  sessionStartAt: Date.now(), timeSavedMin: 0,
+  totalInputTokens: 0, totalOutputTokens: 0, rounds: 0, agentRounds: 0,
+  sessionStartAt: Date.now(),
+  byType: { chat: 0, code: 0, research: 0, write: 0, debug: 0, agent: 0 },
 };
 
 export function recordAnalyticsRound(
   inputTokens: number, outputTokens: number,
-  taskType: 'chat' | 'code' | 'research' | 'write' | 'debug' | 'agent' = 'chat',
+  taskType: TaskType = 'chat',
 ): void {
   _stats.totalInputTokens += inputTokens;
   _stats.totalOutputTokens += outputTokens;
   _stats.rounds++;
+  _stats.byType[taskType]++;
   if (taskType === 'agent') _stats.agentRounds++;
-
-  // Time saved heuristic (minutes of equivalent manual work)
-  const timeSavedMap: Record<string, number> = {
-    chat: 2, code: 15, research: 30, write: 20, debug: 25, agent: 10,
-  };
-  _stats.timeSavedMin += timeSavedMap[taskType] ?? 2;
 }
 
 export function getStats(): SessionStats { return { ..._stats }; }
@@ -100,70 +94,64 @@ function calcCostUSD(provider: string, model: string, inputTok: number, outputTo
   return (inputTok * price.inputPer1M + outputTok * price.outputPer1M) / 1_000_000;
 }
 
-export function formatStatsReport(
-  provider: string, model: string, hourlyValueCNY = 300,
-): string {
+export function formatStatsReport(provider: string, model: string): string {
   const s = _stats;
+  const totalTok = s.totalInputTokens + s.totalOutputTokens;
   const costUSD = calcCostUSD(provider, model, s.totalInputTokens, s.totalOutputTokens);
-  const costCNY = costUSD * 7.2;  // approx exchange rate
-  const savedCNY = (s.timeSavedMin / 60) * hourlyValueCNY;
-  const roi = savedCNY > 0 && costCNY > 0 ? ((savedCNY - costCNY) / costCNY) : 0;
+  const costCNY = costUSD * 7.2;
   const sessionMin = Math.floor((Date.now() - s.sessionStartAt) / 60000);
+  const avgTokPerRound = s.rounds > 0 ? Math.floor(totalTok / s.rounds) : 0;
 
-  const lines: string[] = [
+  // Build task breakdown (only show non-zero types)
+  const typeLines = (Object.entries(s.byType) as [TaskType, number][])
+    .filter(([, n]) => n > 0)
+    .map(([type, n]) => `    ${type.padEnd(10)} ${n} 轮`);
+
+  const tips = getCostTips(provider, model, totalTok, s.rounds, s.agentRounds);
+
+  return [
     '═══════════════════════════════════════════',
-    '◆ NEO 本次会话成本收益分析',
+    '◆ NEO 本次会话统计',
     '═══════════════════════════════════════════',
     '',
-    '📊 消耗统计',
-    `  会话时长:    ${sessionMin} 分钟`,
-    `  对话轮次:    ${s.rounds} 轮 (Agent 轮: ${s.agentRounds})`,
-    `  总 Token:    ${fmtNum(s.totalInputTokens + s.totalOutputTokens)}`,
-    `    输入:      ${fmtNum(s.totalInputTokens)}  输出: ${fmtNum(s.totalOutputTokens)}`,
+    '📊 使用统计',
+    `  会话时长:  ${sessionMin} 分钟`,
+    `  对话轮次:  ${s.rounds} 轮`,
+    ...(typeLines.length > 0 ? typeLines : []),
+    `  总 Token:  ${fmtNum(totalTok)}  (输入 ${fmtNum(s.totalInputTokens)} / 输出 ${fmtNum(s.totalOutputTokens)})`,
+    avgTokPerRound > 0 ? `  均 Token:  ${fmtNum(avgTokPerRound)}/轮` : '',
     '',
-    '💰 成本',
-    `  当前模型:    ${provider}/${model}`,
-    `  API 费用:    $${costUSD.toFixed(4)} ≈ ¥${costCNY.toFixed(2)}`,
-    '',
-    '⏱  节省估算  (按 ¥${hourlyValueCNY}/h)',
-    `  节省时间:    ${s.timeSavedMin} 分钟`,
-    `  节省价值:    ¥${savedCNY.toFixed(2)}`,
-    '',
-    '📈 收益指标',
-    `  ROI:         ${roi > 0 ? '+' : ''}${(roi * 100).toFixed(0)}%  (每花 ¥1 AI 费用, 节省 ¥${(1 + roi).toFixed(1)})`,
-    `  效率倍率:    ${savedCNY > 0 && costCNY > 0 ? (savedCNY / costCNY).toFixed(1) : 'N/A'}×`,
+    '💰 实际成本 (可量化)',
+    `  模型:      ${provider}/${model}`,
+    `  API 费用:  $${costUSD.toFixed(4)} ≈ ¥${costCNY.toFixed(2)}`,
     '',
     '💡 优化建议',
-    ...getOptimizationTips(provider, model, s),
+    ...tips,
     '═══════════════════════════════════════════',
-  ];
-  return lines.join('\n');
+  ].filter(l => l !== '').join('\n');
 }
 
-function getOptimizationTips(provider: string, model: string, s: SessionStats): string[] {
+function getCostTips(provider: string, model: string, totalTok: number, rounds: number, agentRounds: number): string[] {
   const tips: string[] = [];
-  const totalTok = s.totalInputTokens + s.totalOutputTokens;
-
-  // Find cheaper alternatives
   const currentPrice = MODEL_PRICES.find(p => p.provider === provider && p.model === model);
-  if (currentPrice) {
-    const cheaper = MODEL_PRICES.filter(p =>
-      p.inputPer1M < currentPrice.inputPer1M * 0.5 && p.provider !== provider
-    ).sort((a, b) => a.inputPer1M - b.inputPer1M).slice(0, 2);
 
+  if (currentPrice) {
+    const cheaper = MODEL_PRICES
+      .filter(p => p.inputPer1M < currentPrice.inputPer1M * 0.5)
+      .sort((a, b) => a.inputPer1M - b.inputPer1M)
+      .slice(0, 2);
     for (const alt of cheaper) {
-      const saving = ((currentPrice.inputPer1M - alt.inputPer1M) / currentPrice.inputPer1M * 100).toFixed(0);
-      tips.push(`  → ${alt.provider}/${alt.model} 可节省 ~${saving}% 成本 (/model 切换)`);
+      const savePct = Math.round((1 - alt.inputPer1M / currentPrice.inputPer1M) * 100);
+      tips.push(`  → ${alt.provider}/${alt.model}: 同等用量省 ~${savePct}% (/model 切换)`);
     }
   }
-
-  if (totalTok > 50000 && s.rounds > 0) {
-    tips.push(`  → 平均 ${Math.floor(totalTok / s.rounds)} tok/轮, 考虑更简洁的提示`);
+  if (rounds > 0 && totalTok / rounds > 8000) {
+    tips.push(`  → 均 ${fmtNum(Math.floor(totalTok / rounds))} tok/轮，可用更简洁的提示降低消耗`);
   }
-  if (s.agentRounds > 10) {
-    tips.push(`  → Agent 已执行 ${s.agentRounds} 轮, 检查终止条件是否合理`);
+  if (agentRounds > 20) {
+    tips.push(`  → Agent 执行了 ${agentRounds} 轮，确认终止条件设置合理`);
   }
-  if (tips.length === 0) tips.push('  → 当前使用效率良好 ✓');
+  if (tips.length === 0) tips.push('  → 当前用量正常 ✓');
   return tips;
 }
 
@@ -323,8 +311,7 @@ export const analyticsPlugin: PluginDef = {
     const cfg = getConfig();
 
     if (cmd === 'stats') {
-      const hourly = args ? parseInt(args) || 300 : 300;
-      ctx.addMessage(formatStatsReport(cfg.provider, cfg.model, hourly));
+      ctx.addMessage(formatStatsReport(cfg.provider, cfg.model));
       return true;
     }
 

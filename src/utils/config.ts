@@ -8,7 +8,7 @@
  */
 
 import Conf from 'conf';
-import type { ProviderDef } from '../ai/providers/registry.js';
+import { PROVIDERS, type ProviderDef } from '../ai/providers/registry.js';
 
 export interface CliConfig {
   // ── AI Provider ────────────────────────────────────────────────────────────
@@ -127,10 +127,7 @@ export function switchProvider(newProviderId: string, modelId?: string): string 
     conf.set('model', restoredModel);
     return restoredModel;
   }
-  // Use provider's default model — lazily imported to avoid circular dep at module load
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const registry = require('../ai/providers/registry.js') as { PROVIDERS: Record<string, ProviderDef> };
-  const def = registry.PROVIDERS[newProviderId];
+  const def = PROVIDERS[newProviderId] as ProviderDef | undefined;
   const defaultModel = def?.defaultModel ?? def?.models[0]?.id ?? '';
   if (defaultModel) conf.set('model', defaultModel);
   return defaultModel;

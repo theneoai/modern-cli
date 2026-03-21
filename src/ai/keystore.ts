@@ -18,17 +18,18 @@
 import { createCipheriv, createDecipheriv, scryptSync, randomBytes } from 'crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'fs';
 import { join } from 'path';
-import { homedir, hostname } from 'os';
+import { homedir } from 'os';
 import { auditLog } from '../utils/security.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const APP_SALT = 'NEO-CLI-KEYSTORE-v1'; // domain separator, not a secret
-const STORE_DIR = join(homedir(), '.neo');
-const STORE_PATH = join(STORE_DIR, 'keystore.json');
-const ALGO = 'aes-256-gcm';
+const STORE_DIR    = join(homedir(), '.neo');
+const STORE_PATH   = join(STORE_DIR, 'keystore.json');
+// Separate file for the device secret — random, machine-local, not derivable from hostname
+const SECRET_PATH  = join(STORE_DIR, '.device-secret');
+const ALGO    = 'aes-256-gcm';
 const KEY_LEN = 32;
-const IV_LEN = 12;  // 96-bit IV for GCM
+const IV_LEN  = 12;  // 96-bit IV for GCM
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -53,16 +54,34 @@ interface StoreFile {
   keys: KeyEntry[];
 }
 
-// ── Derive encryption key from machine fingerprint ────────────────────────────
+// ── Device secret: random 32-byte value, stored at ~/.neo/.device-secret ─────
+// Unlike hostname, this is unguessable even if the attacker knows the machine.
+// Security model: to decrypt keys, attacker needs BOTH files:
+//   ~/.neo/keystore.json  (ciphertext + salts)
+//   ~/.neo/.device-secret (256-bit random secret)
 
-function machineId(): string {
-  // Best-effort machine identifier (not a secret, just a scope anchor)
-  const base = `${hostname()}:${process.env['USER'] ?? process.env['USERNAME'] ?? 'user'}:${APP_SALT}`;
-  return base;
+function loadOrCreateDeviceSecret(): Buffer {
+  if (!existsSync(STORE_DIR)) mkdirSync(STORE_DIR, { recursive: true, mode: 0o700 });
+  if (existsSync(SECRET_PATH)) {
+    return Buffer.from(readFileSync(SECRET_PATH, 'utf-8').trim(), 'hex');
+  }
+  const secret = randomBytes(32);
+  writeFileSync(SECRET_PATH, secret.toString('hex'), { encoding: 'utf-8', mode: 0o600 });
+  try { chmodSync(SECRET_PATH, 0o600); } catch { /* ignore on Windows */ }
+  return secret;
+}
+
+// Lazily loaded, cached for process lifetime
+let _deviceSecret: Buffer | null = null;
+function deviceSecret(): Buffer {
+  if (!_deviceSecret) _deviceSecret = loadOrCreateDeviceSecret();
+  return _deviceSecret;
 }
 
 function deriveKey(deviceSalt: string): Buffer {
-  return scryptSync(machineId(), Buffer.from(deviceSalt, 'hex'), KEY_LEN);
+  // password = random device secret (not derivable from hostname)
+  // salt     = per-keystore random salt (stored in keystore.json)
+  return scryptSync(deviceSecret(), Buffer.from(deviceSalt, 'hex'), KEY_LEN);
 }
 
 // ── Encrypt / Decrypt ─────────────────────────────────────────────────────────
