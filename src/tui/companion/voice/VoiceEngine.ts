@@ -126,6 +126,10 @@ async function playFile(filePath: string): Promise<void> {
   });
 }
 
+async function playAndCleanup(filePath: string): Promise<void> {
+  try { await playFile(filePath); } finally { try { unlinkSync(filePath); } catch {} }
+}
+
 // ── Edge TTS (via edge-tts Python CLI) ────────────────────────────────────────
 
 let edgeTTSAvailable: boolean | null = null;
@@ -268,16 +272,13 @@ export class VoiceEngine {
 
     if (provider === 'edge') {
       const file = await synthesizeEdgeTTS(text, this.cfg.voice, style, this.cfg.rate, this.cfg.pitch);
-      try { await playFile(file); } finally { try { unlinkSync(file); } catch {} }
+      await playAndCleanup(file);
       return;
     }
 
     if (provider === 'openai') {
       const file = await synthesizeOpenAI(text, style);
-      if (file) {
-        try { await playFile(file); } finally { try { unlinkSync(file); } catch {} }
-        return;
-      }
+      if (file) { await playAndCleanup(file); return; }
     }
 
     if (provider === 'system') {

@@ -417,7 +417,9 @@ export class URLMonitorCollector implements Collector {
           });
         }
         target.lastHash = hash;
-      } catch {}
+      } catch (err) {
+        process.stderr.write(`[monitor:${target.name}] fetch failed: ${err}\n`);
+      }
     }
 
     return results;

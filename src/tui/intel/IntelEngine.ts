@@ -72,10 +72,15 @@ export class IntelEngine {
 
   // ── Init / Destroy ────────────────────────────────────────────────────────
 
+  /** Update the new-items callback (safe to call before or after init) */
+  setOnNewItems(cb: (items: IntelItem[]) => void) {
+    this.onNewItems = cb;
+  }
+
   init(cfg: Partial<IntelConfig> = {}, onNewItems?: (items: IntelItem[]) => void) {
+    if (onNewItems) this.onNewItems = onNewItems;
     if (this.initialized) return;
     this.initialized = true;
-    this.onNewItems = onNewItems ?? null;
 
     // Apply config
     if (cfg.weatherLocation) {
@@ -127,7 +132,8 @@ export class IntelEngine {
       const added = intelStore.upsert(raw);
       if (added.length > 0) this.onNewItems?.(added);
       return added;
-    } catch {
+    } catch (err) {
+      process.stderr.write(`[intel:${col.config.id}] collection failed: ${err}\n`);
       return [];
     }
   }

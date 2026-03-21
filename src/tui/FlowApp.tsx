@@ -12,7 +12,7 @@
  *   /plan /sup /rev  AI 效率工具
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { sendMessageStream, resetClient } from '../ai/client.js';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
@@ -39,6 +39,8 @@ import { companionMemory } from './companion/CompanionMemory.js';
 import { CompanionDashboard } from './views/CompanionDashboard.js';
 import { voiceEngine } from './companion/voice/VoiceEngine.js';
 import { intelEngine } from './intel/IntelEngine.js';
+import { useVoice } from './hooks/useVoice.js';
+import { useIntel } from './hooks/useIntel.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,12 +137,11 @@ export default function FlowApp() {
   const [companionThinking, setCompanionThinking] = useState(false);
   const [showCompanionDash, setShowCompanionDash] = useState(false);
 
-  // Voice state (reflects voiceEngine singleton)
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [voicePlaying, setVoicePlaying] = useState(false);
+  // Voice state (synced from voiceEngine singleton via polling hook)
+  const { enabled: voiceEnabled, playing: voicePlaying } = useVoice();
 
-  // Intel unread badge
-  const [intelUnread, setIntelUnread] = useState(0);
+  // Intel state + hot-item surfacing
+  const { unreadCount: intelUnread, clearUnread: clearIntelUnread, hotItems: intelHotItems } = useIntel();
 
   // Pomodoro timer
   const [timer, setTimer] = useState<TimerState>({
@@ -278,32 +279,17 @@ export default function FlowApp() {
     return () => companion.destroy();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Init intel engine — start background collection
+  // Surface high-priority intel items (score ≥ 80) as chat system messages
   useEffect(() => {
-    intelEngine.init({}, (newItems) => {
-      setIntelUnread(prev => prev + newItems.length);
-      // Push important items (score ≥ 80) as system messages
-      const hot = newItems.filter(i => i.score >= 80);
-      for (const item of hot) {
-        setMessages(prev => [...prev, {
-          id: `intel-${item.id}`,
-          role: 'system',
-          content: `📡 [情报] ${item.title}`,
-          timestamp: new Date(),
-        }]);
-      }
-    });
-    return () => intelEngine.destroy();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Voice status polling (every 500ms when playing)
-  useEffect(() => {
-    const t = setInterval(() => {
-      const playing = voiceEngine.isPlaying;
-      setVoicePlaying(prev => prev !== playing ? playing : prev);
-    }, 500);
-    return () => clearInterval(t);
-  }, []);
+    for (const item of intelHotItems) {
+      setMessages(prev => [...prev, {
+        id: `intel-${item.id}`,
+        role: 'system',
+        content: `📡 [情报] ${item.title}`,
+        timestamp: new Date(),
+      }]);
+    }
+  }, [intelHotItems]);
 
   // ── Layout ────────────────────────────────────────────────────────────────
   const headerHeight = 1;
@@ -496,15 +482,12 @@ export default function FlowApp() {
         case 'voice': case 'v': {
           if (arg === 'off') {
             voiceEngine.updateConfig({ enabled: false });
-            setVoiceEnabled(false);
             sysMsg('🔇 语音已关闭');
           } else if (arg === 'on') {
             voiceEngine.updateConfig({ enabled: true });
-            setVoiceEnabled(true);
             sysMsg(`🔊 语音已开启 (${voiceEngine.providerLabel()})`);
           } else if (!arg) {
             const on = voiceEngine.toggle();
-            setVoiceEnabled(on);
             sysMsg(on ? `🔊 语音已开启 (${voiceEngine.providerLabel()})` : '🔇 语音已关闭');
           } else {
             // /voice <voice-name>
@@ -522,7 +505,7 @@ export default function FlowApp() {
             ? recent.map(item => `  [${item.source}] ${item.title}`).join('\n')
             : '  (暂无数据，正在采集中...)';
           sysMsg(`📡 情报中心 — ${stats.total} 条, ${stats.unread} 条未读\n${lines}`);
-          setIntelUnread(0);
+          clearIntelUnread();
           return;
         }
         case 'search': case 'sr': {
@@ -840,7 +823,6 @@ export default function FlowApp() {
     // Ctrl+V — toggle voice
     if (key.ctrl && ch === 'v') {
       const on = voiceEngine.toggle();
-      setVoiceEnabled(on);
       sysMsg(on ? `🔊 语音已开启` : '🔇 语音已关闭');
       return;
     }
