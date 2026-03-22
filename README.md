@@ -71,19 +71,25 @@ export default definePlugin({
 
 ## 📦 安装
 
-### 通过 npm
+### 前置要求
+- **Node.js**: >= 18.0.0（推荐 Node 20）
+- **操作系统**: macOS、Linux、Windows
+
+### 通过 npm 安装（推荐）
 ```bash
 npm install -g neocli
 ```
 
-### 通过二进制（无需 Node）
+安装完成后即可使用 `neo` 或 `n` 命令。
+
+### 通过二进制安装（无需 Node.js）
 ```bash
-# macOS ARM64
+# macOS ARM64 (Apple Silicon)
 curl -L https://github.com/theneoai/modern-cli/releases/latest/download/neo-macos-arm64 -o neo
 chmod +x neo
 sudo mv neo /usr/local/bin/
 
-# macOS x64
+# macOS x64 (Intel)
 curl -L https://github.com/theneoai/modern-cli/releases/latest/download/neo-macos-x64 -o neo
 chmod +x neo
 sudo mv neo /usr/local/bin/
@@ -99,45 +105,115 @@ chmod +x neo
 sudo mv neo /usr/local/bin/
 
 # Windows x64
-# 下载 neo-win-x64.exe 并添加到 PATH
+# 从 Release 页面下载 neo-win-x64.exe，添加到 PATH
 ```
 
 ### 从源码构建
+
+#### 1. 克隆项目
 ```bash
 git clone https://github.com/theneoai/modern-cli.git
 cd modern-cli
-npm install
-npm run build
 ```
 
-## 🚀 快速开始
+#### 2. 安装依赖
+```bash
+npm install
+```
 
-### 启动 TUI（默认行为）
+#### 3. 构建
+```bash
+# 生产构建
+npm run build
+
+# 或开发模式（监听文件变化自动构建）
+npm run dev
+```
+
+构建产物位于 `dist/` 目录。
+
+#### 4. 本地链接（可选）
+```bash
+npm link
+```
+之后即可全局使用 `neo` 命令。
+
+#### 5. 打包二进制（可选）
+```bash
+# 打包所有平台
+npm run pkg:all
+
+# 或单独打包
+npm run pkg:macos-arm64
+npm run pkg:linux-x64
+# ...
+```
+
+打包产物位于 `release-assets/` 目录。
+
+## 🚀 启动与使用
+
+### 启动 TUI（全屏界面，默认行为）
 ```bash
 neo
-# 等同于:
+# 等同于以下任一命令：
 neo tui
 neo ui
 ```
 
 ### 配置 AI Provider
 
+首次使用需要配置 API Key：
+
 ```bash
 # 添加 Anthropic API Key（推荐）
-neo key add anthropic sk-ant-...
+neo key add anthropic sk-ant-your-key-here
 
 # 添加 OpenAI API Key
-neo key add openai sk-...
+neo key add openai sk-your-key-here
 
-# 或通过环境变量
+# 添加其他 Provider
+neo key add deepseek your-key
+neo key add gemini your-key
+```
+
+或通过环境变量（无需持久化）：
+```bash
 export ANTHROPIC_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 ```
 
-### 查看可用 Provider
+### 查看可用 Provider 和模型
 ```bash
 neo providers
 ```
+
+### 开发调试
+```bash
+# 监听模式开发
+npm run dev
+
+# 运行测试
+npm test
+
+# 类型检查
+npm run typecheck
+
+# 代码检查
+npm run lint
+```
+
+### TUI 界面操作
+
+| 操作 | 说明 |
+|------|------|
+| 直接输入 | 与 AI 对话 |
+| `↑↓` | 滚动历史消息 |
+| `Tab` | 切换焦点 |
+| `Enter` | 发送消息 |
+| `Ctrl+P` | 打开命令面板 |
+| `Ctrl+M` | 切换 AI 模型 |
+| `Escape` | 关闭弹窗/返回 |
 
 ## 📚 CLI 命令参考
 
@@ -253,17 +329,32 @@ src/
 
 **技术栈**: TypeScript (strict) · ESM · Node 18+ · React 18 · Ink 5 · Commander.js · better-sqlite3 · Playwright · Zod
 
-## 🤝 贡献
+## 🤝 贡献与开发
+
+### 开发命令
 
 ```bash
-git clone https://github.com/theneoai/modern-cli.git
-cd modern-cli
-npm install
-npm run dev      # 监听构建
-npm run build    # 生产构建
-npm run lint     # ESLint
-npm run typecheck # TypeScript 类型检查
+npm run dev        # 监听模式构建（开发用）
+npm run build      # 生产构建
+npm run start      # 直接运行构建产物
+npm run workbench  # 启动 TUI 工作台
+
+# 代码质量
+npm run lint        # ESLint 代码检查
+npm run typecheck   # TypeScript 类型检查
+npm run test         # 运行单元测试
+npm run test:watch   # 监听模式测试
+npm run test:coverage # 测试覆盖率
+
+# 发布
+npm run release     # 自动语义化发布
 ```
+
+### 代码规范
+
+- TypeScript 严格模式
+- 提交信息遵循 Conventional Commits 规范
+- 所有代码需通过 ESLint 和 TypeScript 类型检查
 
 ## 📄 许可
 
