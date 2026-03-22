@@ -182,8 +182,13 @@ export function useCommandParser() {
         };
 
       case 'refresh':
-        await context.refreshData();
-        return { success: true, message: 'Data refreshed' };
+        try {
+          await context.refreshData();
+          return { success: true, message: 'Data refreshed' };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return { success: false, message: `Refresh failed: ${msg}` };
+        }
 
       case 'agents': {
         const agentList = [

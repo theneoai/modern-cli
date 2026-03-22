@@ -46,7 +46,7 @@ export default function App() {
   const [focusedPanel, setFocusedPanel] = useState<'input' | 'main' | 'sidebar' | 'tasks'>('input');
   
   const { tasks, addTask, updateTask, completeTask, deleteTask, hasPendingTasks } = useTasks();
-  const { events, emails, meetings, loading, refreshData } = useGoogleData();
+  const { events, emails, meetings, loading, error: dataError, refreshData } = useGoogleData();
   const { executeCommand } = useCommandParser();
 
   // Toast helper
@@ -72,6 +72,13 @@ export default function App() {
       stdout.off('resize', handleResize);
     };
   }, [stdout]);
+
+  // Show toast when data loading fails
+  useEffect(() => {
+    if (dataError) {
+      showToast('error', `Data sync failed: ${dataError.message}`);
+    }
+  }, [dataError]);
 
   // Welcome message
   useEffect(() => {
@@ -151,23 +158,28 @@ export default function App() {
 
     // Check if it's a command
     if (input.startsWith('/')) {
-      const result = await executeCommand(input, {
-        addTask,
-        updateTask,
-        completeTask,
-        deleteTask,
-        refreshData,
-        setMessages,
-        exit,
-        showToast,
-      });
-      
-      if (result.message) {
-        if (result.success) {
-          showToast('success', result.message);
-        } else {
-          showToast('error', result.message);
+      try {
+        const result = await executeCommand(input, {
+          addTask,
+          updateTask,
+          completeTask,
+          deleteTask,
+          refreshData,
+          setMessages,
+          exit,
+          showToast,
+        });
+
+        if (result.message) {
+          if (result.success) {
+            showToast('success', result.message);
+          } else {
+            showToast('error', result.message);
+          }
         }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showToast('error', `Command failed: ${msg}`);
       }
       return;
     }

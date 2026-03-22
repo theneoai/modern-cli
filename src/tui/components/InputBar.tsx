@@ -86,6 +86,16 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
       }
     }
 
+    // ESC clears input when text is present; otherwise lets App handle exit
+    if (key.escape) {
+      if (input.length > 0) {
+        setInput('');
+        setCursorPosition(0);
+        setSuggestions([]);
+      }
+      return;
+    }
+
     if (key.return) {
       handleSubmit();
       return;

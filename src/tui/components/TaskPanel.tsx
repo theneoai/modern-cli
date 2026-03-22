@@ -36,6 +36,7 @@ export function TaskPanel({ tasks, onUpdateTask, onCompleteTask, onDeleteTask, h
   useInput((input, key) => {
     if (!isFocused) return;
     
+    if (displayTasks.length === 0) return;
     if (key.upArrow) {
       setSelectedIndex(prev => Math.max(0, prev - 1));
     }
@@ -45,20 +46,27 @@ export function TaskPanel({ tasks, onUpdateTask, onCompleteTask, onDeleteTask, h
     if (input === 'c' || input === 'C') {
       const task = displayTasks[selectedIndex];
       if (task && task.status !== 'completed') {
-        onCompleteTask(task.id);
-        showToast?.('success', `Completed: ${truncate(task.title, 30)}`);
-        // Adjust index if needed
-        if (selectedIndex >= pendingTasks.length - 1 && !showCompleted) {
-          setSelectedIndex(Math.max(0, pendingTasks.length - 2));
+        try {
+          onCompleteTask(task.id);
+          showToast?.('success', `Completed: ${truncate(task.title, 30)}`);
+          if (selectedIndex >= pendingTasks.length - 1 && !showCompleted) {
+            setSelectedIndex(Math.max(0, pendingTasks.length - 2));
+          }
+        } catch {
+          showToast?.('error', 'Failed to complete task');
         }
       }
     }
     if (input === 'd' || input === 'D') {
       const task = displayTasks[selectedIndex];
       if (task) {
-        onDeleteTask(task.id);
-        showToast?.('info', `Deleted: ${truncate(task.title, 30)}`);
-        setSelectedIndex(prev => Math.max(0, prev - 1));
+        try {
+          onDeleteTask(task.id);
+          showToast?.('info', `Deleted: ${truncate(task.title, 30)}`);
+          setSelectedIndex(prev => Math.max(0, prev - 1));
+        } catch {
+          showToast?.('error', 'Failed to delete task');
+        }
       }
     }
     if (input === 'v' || input === 'V') {
