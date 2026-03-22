@@ -63,7 +63,19 @@ interface StoreFile {
 function loadOrCreateDeviceSecret(): Buffer {
   if (!existsSync(STORE_DIR)) mkdirSync(STORE_DIR, { recursive: true, mode: 0o700 });
   if (existsSync(SECRET_PATH)) {
-    return Buffer.from(readFileSync(SECRET_PATH, 'utf-8').trim(), 'hex');
+    const raw = readFileSync(SECRET_PATH, 'utf-8').trim();
+    // Validate: must be exactly 64 lowercase hex chars (32 bytes)
+    if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+      throw new Error(
+        `Device secret at ${SECRET_PATH} is corrupted (invalid format).\n` +
+        `Delete it and restart to regenerate a new one.`
+      );
+    }
+    const buf = Buffer.from(raw, 'hex');
+    if (buf.length !== 32) {
+      throw new Error(`Device secret has unexpected length: ${buf.length} bytes (expected 32)`);
+    }
+    return buf;
   }
   const secret = randomBytes(32);
   writeFileSync(SECRET_PATH, secret.toString('hex'), { encoding: 'utf-8', mode: 0o600 });

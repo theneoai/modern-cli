@@ -5,8 +5,59 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'fs';
+import { resolve, normalize } from 'path';
+import { homedir } from 'os';
 import { execSync } from 'child_process';
 import type { Skill } from './types.js';
+
+// ── Path safety ────────────────────────────────────────────────────────────────
+// Restrict file access to the user's home directory.
+// Blocks directory traversal and known sensitive sub-paths.
+
+const BLOCKED_PATH_SEGMENTS = ['.ssh', '.gnupg', '.aws', '.device-secret', 'keystore.json'];
+
+function assertSafePath(p: string): void {
+  const abs = normalize(resolve(p));
+  const home = normalize(homedir());
+  if (!abs.startsWith(home + '/') && abs !== home) {
+    throw new Error(`Access denied: path is outside the home directory (${abs})`);
+  }
+  for (const seg of BLOCKED_PATH_SEGMENTS) {
+    if (abs.includes(seg)) {
+      throw new Error(`Access denied: sensitive path blocked (${seg})`);
+    }
+  }
+}
+
+// ── URL safety ─────────────────────────────────────────────────────────────────
+// Block requests to private/loopback addresses to prevent SSRF.
+
+function assertSafeUrl(rawUrl: string): void {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    throw new Error(`Invalid URL: ${rawUrl}`);
+  }
+  if (!['http:', 'https:'].includes(u.protocol)) {
+    throw new Error(`Only HTTP/HTTPS URLs are allowed (got ${u.protocol})`);
+  }
+  const h = u.hostname.toLowerCase();
+  if (
+    h === 'localhost' ||
+    /^127\./.test(h) ||
+    /^10\./.test(h) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||
+    /^192\.168\./.test(h) ||
+    h === '0.0.0.0' ||
+    h === '::1' ||
+    /^fc[0-9a-f]{2}:/i.test(h) ||
+    /^fd[0-9a-f]{2}:/i.test(h) ||
+    h === '169.254.169.254' // AWS metadata
+  ) {
+    throw new Error(`Access to private/loopback addresses is not allowed`);
+  }
+}
 
 // ── calculator ────────────────────────────────────────────────────────────────
 
@@ -27,12 +78,15 @@ const calculatorSkill: Skill = {
     async evaluate({ expression }) {
       const expr = String(expression ?? '').trim();
       if (!expr) return { content: 'Expression is empty', isError: true };
-      // Block dangerous patterns
-      if (/[;{}]|import|require|process|global|__/.test(expr)) {
+      // Whitelist approach: strip known-safe Math.xxx tokens, then ensure only
+      // numeric literals, operators, parentheses and whitespace remain.
+      // This prevents any identifier or keyword injection.
+      const stripped = expr.replace(/Math\.[a-zA-Z][a-zA-Z0-9]*/g, '0');
+      if (!/^[\d\s+\-*/().,%^eE]+$/.test(stripped)) {
         return { content: 'Expression contains disallowed syntax', isError: true };
       }
       try {
-        // eslint-disable-next-line no-new-func
+         
         const result = new Function('Math', `"use strict"; return (${expr})`)(Math);
         return { content: String(result) };
       } catch (e) {
@@ -75,6 +129,11 @@ const filesSkill: Skill = {
   handlers: {
     async read_file({ path }) {
       const p = String(path ?? '');
+      try {
+        assertSafePath(p);
+      } catch (e) {
+        return { content: String(e), isError: true };
+      }
       if (!existsSync(p)) return { content: `File not found: ${p}`, isError: true };
       try {
         return { content: readFileSync(p, 'utf8') };
@@ -85,6 +144,11 @@ const filesSkill: Skill = {
     async write_file({ path, content, append }) {
       const p = String(path ?? '');
       const text = String(content ?? '');
+      try {
+        assertSafePath(p);
+      } catch (e) {
+        return { content: String(e), isError: true };
+      }
       try {
         if (append) {
           appendFileSync(p, text, 'utf8');
@@ -118,10 +182,17 @@ const httpSkill: Skill = {
     async get({ url }) {
       const u = String(url ?? '');
       try {
+        assertSafeUrl(u);
+      } catch (e) {
+        return { content: String(e), isError: true };
+      }
+      try {
         const resp = await fetch(u, { signal: AbortSignal.timeout(10000) });
         if (!resp.ok) return { content: `HTTP ${resp.status} ${resp.statusText}`, isError: true };
         const text = await resp.text();
-        return { content: text.slice(0, 4096) };
+        // Safe UTF-8 truncation: slice by character count, not byte offset
+        const truncated = [...text].slice(0, 4096).join('');
+        return { content: truncated };
       } catch (e) {
         return { content: String(e), isError: true };
       }
