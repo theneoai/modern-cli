@@ -195,16 +195,18 @@ export function auditLog(action: AuditAction, detail: string): void {
 
 // ── ANSI / terminal injection guard ──────────────────────────────────────────
 
-/** Strip ANSI escape sequences to prevent terminal injection from AI output */
+/** Strip ANSI/VT escape sequences to prevent terminal injection from AI output.
+ *  Covers: CSI (ESC[…), OSC (ESC]…BEL/ST), DCS/APC/PM/SOS (ESC P/_ ^ X …ST),
+ *  simple two-char escapes, and charset designations. */
 export function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*[mGKHF]/g, '').replace(/\x1b[()][AB012]/g, '');
+   
+  return str.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[P_^X][^\x1b]*(?:\x1b\\|$)|\x1b[@-_]|\x1b[()][A-Za-z0-9]/g, '');
 }
 
 /** Validate that a string doesn't contain OSC/DCS sequences used for terminal exploits */
 export function assertNoTerminalEscape(str: string): void {
-  // eslint-disable-next-line no-control-regex
-  if (/\x1b[\]P]/.test(str)) {
-    throw new Error('[Security] 输出含危险终端转义序列 (OSC/DCS)');
+   
+  if (/\x1b[\]PX^_]/.test(str)) {
+    throw new Error('[Security] 输出含危险终端转义序列 (OSC/DCS/SOS/APC/PM)');
   }
 }

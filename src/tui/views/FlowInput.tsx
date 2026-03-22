@@ -257,12 +257,19 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     if (suggestions.length === 0) {
       if (key.upArrow) {
         const ni = Math.min(histIdx + 1, history.length - 1);
-        if (ni >= 0) { const h = history[history.length - 1 - ni]!; dispatch({ type: 'set_value', value: h }); setHistIdx(ni); }
+        if (ni >= 0) {
+          const h = history[history.length - 1 - ni];
+          if (h !== undefined) { dispatch({ type: 'set_value', value: h }); setHistIdx(ni); }
+        }
         return;
       }
       if (key.downArrow) {
         if (histIdx <= 0) { dispatch({ type: 'clear' }); setHistIdx(-1); }
-        else { const ni = histIdx - 1; const h = history[history.length - 1 - ni]!; dispatch({ type: 'set_value', value: h }); setHistIdx(ni); }
+        else {
+          const ni = histIdx - 1;
+          const h = history[history.length - 1 - ni];
+          if (h !== undefined) { dispatch({ type: 'set_value', value: h }); setHistIdx(ni); }
+        }
         return;
       }
     }
