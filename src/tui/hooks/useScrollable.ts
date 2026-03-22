@@ -63,7 +63,7 @@ export function useScrollable(options: UseScrollableOptions): ScrollState & Scro
       visibleItems,
       hasMoreAbove: clampedOffset > 0,
       hasMoreBelow: clampedOffset < maxOffset,
-      scrollProgress: totalItems > 0 ? clampedOffset / totalItems : 0,
+      scrollProgress: maxOffset > 0 ? clampedOffset / maxOffset : 0,
     };
   }, [offset, totalItems, visibleItems]);
   

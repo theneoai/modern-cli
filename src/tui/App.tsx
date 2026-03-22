@@ -78,7 +78,7 @@ export default function App() {
     if (dataError) {
       showToast('error', `Data sync failed: ${dataError.message}`);
     }
-  }, [dataError]);
+  }, [dataError, showToast]);
 
   // Welcome message
   useEffect(() => {

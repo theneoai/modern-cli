@@ -110,6 +110,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
     if (key.tab) { setPane(p => p === 'agents' ? 'tasks' : 'agents'); return; }
 
     if (pane === 'agents') {
+      if (taskAgents.length === 0) return;
       if (key.upArrow || ch === 'k') setAgentCursor(p => Math.max(0, p - 1));
       else if (key.downArrow || ch === 'j') setAgentCursor(p => Math.min(taskAgents.length - 1, p + 1));
       else if (key.return || ch === ' ') {
