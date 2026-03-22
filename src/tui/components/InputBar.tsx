@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { tuiTheme as theme, icons, layout } from '../../theme/index.js';
 import { useInputHistory } from '../hooks/useTasks.js';
@@ -32,10 +32,10 @@ const commandSuggestions: Suggestion[] = [
 export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarProps) {
   const [input, setInput] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
-  const [placeholder, setPlaceholder] = useState('Type a message... (Tab for commands)');
+  const [placeholder] = useState('Type a message... (Tab for commands)');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
-  const { stdout } = useStdout();
+  useStdout();
   
   const { addToHistory, navigateHistory, resetHistoryIndex } = useInputHistory();
 
@@ -64,6 +64,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
   }, [input]);
 
   useInput((value, key) => {
+    const extKey = key as typeof key & { home?: boolean; end?: boolean };
     // Only handle input when focused
     if (!isFocused) return;
     
@@ -86,6 +87,16 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
       }
     }
 
+    // ESC clears input when text is present; otherwise lets App handle exit
+    if (key.escape) {
+      if (input.length > 0) {
+        setInput('');
+        setCursorPosition(0);
+        setSuggestions([]);
+      }
+      return;
+    }
+
     if (key.return) {
       handleSubmit();
       return;
@@ -102,7 +113,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
     }
 
     if (key.downArrow && suggestions.length === 0) {
-      const { newInput, newIndex } = navigateHistory('down', input);
+      const { newInput } = navigateHistory('down', input);
       setInput(newInput);
       setCursorPosition(newInput.length);
       return;
@@ -119,12 +130,12 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
       return;
     }
 
-    if (key.home) {
+    if (extKey.home) {
       setCursorPosition(0);
       return;
     }
 
-    if (key.end) {
+    if (extKey.end) {
       setCursorPosition(input.length);
       return;
     }

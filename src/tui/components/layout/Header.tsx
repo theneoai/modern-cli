@@ -3,14 +3,14 @@
  * 使用新的 TUI 架构
  */
 
-import React from 'react';
+
 import { Box, Text } from 'ink';
 import { tuiTheme as theme, icons } from '../../../theme/index.js';
 import { FocusLayer } from '../../contexts/FocusContext.js';
 import { Focusable } from '../ui/Focusable.js';
 import type { TerminalSize } from '../../contexts/TUIProvider.js';
 
-interface HeaderProps {
+export interface HeaderProps {
   title?: string;
   subtitle?: string;
   version?: string;

@@ -5,6 +5,9 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { FocusLayer } from './FocusContext.js';
+import { ConfirmDialogContent } from '../components/modal/ConfirmDialogContent.js';
+import { InputDialogContent } from '../components/modal/InputDialogContent.js';
+import { CommandPaletteContent } from '../components/modal/CommandPaletteContent.js';
 
 // ============================================================================
 // Types
@@ -177,9 +180,6 @@ export function ModalProvider({ children, maxModals = 3 }: ModalProviderProps) {
   
   // Open confirm dialog
   const openConfirm = useCallback((options: ConfirmOptions): string => {
-    // Import dynamically to avoid circular dependency
-    const { ConfirmDialogContent } = require('../components/modal/ConfirmDialogContent.js');
-    
     return openModal({
       type: ModalType.CONFIRM,
       title: options.title,
@@ -195,8 +195,6 @@ export function ModalProvider({ children, maxModals = 3 }: ModalProviderProps) {
   
   // Open input dialog
   const openInput = useCallback((options: InputOptions): string => {
-    const { InputDialogContent } = require('../components/modal/InputDialogContent.js');
-    
     return openModal({
       type: ModalType.INPUT,
       title: options.title,
@@ -211,8 +209,6 @@ export function ModalProvider({ children, maxModals = 3 }: ModalProviderProps) {
   
   // Open command palette
   const openPalette = useCallback((options: PaletteOptions): string => {
-    const { CommandPaletteContent } = require('../components/modal/CommandPaletteContent.js');
-    
     return openModal({
       type: ModalType.PALETTE,
       title: 'Command Palette',

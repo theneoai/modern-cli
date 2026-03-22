@@ -3,7 +3,7 @@
  * 使用新的 TUI 架构: useKeyboard, useToast, useModal
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
 import { tuiTheme as theme, icons, layout as layoutConfig } from '../../../theme/index.js';
@@ -11,7 +11,7 @@ import { useToast } from '../../contexts/ToastContext.js';
 import { useModal, type PaletteItem } from '../../contexts/ModalContext.js';
 import { useTUI } from '../../contexts/TUIProvider.js';
 
-interface InputBarProps {
+export interface InputBarProps {
   onSubmit?: (input: string) => void;
   placeholder?: string;
   mode?: 'command' | 'chat';
@@ -35,12 +35,12 @@ export function InputBar({
   onSubmit,
   placeholder = 'Type a message... (Tab for commands)',
   mode = 'chat',
-  focusId = 'input-bar',
+  focusId: _focusId = 'input-bar',
 }: InputBarProps) {
   const { layout } = useTUI();
   const { showInfo, showSuccess } = useToast();
   const { openPalette } = useModal();
-  const { stdout } = useStdout();
+  useStdout();
   
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -122,12 +122,10 @@ export function InputBar({
   
   const maxVisibleChars = layout.layoutSizes.width - 20;
   let visibleInput = input;
-  let cursorOffset = 0;
-  
+
   if (input.length > maxVisibleChars) {
     const start = Math.max(0, input.length - maxVisibleChars);
     visibleInput = input.slice(start);
-    cursorOffset = start;
   }
   
   return (

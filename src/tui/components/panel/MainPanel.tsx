@@ -3,7 +3,7 @@
  * 使用新的 TUI 架构: useScrollable, Focusable
  */
 
-import React from 'react';
+
 import { Box, Text, type Key } from 'ink';
 import { tuiTheme as theme, icons, formatTime, wrapTextLines } from '../../../theme/index.js';
 import { useScrollable, useScrollableKeyboard } from '../../hooks/useScrollable.js';
@@ -11,7 +11,7 @@ import { FocusLayer } from '../../contexts/FocusContext.js';
 import { Focusable } from '../ui/Focusable.js';
 import type { Message } from '../../types/ui.js';
 
-interface MainPanelProps {
+export interface MainPanelProps {
   messages: Message[];
   height: number;
   width: number;
@@ -26,7 +26,7 @@ export function MainPanel({ messages, height, width, focusId = 'main-panel' }: M
   const scroll = useScrollable({
     totalItems: messages.length,
     visibleItems: visibleCount,
-    onScroll: (state) => {
+    onScroll: (_state) => {
       // Scroll callback if needed
     },
   });

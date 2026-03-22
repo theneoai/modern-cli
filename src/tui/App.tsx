@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { Header } from './components/Header.js';
 import { MainPanel } from './components/MainPanel.js';
@@ -36,8 +36,7 @@ export default function App() {
   const { stdout } = useStdout();
   const [messages, setMessages] = useState<Message[]>([]);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [activePanel, setActivePanel] = useState<'main' | 'sidebar' | 'tasks'>('main');
-  const [inputMode, setInputMode] = useState<'command' | 'chat'>('chat');
+  const [inputMode] = useState<'command' | 'chat'>('chat');
   const [terminalSize, setTerminalSize] = useState({
     width: stdout.columns || 120,
     height: stdout.rows || 40,
@@ -47,8 +46,8 @@ export default function App() {
   const [focusedPanel, setFocusedPanel] = useState<'input' | 'main' | 'sidebar' | 'tasks'>('input');
   
   const { tasks, addTask, updateTask, completeTask, deleteTask, hasPendingTasks } = useTasks();
-  const { events, emails, meetings, loading, refreshData } = useGoogleData();
-  const { parseCommand, executeCommand } = useCommandParser();
+  const { events, emails, meetings, loading, error: dataError, refreshData } = useGoogleData();
+  const { executeCommand } = useCommandParser();
 
   // Toast helper
   const showToast = useCallback((type: ToastMessage['type'], content: string, duration = 3000) => {
@@ -74,6 +73,13 @@ export default function App() {
     };
   }, [stdout]);
 
+  // Show toast when data loading fails
+  useEffect(() => {
+    if (dataError) {
+      showToast('error', `Data sync failed: ${dataError.message}`);
+    }
+  }, [dataError, showToast]);
+
   // Welcome message
   useEffect(() => {
     setMessages([
@@ -85,9 +91,6 @@ export default function App() {
       },
     ]);
   }, []);
-
-  // Check terminal size
-  const isTerminalTooSmall = terminalSize.width < layout.minWidth || terminalSize.height < layout.minHeight;
 
   // Calculate dynamic layout sizes
   const layoutSizes = useMemo(() => {
@@ -160,23 +163,28 @@ export default function App() {
 
     // Check if it's a command
     if (input.startsWith('/')) {
-      const result = await executeCommand(input, {
-        addTask,
-        updateTask,
-        completeTask,
-        deleteTask,
-        refreshData,
-        setMessages,
-        exit,
-        showToast,
-      });
-      
-      if (result.message) {
-        if (result.success) {
-          showToast('success', result.message);
-        } else {
-          showToast('error', result.message);
+      try {
+        const result = await executeCommand(input, {
+          addTask,
+          updateTask,
+          completeTask,
+          deleteTask,
+          refreshData,
+          setMessages,
+          exit,
+          showToast,
+        });
+
+        if (result.message) {
+          if (result.success) {
+            showToast('success', result.message);
+          } else {
+            showToast('error', result.message);
+          }
         }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showToast('error', `Command failed: ${msg}`);
       }
       return;
     }

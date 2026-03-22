@@ -2,7 +2,7 @@
  * HelpContent - 帮助内容组件
  */
 
-import React from 'react';
+
 import { Box, Text } from 'ink';
 import { tuiTheme, icons } from '../../../theme/index.js';
 

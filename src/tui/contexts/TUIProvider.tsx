@@ -3,10 +3,10 @@
  * 提供终端尺寸、主题、配置等全局状态
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useStdout } from 'ink';
 import { layout as layoutConfig } from '../../theme/index.js';
-import type { LayoutSizes } from '../../types/ui.js';
+import type { LayoutSizes } from '../types/ui.js';
 
 // ============================================================================
 // Types

@@ -3,14 +3,14 @@
  * 显示任务和系统统计信息
  */
 
-import React from 'react';
+
 import { Box, Text } from 'ink';
 import { tuiTheme, icons } from '../../../theme/index.js';
 import { FocusLayer } from '../../contexts/FocusContext.js';
 import { Focusable } from '../ui/Focusable.js';
 import type { Task } from '../../types/ui.js';
 
-interface StatsPanelProps {
+export interface StatsPanelProps {
   tasks: Task[];
   events?: number;
   emails?: number;

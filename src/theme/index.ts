@@ -73,6 +73,7 @@ export const inkTheme = {
     info: palette.info,
     text: palette.text,
     muted: palette.textMuted,
+    textMuted: palette.textMuted,
     border: palette.border,
     background: palette.background,
     surface: palette.surface,

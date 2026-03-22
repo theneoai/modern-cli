@@ -2,7 +2,7 @@
  * ConfirmDialogContent - 确认对话框内容组件
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme, icons } from '../../../theme/index.js';
 import type { ConfirmOptions } from '../../contexts/ModalContext.js';
@@ -86,7 +86,6 @@ export function ConfirmDialogContent(options: ConfirmOptions) {
 // Standalone Confirm Dialog (for backward compatibility)
 // ============================================================================
 
-import { FocusLayer } from '../../contexts/FocusContext.js';
 
 export interface ConfirmDialogProps {
   title: string;

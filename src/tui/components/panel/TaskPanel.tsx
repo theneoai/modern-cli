@@ -3,7 +3,7 @@
  * 使用新的 TUI 架构: useSelectable, Focusable, useToast
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Box, Text, type Key } from 'ink';
 import { tuiTheme as theme, icons, truncate } from '../../../theme/index.js';
 import { FocusLayer } from '../../contexts/FocusContext.js';
@@ -12,7 +12,7 @@ import { useToast } from '../../contexts/ToastContext.js';
 import { SelectableItem } from '../ui/Selectable.js';
 import type { Task, TaskStatus, TaskPriority } from '../../types/ui.js';
 
-interface TaskPanelProps {
+export interface TaskPanelProps {
   tasks: Task[];
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onCompleteTask: (id: string) => void;

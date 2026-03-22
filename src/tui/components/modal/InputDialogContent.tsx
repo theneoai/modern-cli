@@ -2,7 +2,7 @@
  * InputDialogContent - 输入对话框内容组件
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { tuiTheme as theme, icons } from '../../../theme/index.js';
@@ -33,7 +33,7 @@ export function InputDialogContent(options: InputOptions) {
     onSubmit(value);
   };
   
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.escape) {
       closeActive();
       onCancel?.();

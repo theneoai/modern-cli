@@ -1,244 +1,169 @@
 /**
- * Built-in MCP skills bundled with the CLI.
+ * mcp/builtins.ts — 内置 MCP 技能 (calculator / files / http / shell)
  *
- * These are always available and don't require installation.
- * Users can enable/disable them via `ai mcp enable/disable <skill>`.
+ * 这些技能无需配置，开箱即用。
  */
 
-import { execSync } from "child_process";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { dirname } from "path";
-import type { Skill, ToolResult } from "./types.js";
+import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'fs';
+import { execSync } from 'child_process';
+import type { Skill } from './types.js';
 
-// ---------------------------------------------------------------------------
-// shell skill
-// ---------------------------------------------------------------------------
-
-const shellSkill: Skill = {
-  name: "shell",
-  version: "1.0.0",
-  description: "Run shell commands in the current directory",
-  author: "builtin",
-  tags: ["system", "terminal"],
-  tools: [
-    {
-      name: "run_command",
-      description:
-        "Execute a shell command and return stdout/stderr. " +
-        "Use for file listing, git operations, running scripts, etc. " +
-        "Commands run in the current working directory.",
-      input_schema: {
-        type: "object",
-        properties: {
-          command: {
-            type: "string",
-            description: "The shell command to execute",
-          },
-          timeout_ms: {
-            type: "number",
-            description: "Timeout in milliseconds (default: 10000, max: 60000)",
-          },
-        },
-        required: ["command"],
-      },
-    },
-  ],
-  handlers: {
-    run_command: async (input): Promise<ToolResult> => {
-      const command = String(input["command"] ?? "");
-      const timeout = Math.min(Number(input["timeout_ms"] ?? 10000), 60000);
-      if (!command.trim()) {
-        return { content: "Error: empty command", isError: true };
-      }
-      try {
-        const output = execSync(command, {
-          timeout,
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-        });
-        return { content: output || "(no output)" };
-      } catch (err) {
-        const e = err as Error & { stderr?: string; stdout?: string };
-        const msg = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");
-        return { content: msg || "Command failed", isError: true };
-      }
-    },
-  },
-};
-
-// ---------------------------------------------------------------------------
-// files skill
-// ---------------------------------------------------------------------------
-
-const filesSkill: Skill = {
-  name: "files",
-  version: "1.0.0",
-  description: "Read and write files on the local filesystem",
-  author: "builtin",
-  tags: ["filesystem", "io"],
-  tools: [
-    {
-      name: "read_file",
-      description: "Read the contents of a file",
-      input_schema: {
-        type: "object",
-        properties: {
-          path: { type: "string", description: "Absolute or relative file path" },
-        },
-        required: ["path"],
-      },
-    },
-    {
-      name: "write_file",
-      description: "Write content to a file (creates directories as needed)",
-      input_schema: {
-        type: "object",
-        properties: {
-          path: { type: "string", description: "Absolute or relative file path" },
-          content: { type: "string", description: "Content to write" },
-          append: {
-            type: "boolean",
-            description: "If true, append instead of overwrite (default: false)",
-          },
-        },
-        required: ["path", "content"],
-      },
-    },
-  ],
-  handlers: {
-    read_file: async (input): Promise<ToolResult> => {
-      const p = String(input["path"] ?? "");
-      if (!p) return { content: "Error: path required", isError: true };
-      if (!existsSync(p)) return { content: `File not found: ${p}`, isError: true };
-      try {
-        return { content: readFileSync(p, "utf-8") };
-      } catch (err) {
-        return { content: String(err), isError: true };
-      }
-    },
-    write_file: async (input): Promise<ToolResult> => {
-      const p = String(input["path"] ?? "");
-      const content = String(input["content"] ?? "");
-      const append = Boolean(input["append"]);
-      if (!p) return { content: "Error: path required", isError: true };
-      try {
-        mkdirSync(dirname(p), { recursive: true });
-        if (append) {
-          writeFileSync(p, content, { flag: "a", encoding: "utf-8" });
-        } else {
-          writeFileSync(p, content, "utf-8");
-        }
-        return { content: `Written ${content.length} bytes to ${p}` };
-      } catch (err) {
-        return { content: String(err), isError: true };
-      }
-    },
-  },
-};
-
-// ---------------------------------------------------------------------------
-// http skill
-// ---------------------------------------------------------------------------
-
-const httpSkill: Skill = {
-  name: "http",
-  version: "1.0.0",
-  description: "Make HTTP requests to fetch web content or call APIs",
-  author: "builtin",
-  tags: ["network", "web", "api"],
-  tools: [
-    {
-      name: "fetch_url",
-      description:
-        "Fetch a URL via HTTP GET and return the response body (up to 32KB). " +
-        "Useful for checking documentation, APIs, or web pages.",
-      input_schema: {
-        type: "object",
-        properties: {
-          url: { type: "string", description: "URL to fetch" },
-          headers: {
-            type: "string",
-            description: 'JSON object of request headers, e.g. {"Authorization":"Bearer token"}',
-          },
-        },
-        required: ["url"],
-      },
-    },
-  ],
-  handlers: {
-    fetch_url: async (input): Promise<ToolResult> => {
-      const url = String(input["url"] ?? "");
-      if (!url) return { content: "Error: url required", isError: true };
-      try {
-        let headers: Record<string, string> = {};
-        if (input["headers"]) {
-          headers = JSON.parse(String(input["headers"])) as Record<string, string>;
-        }
-        const resp = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
-        const text = await resp.text();
-        const truncated = text.length > 32768 ? text.slice(0, 32768) + "\n...[truncated]" : text;
-        return { content: `HTTP ${resp.status}\n\n${truncated}` };
-      } catch (err) {
-        return { content: String(err), isError: true };
-      }
-    },
-  },
-};
-
-// ---------------------------------------------------------------------------
-// calculator skill
-// ---------------------------------------------------------------------------
+// ── calculator ────────────────────────────────────────────────────────────────
 
 const calculatorSkill: Skill = {
-  name: "calculator",
-  version: "1.0.0",
-  description: "Evaluate mathematical expressions accurately",
-  author: "builtin",
-  tags: ["math", "utility"],
-  tools: [
-    {
-      name: "evaluate",
-      description:
-        "Safely evaluate a mathematical expression. " +
-        "Supports: +, -, *, /, **, %, Math.* functions, parentheses. " +
-        "Returns the numeric result.",
-      input_schema: {
-        type: "object",
-        properties: {
-          expression: {
-            type: "string",
-            description: 'Math expression, e.g. "2 ** 10 + Math.sqrt(144)"',
-          },
-        },
-        required: ["expression"],
-      },
+  name: 'calculator',
+  version: '1.0.0',
+  description: '安全的数学表达式求值器',
+  tools: [{
+    name: 'evaluate',
+    description: '求值数学表达式 (支持 Math.* 方法)',
+    input_schema: {
+      type: 'object',
+      properties: { expression: { type: 'string', description: '数学表达式' } },
+      required: ['expression'],
     },
-  ],
+  }],
   handlers: {
-    evaluate: async (input): Promise<ToolResult> => {
-      const expr = String(input["expression"] ?? "").trim();
-      if (!expr) return { content: "Error: expression required", isError: true };
-      // Restrict to safe math operations only
-      if (/[^0-9+\-*/.()%\s,a-zA-Z_]/.test(expr)) {
-        return { content: "Error: invalid characters in expression", isError: true };
+    async evaluate({ expression }) {
+      const expr = String(expression ?? '').trim();
+      if (!expr) return { content: 'Expression is empty', isError: true };
+      // Block dangerous patterns
+      if (/[;{}]|import|require|process|global|__/.test(expr)) {
+        return { content: 'Expression contains disallowed syntax', isError: true };
       }
       try {
-        const result = new Function("Math", `"use strict"; return (${expr})`)(Math) as number;
+        // eslint-disable-next-line no-new-func
+        const result = new Function('Math', `"use strict"; return (${expr})`)(Math);
         return { content: String(result) };
-      } catch (err) {
-        return { content: `Error: ${String(err)}`, isError: true };
+      } catch (e) {
+        return { content: String(e), isError: true };
       }
     },
   },
 };
 
-// ---------------------------------------------------------------------------
-// Exports
-// ---------------------------------------------------------------------------
+// ── files ─────────────────────────────────────────────────────────────────────
+
+const filesSkill: Skill = {
+  name: 'files',
+  version: '1.0.0',
+  description: '本地文件读写',
+  tools: [
+    {
+      name: 'read_file',
+      description: '读取文件内容',
+      input_schema: {
+        type: 'object',
+        properties: { path: { type: 'string', description: '文件路径' } },
+        required: ['path'],
+      },
+    },
+    {
+      name: 'write_file',
+      description: '写入文件内容',
+      input_schema: {
+        type: 'object',
+        properties: {
+          path:    { type: 'string',  description: '文件路径' },
+          content: { type: 'string',  description: '写入内容' },
+          append:  { type: 'boolean', description: '追加模式 (默认 false)' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  ],
+  handlers: {
+    async read_file({ path }) {
+      const p = String(path ?? '');
+      if (!existsSync(p)) return { content: `File not found: ${p}`, isError: true };
+      try {
+        return { content: readFileSync(p, 'utf8') };
+      } catch (e) {
+        return { content: String(e), isError: true };
+      }
+    },
+    async write_file({ path, content, append }) {
+      const p = String(path ?? '');
+      const text = String(content ?? '');
+      try {
+        if (append) {
+          appendFileSync(p, text, 'utf8');
+        } else {
+          writeFileSync(p, text, 'utf8');
+        }
+        return { content: `Written ${text.length} bytes to ${p}` };
+      } catch (e) {
+        return { content: String(e), isError: true };
+      }
+    },
+  },
+};
+
+// ── http ──────────────────────────────────────────────────────────────────────
+
+const httpSkill: Skill = {
+  name: 'http',
+  version: '1.0.0',
+  description: 'HTTP 请求工具',
+  tools: [{
+    name: 'get',
+    description: '发送 GET 请求，返回响应体 (最多 4KB)',
+    input_schema: {
+      type: 'object',
+      properties: { url: { type: 'string', description: '请求 URL' } },
+      required: ['url'],
+    },
+  }],
+  handlers: {
+    async get({ url }) {
+      const u = String(url ?? '');
+      try {
+        const resp = await fetch(u, { signal: AbortSignal.timeout(10000) });
+        if (!resp.ok) return { content: `HTTP ${resp.status} ${resp.statusText}`, isError: true };
+        const text = await resp.text();
+        return { content: text.slice(0, 4096) };
+      } catch (e) {
+        return { content: String(e), isError: true };
+      }
+    },
+  },
+};
+
+// ── shell ─────────────────────────────────────────────────────────────────────
+
+const shellSkill: Skill = {
+  name: 'shell',
+  version: '1.0.0',
+  description: '执行 Shell 命令 (受限环境)',
+  tools: [{
+    name: 'run_command',
+    description: '运行 shell 命令，返回 stdout',
+    input_schema: {
+      type: 'object',
+      properties: { command: { type: 'string', description: 'Shell 命令' } },
+      required: ['command'],
+    },
+  }],
+  handlers: {
+    async run_command({ command }) {
+      const cmd = String(command ?? '').trim();
+      if (!cmd) return { content: 'Command is empty', isError: true };
+      try {
+        const out = execSync(cmd, { timeout: 15000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+        return { content: out };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { content: msg, isError: true };
+      }
+    },
+  },
+};
+
+// ── Export ────────────────────────────────────────────────────────────────────
 
 export const BUILTIN_SKILLS: Record<string, Skill> = {
-  shell: shellSkill,
+  calculator: calculatorSkill,
   files: filesSkill,
   http: httpSkill,
-  calculator: calculatorSkill,
+  shell: shellSkill,
 };

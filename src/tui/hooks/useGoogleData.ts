@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { CalendarEvent, Email, Meeting } from '../../types/ui.js';
+import type { CalendarEvent, Email, Meeting } from '../types/ui.js';
 
 interface UseGoogleDataReturn {
   events: CalendarEvent[];

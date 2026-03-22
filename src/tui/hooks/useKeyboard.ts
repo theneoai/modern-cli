@@ -40,7 +40,7 @@ function matchesKey(input: string, key: Key, binding: string): boolean {
   
   if (hasCtrl !== key.ctrl) return false;
   if (hasShift !== key.shift) return false;
-  if (hasAlt !== (key.meta || key.alt)) return false;
+  if (hasAlt !== (key.meta || (key as Record<string, unknown>)['alt'])) return false;
   
   // Check main key
   const mainKey = parts.find(p => !['ctrl', 'shift', 'alt', 'meta'].includes(p));

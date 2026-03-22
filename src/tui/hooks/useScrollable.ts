@@ -63,7 +63,7 @@ export function useScrollable(options: UseScrollableOptions): ScrollState & Scro
       visibleItems,
       hasMoreAbove: clampedOffset > 0,
       hasMoreBelow: clampedOffset < maxOffset,
-      scrollProgress: totalItems > 0 ? clampedOffset / totalItems : 0,
+      scrollProgress: maxOffset > 0 ? clampedOffset / maxOffset : 0,
     };
   }, [offset, totalItems, visibleItems]);
   
@@ -149,9 +149,10 @@ export function useScrollableKeyboard(
 ) {
   const { enabled = true } = options;
   
-  const handleKey = useCallback((input: string, key: Key): boolean => {
+  const handleKey = useCallback((_input: string, key: Key): boolean => {
+    const extKey = key as typeof key & { home?: boolean; end?: boolean };
     if (!enabled) return false;
-    
+
     if (key.upArrow) {
       options.onUp ? options.onUp() : scrollActions.scrollUp();
       return true;
@@ -172,12 +173,12 @@ export function useScrollableKeyboard(
       return true;
     }
     
-    if (key.home) {
+    if (extKey.home) {
       options.onHome ? options.onHome() : scrollActions.scrollToTop();
       return true;
     }
-    
-    if (key.end) {
+
+    if (extKey.end) {
       options.onEnd ? options.onEnd() : scrollActions.scrollToBottom();
       return true;
     }

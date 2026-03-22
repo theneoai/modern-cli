@@ -13,10 +13,10 @@ import { useModal, type ModalState } from '../../contexts/ModalContext.js';
 // ============================================================================
 
 export function ModalContainer() {
-  const { modals, activeModal, closeModal, closeActive } = useModal();
+  const { modals, activeModal, closeActive } = useModal();
   
   // Handle ESC key
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.escape && activeModal?.closeOnEsc) {
       closeActive();
     }
@@ -126,7 +126,7 @@ interface OverlayProps {
   onClick?: () => void;
 }
 
-function Overlay({ onClick }: OverlayProps) {
+function Overlay({ onClick: _onClick }: OverlayProps) {
   // Use a semi-transparent background effect
   return (
     <Box 
@@ -210,7 +210,7 @@ export interface ModalButtonProps {
   disabled?: boolean;
 }
 
-export function ModalButton({ label, onClick, variant = 'secondary', disabled = false }: ModalButtonProps) {
+export function ModalButton({ label, onClick: _onClick, variant = 'secondary', disabled = false }: ModalButtonProps) {
   const color = useMemo(() => {
     switch (variant) {
       case 'primary': return theme.colors.primary;

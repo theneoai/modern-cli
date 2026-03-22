@@ -6,7 +6,7 @@
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { tuiTheme as theme, icons } from '../../../theme/index.js';
-import { useSelectable, type UseSelectableOptions } from '../../hooks/useScrollable.js';
+import { useSelectable } from '../../hooks/useScrollable.js';
 import { FocusLayer, useFocusZone } from '../../contexts/FocusContext.js';
 import { type Key } from 'ink';
 
@@ -65,7 +65,8 @@ export function Selectable<T>({
   });
   
   // Handle keyboard input
-  const handleKey = (input: string, key: Key): boolean => {
+  const handleKey = (_input: string, key: Key): boolean => {
+    const extKey = key as typeof key & { home?: boolean; end?: boolean };
     if (key.upArrow) {
       actions.moveUp();
       return true;
@@ -78,11 +79,11 @@ export function Selectable<T>({
       actions.confirm();
       return true;
     }
-    if (key.home) {
+    if (extKey.home) {
       actions.moveToFirst();
       return true;
     }
-    if (key.end) {
+    if (extKey.end) {
       actions.moveToLast();
       return true;
     }
@@ -204,8 +205,8 @@ export function SelectableItem({
   isSelected,
   children,
   indicator = 'arrow',
-  onPress,
-  disabled = false,
+  onPress: _onPress,
+  disabled: _disabled = false,
 }: SelectableItemProps) {
   const content = useMemo(() => {
     switch (indicator) {

@@ -2,7 +2,7 @@
  * Toast - 通知组件
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { tuiTheme, icons } from '../../../theme/index.js';
 import type { ToastMessage, ToastType } from '../../contexts/ToastContext.js';
