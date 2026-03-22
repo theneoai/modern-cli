@@ -16,7 +16,7 @@
  *   Ctrl+A/E  行首/尾         Tab    聚焦内容
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useReducer } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import type { AppMode } from '../FlowApp.js';
@@ -57,9 +57,11 @@ const COMMANDS: CmdDef[] = [
   { cmd: '/search',    short: '/sr',  desc: '网络搜索 (Brave)',    args: '<关键词>' },
   { cmd: '/fetch',     desc: '抓取 URL 内容',                      args: '<url>' },
   // 系统
+  { cmd: '/model',     short: '/m',   desc: '切换模型/服务商 (Ctrl+M)' },
+  { cmd: '/key',       desc: '管理 API Key',                       args: '[list|add|rm]' },
   { cmd: '/new',       desc: '新建对话 (Ctrl+N)' },
   { cmd: '/clear',     short: '/cl', desc: '清空 (Ctrl+L)' },
-  { cmd: '/help',      short: '/h',  desc: '帮助 (?)' },
+  { cmd: '/help',      short: '/h',  desc: '帮助' },
   { cmd: '/quit',      short: '/q',  desc: '退出' },
 ];
 
@@ -73,9 +75,9 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
     { key: '/sr', label: '搜索' },
     { key: '/plan', label: '规划' },
     { key: '@neo', label: '和助理聊' },
-    { key: '^6', label: '助理看板' },
-    { key: '^V', label: '语音' },
-    { key: '/i', label: '情报' },
+    { key: '^K', label: '命令面板' },
+    { key: '^M', label: '切换模型' },
+    { key: '/h', label: '帮助' },
   ],
   tasks: [
     { key: 'Enter', label: '创建任务' },
@@ -123,6 +125,61 @@ const MODE_ICONS: Record<AppMode, string> = {
   plugins: '⚡',
 };
 
+// ── Input State Reducer ───────────────────────────────────────────────────────
+// Using useReducer ensures value + cursor are ALWAYS updated atomically,
+// eliminating stale-closure bugs when rapid keypresses occur.
+
+interface InputState {
+  value: string;
+  cursor: number;
+}
+
+type InputAction =
+  | { type: 'insert'; ch: string }
+  | { type: 'backspace' }
+  | { type: 'delete_fwd' }
+  | { type: 'cursor_left' }
+  | { type: 'cursor_right' }
+  | { type: 'cursor_home' }
+  | { type: 'cursor_end' }
+  | { type: 'delete_word' }
+  | { type: 'clear' }
+  | { type: 'set_value'; value: string };
+
+function inputReducer(state: InputState, action: InputAction): InputState {
+  const { value, cursor } = state;
+  switch (action.type) {
+    case 'backspace':
+      if (cursor > 0) {
+        return {
+          value: value.slice(0, cursor - 1) + value.slice(cursor),
+          cursor: cursor - 1,
+        };
+      }
+      return state;
+    case 'delete_fwd':
+      if (cursor < value.length) {
+        return { value: value.slice(0, cursor) + value.slice(cursor + 1), cursor };
+      }
+      return state;
+    case 'insert': {
+      const nv = value.slice(0, cursor) + action.ch + value.slice(cursor);
+      return nv.length <= 1000 ? { value: nv, cursor: cursor + action.ch.length } : state;
+    }
+    case 'cursor_left':  return { value, cursor: Math.max(0, cursor - 1) };
+    case 'cursor_right': return { value, cursor: Math.min(value.length, cursor + 1) };
+    case 'cursor_home':  return { value, cursor: 0 };
+    case 'cursor_end':   return { value, cursor: value.length };
+    case 'delete_word': {
+      const before = value.slice(0, cursor).trimEnd();
+      const ws = before.lastIndexOf(' ') + 1;
+      return { value: value.slice(0, ws) + value.slice(cursor), cursor: ws };
+    }
+    case 'clear':     return { value: '', cursor: 0 };
+    case 'set_value': return { value: action.value, cursor: action.value.length };
+  }
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface FlowInputProps {
@@ -137,8 +194,9 @@ interface FlowInputProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFocusContent }: FlowInputProps) {
-  const [value, setValue] = useState('');
-  const [cursor, setCursor] = useState(0);
+  const [inputState, dispatch] = useReducer(inputReducer, { value: '', cursor: 0 });
+  const { value, cursor } = inputState;
+
   const [history, setHistory] = useState<string[]>([]);
   const [histIdx, setHistIdx] = useState(-1);
   const [suggestions, setSuggestions] = useState<CmdDef[]>([]);
@@ -166,8 +224,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     void onSubmit(value);
     setHistory(prev => [...prev.filter(h => h !== value), value].slice(-100));
     setHistIdx(-1);
-    setValue('');
-    setCursor(0);
+    dispatch({ type: 'clear' });
     setSuggestions([]);
   }, [value, isStreaming, onSubmit]);
 
@@ -180,13 +237,17 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
       if (key.upArrow)   { setSuggIdx(p => Math.max(0, p - 1)); return; }
       if (key.tab) {
         const sug = suggestions[suggIdx];
-        if (sug) { const c = sug.cmd + ' '; setValue(c); setCursor(c.length); setSuggestions([]); }
+        if (sug) {
+          const c = sug.cmd + ' ';
+          dispatch({ type: 'set_value', value: c });
+          setSuggestions([]);
+        }
         return;
       }
       if (key.return) {
         const sug = suggestions[suggIdx];
-        if (sug && !sug.args) { void onSubmit(sug.cmd); setValue(''); setCursor(0); setSuggestions([]); return; }
-        if (sug) { const c = sug.cmd + ' '; setValue(c); setCursor(c.length); setSuggestions([]); return; }
+        if (sug && !sug.args) { void onSubmit(sug.cmd); dispatch({ type: 'clear' }); setSuggestions([]); return; }
+        if (sug) { dispatch({ type: 'set_value', value: sug.cmd + ' ' }); setSuggestions([]); return; }
       }
     }
 
@@ -196,53 +257,49 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     if (suggestions.length === 0) {
       if (key.upArrow) {
         const ni = Math.min(histIdx + 1, history.length - 1);
-        if (ni >= 0) { const h = history[history.length - 1 - ni]!; setValue(h); setCursor(h.length); setHistIdx(ni); }
+        if (ni >= 0) { const h = history[history.length - 1 - ni]!; dispatch({ type: 'set_value', value: h }); setHistIdx(ni); }
         return;
       }
       if (key.downArrow) {
-        if (histIdx <= 0) { setValue(''); setCursor(0); setHistIdx(-1); }
-        else { const ni = histIdx - 1; const h = history[history.length - 1 - ni]!; setValue(h); setCursor(h.length); setHistIdx(ni); }
+        if (histIdx <= 0) { dispatch({ type: 'clear' }); setHistIdx(-1); }
+        else { const ni = histIdx - 1; const h = history[history.length - 1 - ni]!; dispatch({ type: 'set_value', value: h }); setHistIdx(ni); }
         return;
       }
     }
 
     // Cursor movement
-    if (key.leftArrow)  { setCursor(p => Math.max(0, p - 1)); return; }
-    if (key.rightArrow) { setCursor(p => Math.min(value.length, p + 1)); return; }
-    if (key.ctrl && ch === 'a') { setCursor(0); return; }
-    if (key.ctrl && ch === 'e') { setCursor(value.length); return; }
+    if (key.leftArrow)  { dispatch({ type: 'cursor_left' });  return; }
+    if (key.rightArrow) { dispatch({ type: 'cursor_right' }); return; }
+    if (key.ctrl && ch === 'a') { dispatch({ type: 'cursor_home' }); return; }
+    if (key.ctrl && ch === 'e') { dispatch({ type: 'cursor_end' });  return; }
 
-    // Deletion
-    if (key.backspace) {
-      if (cursor > 0) { setValue(p => p.slice(0, cursor - 1) + p.slice(cursor)); setCursor(p => p - 1); }
+    // Deletion — handle both key.backspace and raw \x7f (DEL sent by many terminals)
+    if (key.backspace || ch === '\x7f') {
+      dispatch({ type: 'backspace' });
       return;
     }
     if (key.delete) {
-      if (cursor < value.length) setValue(p => p.slice(0, cursor) + p.slice(cursor + 1));
+      dispatch({ type: 'delete_fwd' });
       return;
     }
 
     // Ctrl shortcuts
-    if (key.ctrl && ch === 'u') { setValue(''); setCursor(0); setSuggestions([]); setHistIdx(-1); return; }
-    if (key.ctrl && ch === 'w') {
-      const before = value.slice(0, cursor).trimEnd();
-      const ws = before.lastIndexOf(' ') + 1;
-      setValue(value.slice(0, ws) + value.slice(cursor));
-      setCursor(ws);
-      return;
-    }
+    if (key.ctrl && ch === 'u') { dispatch({ type: 'clear' }); setSuggestions([]); setHistIdx(-1); return; }
+    if (key.ctrl && ch === 'w') { dispatch({ type: 'delete_word' }); return; }
 
     // Tab — focus content (no suggestions)
     if (key.tab) { onFocusContent(); return; }
 
-    // Regular input
+    // Regular input — filter out control characters and escape sequences
     if (ch && !key.ctrl && !key.meta && !key.escape) {
+      // Filter DEL (\x7f) and BS (\b) that weren't caught above
+      if (ch === '\x7f' || ch === '\b') return;
       const clean = ch.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
       if (!clean) return;
-      const nv = value.slice(0, cursor) + clean + value.slice(cursor);
-      if (nv.length <= 1000) { setValue(nv); setCursor(cursor + clean.length); setHistIdx(-1); }
+      dispatch({ type: 'insert', ch: clean });
+      setHistIdx(-1);
     }
-  });
+  }, { isActive: isFocused });
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -361,9 +418,9 @@ function buildHint(
 
 function getPlaceholder(mode: AppMode): string {
   switch (mode) {
-    case 'chat':    return '发消息给 AI · @neo 和助理聊天 · / 触发命令';
-    case 'tasks':   return '直接输入即创建任务，/ 触发命令';
-    case 'notes':   return '直接输入即记录笔记，/ 触发命令';
+    case 'chat':    return '发消息给 AI · @neo 和助理聊天 · / 触发命令 · /h 帮助';
+    case 'tasks':   return '直接输入即创建任务，/ 触发命令，/h 帮助';
+    case 'notes':   return '直接输入即记录笔记，/ 触发命令，/h 帮助';
     case 'agents':  return '描述 Agent 目标，或 Tab 选择';
     case 'plugins': return '搜索插件或输入命令';
   }
@@ -380,7 +437,7 @@ function ThinkingDots() {
   const dots = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
   return (
     <Box>
-      <Text color={theme.colors.warning} bold>{dots[frame] ?? '⠋'} Claude 正在思考</Text>
+      <Text color={theme.colors.warning} bold>{dots[frame] ?? '⠋'} AI 正在思考</Text>
       <Text color={theme.colors.muted}>  ESC:中断  Ctrl+L:清空</Text>
     </Box>
   );

@@ -93,14 +93,41 @@ export default function FlowApp() {
 
   // ── Core State ───────────────────────────────────────────────────────────────
   const [mode, setMode] = useState<AppMode>('chat');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'system',
-      content: '◆ NEO  直接输入对话 · / 触发命令 · Ctrl+K 面板 · ? 帮助',
-      timestamp: new Date(),
-    },
-  ]);
+
+  // Detect first-run: check if current provider has an API key configured
+  const needsSetup = (() => {
+    const cfg = getConfig();
+    const envKey = cfg.provider === 'anthropic' ? process.env['ANTHROPIC_API_KEY'] : undefined;
+    const hasKey = keyStore.getKey(cfg.provider) || envKey;
+    return !hasKey;
+  })();
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const msgs: Message[] = [
+      {
+        id: 'welcome',
+        role: 'system',
+        content: '◆ NEO  直接输入对话 · / 触发命令 · Ctrl+K 命令面板 · /h 帮助',
+        timestamp: new Date(),
+      },
+    ];
+    if (needsSetup) {
+      msgs.push({
+        id: 'setup-guide',
+        role: 'system',
+        content:
+          '⚙  首次使用 — 请先配置 AI 服务商和 API 密钥:\n' +
+          '  1. 按 Ctrl+M 或输入 /model  → 选择服务商和模型\n' +
+          '  2. 输入 /key add <provider> <api-key>  → 添加密钥\n' +
+          '     例如: /key add anthropic sk-ant-xxxxxxxx\n' +
+          '     例如: /key add openai sk-xxxxxxxx\n' +
+          '  3. 也可设置环境变量: export ANTHROPIC_API_KEY=sk-ant-xxx\n' +
+          '  配置完成后即可直接输入消息与 AI 对话。',
+        timestamp: new Date(),
+      });
+    }
+    return msgs;
+  });
 
   const [tasks, setTasks] = useState<Task[]>([
     { id: '1', title: '查看项目文档', status: 'pending', priority: 'high', createdAt: new Date() },
@@ -808,8 +835,8 @@ export default function FlowApp() {
         setCapture(null);
         return;
       }
-      if (key.backspace) { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
-      if (ch && !key.ctrl && !key.meta) { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
+      if (key.backspace || ch === '\x7f') { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
+      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
       return;
     }
 
@@ -961,7 +988,7 @@ export default function FlowApp() {
           )}
           {/* Provider/Model + hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^6 ^V ^K ?</Text>
+          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  /h:帮助</Text>
         </Box>
       </Box>
 
