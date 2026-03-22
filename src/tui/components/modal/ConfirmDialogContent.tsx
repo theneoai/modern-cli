@@ -86,7 +86,6 @@ export function ConfirmDialogContent(options: ConfirmOptions) {
 // Standalone Confirm Dialog (for backward compatibility)
 // ============================================================================
 
-import { FocusLayer } from '../../contexts/FocusContext.js';
 
 export interface ConfirmDialogProps {
   title: string;

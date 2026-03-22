@@ -41,7 +41,7 @@ export function NotesView({
   onDelete, onPin,
 }: NotesViewProps) {
   const [cursor, setCursor] = useState(0);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [, setExpanded] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
   const [isFiltering, setIsFiltering] = useState(false);
   const [notification, setNotification] = useState('');
@@ -73,7 +73,6 @@ export function NotesView({
 
   // Vertical split: list (40%) | detail (60%)
   const listWidth = Math.floor(width * 0.38);
-  const detailWidth = width - listWidth - 2;
   const listHeight = height - 4;
 
   useInput((ch, key) => {

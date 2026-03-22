@@ -294,7 +294,7 @@ export default function Workbench() {
 // 组件定义
 // ============================================================================
 
-function TopBar({ currentUser, currentTeam, mainView, unreadCount, onViewChange, onToggleNotifications }: any) {
+function TopBar({ currentUser, currentTeam, mainView, unreadCount, onViewChange: _onViewChange, onToggleNotifications: _onToggleNotifications }: any) {
   return (
     <Box height={3} borderStyle="single" borderColor={theme.colors.primary} paddingX={1}>
       {/* 左侧：团队和用户信息 */}
@@ -372,7 +372,7 @@ function LeftNav({ mainView, onViewChange, taskStats }: any) {
   );
 }
 
-function DashboardView({ tasks, messages, workflows, members, onTaskToggle }: any) {
+function DashboardView({ tasks, messages, workflows, members, onTaskToggle: _onTaskToggle }: any) {
   const today = new Date();
   const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 18 ? 'Good afternoon' : 'Good evening';
   
@@ -453,7 +453,7 @@ function DashboardCard({ title, icon, color, children }: any) {
   );
 }
 
-function MessagesView({ channels, messages, selectedChannel, onChannelSelect, currentUser }: any) {
+function MessagesView({ channels, messages, selectedChannel, onChannelSelect, currentUser: _currentUser }: any) {
   const channelMessages = messages.filter((m: any) => m.channelId === selectedChannel);
   
   return (
@@ -578,7 +578,7 @@ function TeamView({ members }: any) {
   );
 }
 
-function RightSidebar({ view, notifications, members, workflows, onViewChange }: any) {
+function RightSidebar({ view: _view, notifications, members, workflows: _workflows, onViewChange: _onViewChange }: any) {
   return (
     <Box 
       flexDirection="column" 
@@ -623,7 +623,7 @@ function RightSidebar({ view, notifications, members, workflows, onViewChange }:
   );
 }
 
-function BottomBar({ currentView, onCommandPalette }: any) {
+function BottomBar(_: any) {
   return (
     <Box height={3} borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
       <Box width="50%">
@@ -640,7 +640,7 @@ function BottomBar({ currentView, onCommandPalette }: any) {
   );
 }
 
-function CommandPalette({ onClose, onSelect }: any) {
+function CommandPalette(_: any) {
   const commands = [
     { id: 'new-task', label: 'New Task', shortcut: 't' },
     { id: 'new-message', label: 'Send Message', shortcut: 'm' },
@@ -676,7 +676,7 @@ function CommandPalette({ onClose, onSelect }: any) {
   );
 }
 
-function NotificationsPanel({ notifications, onClose, onMarkRead }: any) {
+function NotificationsPanel({ notifications, onClose: _onClose, onMarkRead: _onMarkRead }: any) {
   return (
     <Box 
       position="absolute" 

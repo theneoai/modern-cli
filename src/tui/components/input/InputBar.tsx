@@ -35,12 +35,12 @@ export function InputBar({
   onSubmit,
   placeholder = 'Type a message... (Tab for commands)',
   mode = 'chat',
-  focusId = 'input-bar',
+  focusId: _focusId = 'input-bar',
 }: InputBarProps) {
   const { layout } = useTUI();
   const { showInfo, showSuccess } = useToast();
   const { openPalette } = useModal();
-  const { stdout } = useStdout();
+  useStdout();
   
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -122,12 +122,10 @@ export function InputBar({
   
   const maxVisibleChars = layout.layoutSizes.width - 20;
   let visibleInput = input;
-  let cursorOffset = 0;
-  
+
   if (input.length > maxVisibleChars) {
     const start = Math.max(0, input.length - maxVisibleChars);
     visibleInput = input.slice(start);
-    cursorOffset = start;
   }
   
   return (

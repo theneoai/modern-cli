@@ -80,7 +80,7 @@ export function FocusProvider({ children, debug = false }: FocusProviderProps) {
   
   // Auto-assign focus when zones change or maxLayer changes
   const autoAssignFocus = useCallback(() => {
-    const zones = Array.from(zonesRef.current.values())
+    const zones = Array.from<FocusZone>(zonesRef.current.values())
       .filter(z => !z.disabled && z.layer <= maxLayer)
       .sort((a, b) => {
         // Sort by layer descending, then priority descending

@@ -6,7 +6,7 @@
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../../theme/index.js';
-import { useFocusZone, FocusLayer, type UseFocusZoneOptions } from '../../contexts/FocusContext.js';
+import { useFocusZone, FocusLayer } from '../../contexts/FocusContext.js';
 import { type Key } from 'ink';
 
 // ============================================================================
@@ -28,9 +28,13 @@ export interface FocusableProps {
   width?: number | string;
   height?: number | string;
   padding?: number;
+  paddingX?: number;
+  paddingY?: number;
   margin?: number;
   flexGrow?: number;
   flexDirection?: 'row' | 'column';
+  alignItems?: 'flex-start' | 'flex-end' | 'center' | 'stretch';
+  justifyContent?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around';
   borderStyle?: 'single' | 'double' | 'round' | 'bold' | 'singleDouble' | 'doubleSingle' | 'classic';
   borderColor?: string;
   backgroundColor?: string;
@@ -55,9 +59,13 @@ export function Focusable({
   width,
   height,
   padding = 0,
+  paddingX,
+  paddingY,
   margin = 0,
   flexGrow,
   flexDirection = 'column',
+  alignItems,
+  justifyContent,
   borderStyle = 'single',
   borderColor,
   backgroundColor,
@@ -94,9 +102,13 @@ export function Focusable({
       width={width}
       height={height}
       padding={padding}
+      paddingX={paddingX}
+      paddingY={paddingY}
       margin={margin}
       flexGrow={flexGrow}
       flexDirection={flexDirection}
+      alignItems={alignItems}
+      justifyContent={justifyContent}
       borderStyle={borderStyle}
       borderColor={effectiveBorderColor}
       backgroundColor={effectiveBackgroundColor}

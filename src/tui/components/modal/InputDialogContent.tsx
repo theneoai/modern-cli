@@ -33,7 +33,7 @@ export function InputDialogContent(options: InputOptions) {
     onSubmit(value);
   };
   
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.escape) {
       closeActive();
       onCancel?.();

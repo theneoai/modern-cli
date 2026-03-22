@@ -45,7 +45,6 @@ export function PluginsView({
   const selectedPlugin = plugins[Math.min(cursor, plugins.length - 1)];
 
   const listWidth = Math.min(28, Math.floor(width * 0.30));
-  const contentWidth = width - listWidth - 2;
   const listHeight = height - 4;
 
   useInput((ch, key) => {

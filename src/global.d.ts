@@ -10,3 +10,12 @@
 interface ImportMeta {
   url: string;
 }
+
+// React's `key` prop is a JSX intrinsic, not a component prop.
+// Without @types/react, TypeScript doesn't know about JSX.IntrinsicAttributes,
+// so we declare it here to suppress TS2322 false positives on key={...}.
+declare namespace JSX {
+  interface IntrinsicAttributes {
+    key?: string | number | null;
+  }
+}

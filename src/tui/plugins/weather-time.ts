@@ -95,7 +95,6 @@ interface WeatherCache {
 let lastCity = '上海';
 let weatherCache: WeatherCache | null = null;
 let isFetching = false;
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10分钟缓存
 
 async function geocode(cityName: string): Promise<{ lat: number; lon: number; name: string } | null> {
   const englishName = CITY_MAP[cityName] ?? cityName;
@@ -204,7 +203,7 @@ export default definePlugin({
 
   // ── 命令 ─────────────────────────────────────────────────────────────────
   commands: {
-    weather: async ({ args, addMessage, notify, setConfig }) => {
+    weather: async ({ args, addMessage, setConfig }) => {
       const city = args.trim() || lastCity;
       if (args.trim()) {
         lastCity = city;
@@ -307,7 +306,7 @@ export default definePlugin({
     /^(?:今天|现在)(?:是)?几月几号/,
   ],
 
-  onNaturalInput: async ({ match, input, addMessage }) => {
+  onNaturalInput: async ({ match: _match, input, addMessage }) => {
     const lc = input.toLowerCase();
     if (lc.includes('几点') || lc.includes('时间')) {
       const lines = [`🕐 **现在时间**\n`, `  本地: ${formatTime()}`];

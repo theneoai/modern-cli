@@ -219,7 +219,7 @@ function KeyStatus({ provider }: { provider: ProviderDef }) {
   );
 }
 
-function ModelRow({ model, isSelected, isActive, width }: {
+function ModelRow({ model, isSelected, isActive, width: _width }: {
   model: ModelDef;
   isSelected: boolean;
   isActive: boolean;

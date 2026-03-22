@@ -226,19 +226,10 @@ export async function checkPriceUpdates(): Promise<string[]> {
 
 export type NewsCategory = 'tech' | 'biz' | 'finance' | 'all';
 
-interface NewsSource {
-  name: string;
-  url: string;
-  category: NewsCategory;
-}
 
-const NEWS_SOURCES: NewsSource[] = [
-  { name: 'Hacker News',   url: 'https://hacker-news.firebaseio.com/v0/topstories.json', category: 'tech' },
-  { name: 'GitHub Trending', url: 'https://github.com/trending', category: 'tech' },
-];
 
 /** Fetch top HN stories and format as a digest */
-export async function fetchNewsDigest(category: NewsCategory = 'all', limit = 10): Promise<string> {
+export async function fetchNewsDigest(_category: NewsCategory = 'all', limit = 10): Promise<string> {
   try {
     const hnUrl = 'https://hacker-news.firebaseio.com/v0/topstories.json';
     const check = checkUrl(hnUrl);
@@ -284,57 +275,31 @@ export const analyticsPlugin: PluginDef = {
   version: '1.0.0',
   author: 'NEO',
 
-  commands: [
-    {
-      name: 'stats',
-      description: '显示本次会话成本收益统计',
-      args: '[hourly-value-cny]',
-    },
-    {
-      name: 'price',
-      description: '查看所有模型价格表',
-      args: '[check]',
-    },
-    {
-      name: 'news',
-      description: '最新技术/时政/金融新闻',
-      args: '[tech|biz|finance]',
-    },
-    {
-      name: 'roi',
-      description: '显示 ROI 和最佳性价比模型推荐',
-    },
-  ],
-
-  async onCommand(cmd, args, ctx) {
-    const { getConfig } = await import('../../utils/config.js');
-    const cfg = getConfig();
-
-    if (cmd === 'stats') {
+  commands: {
+    async stats(ctx) {
+      const { getConfig } = await import('../../utils/config.js');
+      const cfg = getConfig();
       ctx.addMessage(formatStatsReport(cfg.provider, cfg.model));
-      return true;
-    }
+    },
 
-    if (cmd === 'price') {
-      if (args?.trim() === 'check') {
+    async price(ctx) {
+      if (ctx.args.trim() === 'check') {
         ctx.addMessage('正在检查价格更新...');
         const updates = await checkPriceUpdates();
         ctx.addMessage(updates.join('\n'));
       } else {
         ctx.addMessage(formatPriceTable());
       }
-      return true;
-    }
+    },
 
-    if (cmd === 'news') {
-      const cat = (args?.trim() as NewsCategory) || 'all';
+    async news(ctx) {
+      const cat = (ctx.args.trim() as NewsCategory) || 'all';
       ctx.addMessage('正在获取最新资讯...');
       const digest = await fetchNewsDigest(cat);
       ctx.addMessage(digest);
-      return true;
-    }
+    },
 
-    if (cmd === 'roi') {
+    async roi(ctx) {
       const best = {
         quality: findBestValue('quality'),
         speed:   findBestValue('speed'),
@@ -348,13 +313,10 @@ export const analyticsPlugin: PluginDef = {
         '',
         '用 /model 切换  /price 查看完整表格',
       ].join('\n'));
-      return true;
-    }
-
-    return false;
+    },
   },
 
-  getStatusWidget(ctx) {
+  statusWidget(_ctx) {
     const s = _stats;
     if (s.rounds === 0) return '';
     const sessionMin = Math.floor((Date.now() - s.sessionStartAt) / 60000);

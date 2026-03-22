@@ -6,7 +6,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { tuiTheme as theme, icons } from '../../../theme/index.js';
-import type { PaletteOptions, PaletteItem } from '../../contexts/ModalContext.js';
+import type { PaletteOptions } from '../../contexts/ModalContext.js';
 import { useModal } from '../../contexts/ModalContext.js';
 
 // ============================================================================
@@ -40,7 +40,7 @@ export function CommandPaletteContent(options: PaletteOptions) {
   }, [search]);
   
   // Handle keyboard input
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.escape) {
       closeActive();
       onCancel?.();
@@ -143,36 +143,4 @@ export function CommandPaletteContent(options: PaletteOptions) {
   );
 }
 
-// ============================================================================
-// Highlight Matching Text
-// ============================================================================
 
-interface HighlightedTextProps {
-  text: string;
-  query: string;
-  highlightColor: string;
-  textColor?: string;
-}
-
-function HighlightedText({ text, query, highlightColor, textColor = theme.colors.text }: HighlightedTextProps) {
-  if (!query) {
-    return <Text color={textColor}>{text}</Text>;
-  }
-  
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
-  
-  return (
-    <Text>
-      {parts.map((part, i) => {
-        const isMatch = part.toLowerCase() === query.toLowerCase();
-        return isMatch ? (
-          <Text key={i} color={theme.colors.background} backgroundColor={highlightColor} bold>
-            {part}
-          </Text>
-        ) : (
-          <Text key={i} color={textColor}>{part}</Text>
-        );
-      })}
-    </Text>
-  );
-}

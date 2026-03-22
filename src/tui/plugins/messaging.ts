@@ -283,7 +283,7 @@ export const messagingPlugin = definePlugin({
     addMessage(`📩 消息已处理: ${input}`);
   },
 
-  statusWidget: (ctx) => {
+  statusWidget: (_ctx) => {
     const unread = emails.filter(e => !e.read).length;
     const nextEvent = calEvents.find(e => {
       const now = new Date();

@@ -74,7 +74,7 @@ export function HelpOverlay({ width, height, onClose }: HelpOverlayProps) {
 
 // ── Tab: Keyboard Shortcuts ──────────────────────────────────────────────────
 
-function KeysTab({ height, width }: { height: number; width: number }) {
+function KeysTab({ height: _height, width }: { height: number; width: number }) {
   const col = Math.floor((width - 4) / 2);
   return (
     <Box flexDirection="row" padding={1}>

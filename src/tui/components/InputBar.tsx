@@ -32,10 +32,10 @@ const commandSuggestions: Suggestion[] = [
 export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarProps) {
   const [input, setInput] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
-  const [placeholder, setPlaceholder] = useState('Type a message... (Tab for commands)');
+  const [placeholder] = useState('Type a message... (Tab for commands)');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
-  const { stdout } = useStdout();
+  useStdout();
   
   const { addToHistory, navigateHistory, resetHistoryIndex } = useInputHistory();
 
@@ -102,7 +102,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
     }
 
     if (key.downArrow && suggestions.length === 0) {
-      const { newInput, newIndex } = navigateHistory('down', input);
+      const { newInput } = navigateHistory('down', input);
       setInput(newInput);
       setCursorPosition(newInput.length);
       return;

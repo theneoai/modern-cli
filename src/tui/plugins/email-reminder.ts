@@ -43,7 +43,7 @@ function makeId(): string {
   return String(nextId++);
 }
 
-function parseTime(timeStr: string, message: string): { fireAt: Date; label: string } | null {
+function parseTime(timeStr: string, _message: string): { fireAt: Date; label: string } | null {
   const now = Date.now();
   const lc = timeStr.toLowerCase().trim();
 

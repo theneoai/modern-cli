@@ -78,7 +78,7 @@ export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: C
     setSelectedIndex(0);
   }, [search]);
 
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.escape) {
       onClose();
       return;

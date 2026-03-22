@@ -26,7 +26,7 @@ export function MainPanel({ messages, height, width, focusId = 'main-panel' }: M
   const scroll = useScrollable({
     totalItems: messages.length,
     visibleItems: visibleCount,
-    onScroll: (state) => {
+    onScroll: (_state) => {
       // Scroll callback if needed
     },
   });
