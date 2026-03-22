@@ -12,7 +12,7 @@
  *   p           置顶笔记
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 
@@ -46,9 +46,18 @@ export function NotesView({
   const [isFiltering, setIsFiltering] = useState(false);
   const [notification, setNotification] = useState('');
 
+  const notifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+    };
+  }, []);
+
   const notify = useCallback((msg: string) => {
+    if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
     setNotification(msg);
-    setTimeout(() => setNotification(''), 2000);
+    notifyTimerRef.current = setTimeout(() => setNotification(''), 2000);
   }, []);
 
   // Sort: pinned first, then by date

@@ -108,7 +108,7 @@ export function ToastProvider({ children, maxToasts = MAX_TOASTS }: ToastProvide
     timeoutsRef.current.set(id, timeout);
     
     return id;
-  }, [maxToasts]);
+  }, [maxToasts, dismissToast]);
   
   // Helper methods for each type
   const showSuccess = useCallback((content: string, duration?: number) => {

@@ -282,7 +282,7 @@ export function useFocusZone(options: UseFocusZoneOptions) {
   const focus = useFocus();
   const { id, layer, priority = 0, captureInput = false, disabled = false, onFocus, onBlur, onKey } = options;
   
-  // Register zone on mount
+  // Register zone on mount, update on any prop change, unregister on unmount
   useEffect(() => {
     focus.registerZone({
       id,
@@ -294,25 +294,11 @@ export function useFocusZone(options: UseFocusZoneOptions) {
       onBlur,
       onKey,
     });
-    
+
     return () => {
       focus.unregisterZone(id);
     };
-  }, [id, layer, priority, captureInput, disabled]);
-  
-  // Update zone when callbacks change
-  useEffect(() => {
-    focus.registerZone({
-      id,
-      layer,
-      priority,
-      captureInput,
-      disabled,
-      onFocus,
-      onBlur,
-      onKey,
-    });
-  }, [onFocus, onBlur, onKey]);
+  }, [id, layer, priority, captureInput, disabled, onFocus, onBlur, onKey, focus]);
   
   return {
     isActive: focus.isActive(id),

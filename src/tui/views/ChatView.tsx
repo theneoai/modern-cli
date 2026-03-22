@@ -106,7 +106,7 @@ export function ChatView({ messages, height, width, isFocused, streamingId }: Ch
         {messages.length === 0 ? (
           <EmptyState />
         ) : (
-          visible.map((line, i) => <RenderLine key={i} line={line} width={innerWidth} />)
+          visible.map((line, i) => <RenderLine key={`${line.kind}-${i}`} line={line} width={innerWidth} />)
         )}
       </Box>
     </Box>
