@@ -94,7 +94,7 @@ export default definePlugin({
   name: '邮件提醒',
   version: '1.0.0',
   description: '定时提醒 + 邮件摘要, 不错过任何重要事项',
-  author: 'hyperterminal',
+  author: 'neo',
   tags: ['productivity', 'reminder', 'email'],
 
   onLoad: async () => {

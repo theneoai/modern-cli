@@ -29,7 +29,7 @@ const commands: CommandItem[] = [
   { label: 'Organization', value: '/orgs', description: 'List organizations', icon: icons.building, category: 'Orgs' },
   { label: 'Help', value: '/help', description: 'Show help', icon: '❓', category: 'System' },
   { label: 'Clear Screen', value: '/clear', description: 'Clear terminal', icon: '🧹', category: 'System' },
-  { label: 'Exit', value: '/exit', description: 'Exit HyperTerminal', icon: '🚪', category: 'System' },
+  { label: 'Exit', value: '/exit', description: 'Exit NEO', icon: '🚪', category: 'System' },
 ];
 
 /**

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * HyperTerminal Workbench
+ * NEO Workbench
  * 
  * 团队管理工作台 - 面向团队管理者和成员
  * 整合团队工作、个人任务、沟通协作于一体
@@ -633,7 +633,7 @@ function BottomBar(_: any) {
       </Box>
       <Box width="50%" justifyContent="flex-end">
         <Text color={theme.colors.muted}>
-          HyperTerminal Workbench v0.3.0
+          NEO Workbench v0.4.0
         </Text>
       </Box>
     </Box>

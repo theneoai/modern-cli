@@ -1,69 +1,105 @@
-# 🚀 HyperTerminal
+# NEO
 
-> 面向未来的超级终端 - AI 原生的个人操作系统
+> AI 原生超级终端 — 键盘优先的心流体验个人操作系统
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/theneoai/modern-cli)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/theneoai/modern-cli)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-81%20passing-brightgreen.svg)](https://github.com/theneoai/modern-cli)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
 
-HyperTerminal 是一个完全键盘驱动、AI 原生的个人操作系统，运行在终端中但拥有现代操作系统的所有能力。20+ 功能子系统，50+ CLI 命令，约 15,000 行 TypeScript。
+NEO 是一个键盘驱动、AI 原生的终端操作系统。启动即进入全屏 TUI，内置多 AI 提供商支持、7 种专业 Agent、MCP 工具系统和插件扩展机制。
 
 ## ✨ 核心特性
 
 ### 🤖 AI Agent 系统
-- **5 种内置角色** — researcher、planner、coder、reviewer、synthesizer
-- **多 Agent 编排** — manager-worker、协作、竞争三种策略
-- **记忆系统** — 情景记忆、语义记忆、程序记忆、工作记忆
-- **自定义 Agent** — 创建具有独特个性和能力的 AI 助手
+- **7 种内置 Agent** — companion（AI 伴侣）、researcher（研究员）、planner（规划师）、coder（工程师）、reviewer（审查员）、writer（作家）、analyst（分析师）
+- **记忆隔离策略** — private / shared / group 三种隔离模式
+- **对话历史持久化** — 跨会话保留上下文
+- **自主执行引擎** — AutonomousEngine 支持多轮自主任务
 
-### ⚡ 工作流与自动化
-- **工作流引擎** — DAG 形式，支持顺序/并行/条件/循环节点
-- **自动化规则** — 事件驱动的条件-动作规则系统
-- **任务调度器** — Cron 定时任务，持久化存储
-- **自然语言命令** — 用自然语言驱动 CLI
+### 🌐 多 AI Provider 支持
+内置 11 个 Provider，开箱即用：
 
-### 🛠️ 技能与 MCP
-- **技能注册** — MCP 兼容的技能系统，支持自动发现
-- **内置技能** — Shell、文件、Git、HTTP
-- **浏览器自动化** — Playwright 驱动的 Web 自动化
-- **GitHub 集成** — Issue/PR 同步与 Commit 分析
+| Provider | 特点 |
+|----------|------|
+| Anthropic Claude | Claude Opus/Sonnet/Haiku，推荐默认 |
+| OpenAI | GPT-4o、o1、o3-mini |
+| Google Gemini | 超长上下文，免费额度 |
+| DeepSeek | 极低成本，编程能力强 |
+| Moonshot (Kimi) | 超长上下文，中文优化 |
+| Mistral | 欧洲开源，Codestral 编程专用 |
+| Groq | 最快推理速度 (LPU) |
+| Ollama | 本地运行，无需 API Key |
+| Together AI | 开源模型聚合 |
+| OpenCode | 编程专用 AI |
+| 自定义 | 任何 OpenAI 兼容端点 |
 
-### 🏢 组织与经济系统
-- **虚拟公司** — 创建和运营 AI 公司
-- **组织架构** — 部门、汇报线、权限管理
-- **经济系统** — HTC（HyperTerminal Credits）内部货币
+### 🛠️ MCP 工具系统
+- **内置工具** — web_search、http_get、read_file、write_file、run_shell
+- **插件注册 API** — `registerSkill()` 接入第三方技能
+- **Plugin SDK** — 标准化扩展接口
 
-### 🧠 知识与数据
-- **知识图谱** — 实体-关系数据库，支持路径查找和语义搜索
-- **日志分析** — 模式提取、异常检测、统计分析
-- **审计日志** — 完整的操作追踪与严重性分级
-- **数据可视化** — 图表、仪表板、指标展示
+```typescript
+import { definePlugin } from 'neocli/sdk';
 
-### 💻 终端界面 (TUI)
-- **全屏 TUI** — React 驱动的终端 UI，含侧边栏、任务面板、命令面板
-- **响应式布局** — 自适应终端大小
-- **Command Palette** — Tab/Ctrl+P 快速启动命令
-- **语音界面** — STT/TTS，支持热词唤醒（"Hey Hyper"）
+export default definePlugin({
+  id: 'my-plugin',
+  name: '我的插件',
+  version: '1.0.0',
+  commands: {
+    'my-cmd': async ({ args, addMessage }) => {
+      addMessage(`你好, ${args}!`);
+    },
+  },
+});
+```
+
+### 💻 全屏 TUI 界面
+- **React + Ink** 驱动的终端 UI
+- **布局** — 侧边栏 + 主面板 + 任务面板 + 输入栏 + Stats 面板
+- **Command Palette** — Ctrl+P 快速命令
+- **Modal 系统** — Help、Confirm、Input 对话框
+- **Toast 通知** — 非阻塞消息提示
+- **Voice Engine** — 语音交互（STT/TTS）
+
+### 🔌 插件生态
+- analytics — 使用分析
+- token-counter — Token 用量追踪
+- weather-time — 天气时间信息
+- messaging — 消息集成
+- email-reminder — 邮件提醒
 
 ## 📦 安装
 
 ### 通过 npm
 ```bash
-npm install -g hyperterminal
+npm install -g neocli
 ```
 
 ### 通过二进制（无需 Node）
 ```bash
 # macOS ARM64
-curl -L https://github.com/theneoai/modern-cli/releases/latest/download/hyper-macos-arm64 -o hyper
-chmod +x hyper
-sudo mv hyper /usr/local/bin/
+curl -L https://github.com/theneoai/modern-cli/releases/latest/download/neo-macos-arm64 -o neo
+chmod +x neo
+sudo mv neo /usr/local/bin/
+
+# macOS x64
+curl -L https://github.com/theneoai/modern-cli/releases/latest/download/neo-macos-x64 -o neo
+chmod +x neo
+sudo mv neo /usr/local/bin/
 
 # Linux x64
-curl -L https://github.com/theneoai/modern-cli/releases/latest/download/hyper-linux-x64 -o hyper
-chmod +x hyper
-sudo mv hyper /usr/local/bin/
+curl -L https://github.com/theneoai/modern-cli/releases/latest/download/neo-linux-x64 -o neo
+chmod +x neo
+sudo mv neo /usr/local/bin/
+
+# Linux ARM64
+curl -L https://github.com/theneoai/modern-cli/releases/latest/download/neo-linux-arm64 -o neo
+chmod +x neo
+sudo mv neo /usr/local/bin/
+
+# Windows x64
+# 下载 neo-win-x64.exe 并添加到 PATH
 ```
 
 ### 从源码构建
@@ -76,206 +112,162 @@ npm run build
 
 ## 🚀 快速开始
 
-### 1. 初始化
+### 启动 TUI（默认行为）
 ```bash
-hyper init
+neo
+# 等同于:
+neo tui
+neo ui
 ```
 
-### 2. 启动交互式 TUI
+### 配置 AI Provider
+
 ```bash
-hyper tui
-```
+# 添加 Anthropic API Key（推荐）
+neo key add anthropic sk-ant-...
 
-### 3. 运行 Agent 任务
-```bash
-# 让 Coder Agent 写代码
-hyper agent run <coder-id> "写一个快速排序算法"
+# 添加 OpenAI API Key
+neo key add openai sk-...
 
-# 让 Researcher 做研究
-hyper agent run <researcher-id> "调研最新的 AI 模型"
-
-# 多 Agent 协作
-hyper orchestrate run "设计并实现一个 REST API"
-```
-
-### 4. 自然语言命令
-```bash
-hyper ask "显示所有 agents"
-hyper ask "系统状态如何"
-hyper ask "备份数据"
-```
-
-### 5. 创建组织
-```bash
-hyper org create "My AI Team" --type company
-hyper org join <org-id> <agent-id> --department "Engineering" --role "Lead"
-```
-
-## 📚 命令参考
-
-### Agent 管理
-```bash
-hyper agent list              # 列出所有 Agent
-hyper agent create <name>     # 创建新 Agent
-hyper agent run <id> <task>   # 执行任务
-hyper agent delete <id>       # 删除 Agent
-hyper agent templates         # 查看模板
-hyper orchestrate run <task>  # 多 Agent 编排
-```
-
-### 工作流
-```bash
-hyper workflow list           # 列出工作流
-hyper workflow create <name>  # 创建工作流
-hyper workflow run <id>       # 运行工作流
-hyper scheduler list          # 查看定时任务
-```
-
-### 记忆与知识
-```bash
-hyper memory list             # 查看记忆
-hyper memory search <query>   # 搜索记忆
-hyper knowledge search <q>    # 搜索知识图谱
-hyper knowledge entity add    # 添加知识实体
-hyper knowledge visualize     # 可视化知识图谱
-```
-
-### 组织管理
-```bash
-hyper org list                # 列出组织
-hyper org create <name>       # 创建组织
-hyper org show <id>           # 显示详情
-hyper org join <org> <agent>  # 添加成员
-hyper org chart <id>          # 组织架构图
-```
-
-### 数据管理
-```bash
-hyper backup create           # 创建备份
-hyper backup export           # 导出数据
-hyper backup import <file>    # 导入数据
-hyper search <query>          # 全局搜索
-hyper audit list              # 查看审计日志
-hyper apikey list             # 管理 API 密钥
-```
-
-### 系统管理
-```bash
-hyper monitor status          # 系统状态
-hyper analytics health        # 健康检查
-hyper profile                 # 性能分析
-hyper logs query              # 日志查询
-hyper notify list             # 通知管理
-hyper config show             # 显示配置
-```
-
-### 集成工具
-```bash
-hyper github sync             # GitHub 同步
-hyper browser open <url>      # 浏览器自动化
-hyper docs generate           # 生成文档
-hyper test generate <file>    # 生成测试
-hyper voice start             # 启动语音界面
-```
-
-## 🔧 配置
-
-### 设置 API Key
-```bash
-# 通过环境变量
+# 或通过环境变量
 export ANTHROPIC_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 ```
 
+### 查看可用 Provider
+```bash
+neo providers
+```
+
+## 📚 CLI 命令参考
+
+NEO 以 TUI 为核心，CLI 提供配置和密钥管理命令：
+
+```bash
+neo                          # 启动 TUI（默认）
+neo tui / neo ui             # 同上
+
+neo config                   # 列出所有配置
+neo config <key>             # 查看某项配置
+neo config <key> <value>     # 修改某项配置
+
+neo key list                 # 列出已配置的 API Key
+neo key add <provider> <key> # 添加 API Key
+neo key rm <provider>        # 删除 API Key
+
+neo providers                # 列出可用 Provider 和模型
+
+neo version                  # 显示版本信息
+neo -v / neo --version       # 同上
+```
+
+### TUI 内键盘快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+P` | 打开 Command Palette |
+| `Ctrl+M` | 切换 AI 模型/Provider |
+| `Escape` | 关闭弹窗/取消 |
+| `Tab` | 切换焦点 |
+| `↑↓` | 滚动 / 选择 |
+| `Enter` | 确认 / 发送 |
+
+## 🔧 配置
+
+### 可配置项
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `provider` | `anthropic` | 活跃 AI Provider |
+| `model` | `claude-sonnet-4-6` | 活跃模型 |
+| `maxTokens` | `4096` | 单次最大输出 Token |
+| `temperature` | `0.7` | 生成温度 |
+| `streamingEnabled` | `true` | 流式输出 |
+| `historyEnabled` | `true` | 保留对话历史 |
+| `historyMaxMessages` | `20` | 历史最大条数 |
+| `theme` | `dark` | 主题 (dark/light) |
+
 ### 配置文件位置
-- macOS: `~/Library/Preferences/hyperterminal-nodejs/config.json`
-- Linux: `~/.config/hyperterminal-nodejs/config.json`
-- Windows: `%APPDATA%/hyperterminal-nodejs/config.json`
-- 数据库: `~/.hyperterminal/data.db`
+- macOS: `~/Library/Preferences/neocli/config.json`
+- Linux: `~/.config/neocli/config.json`
+- Windows: `%APPDATA%/neocli/config.json`
 
-## 🏗️ 架构
+## 🏗️ 项目结构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     HyperTerminal TUI                        │
-│         (React-based · Command Palette · Voice I/O)          │
-├─────────────────────────────────────────────────────────────┤
-│                     Agent Runtime                            │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
-│  │ Agent A  │ │ Agent B  │ │ Agent C  │ │ Memory Store │   │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│           Orchestration & Automation Layer                   │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
-│  │ Workflow │ │Scheduler │ │Automation│ │  Org Engine  │   │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                  Knowledge & Analytics                       │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
-│  │Knowledge │ │   Logs   │ │  Audit   │ │  Monitoring  │   │
-│  │  Graph   │ │Analytics │ │  Trail   │ │              │   │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│              Skills & Integrations (MCP)                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
-│  │  Shell   │ │  GitHub  │ │ Browser  │ │   AI Models  │   │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                    Data Layer (SQLite · WAL)                  │
-└─────────────────────────────────────────────────────────────┘
+src/
+├── index.ts                 # CLI 入口 (Commander.js)
+├── ai/
+│   ├── client.ts            # AI 客户端（流式/非流式）
+│   ├── keystore.ts          # API Key 管理
+│   ├── prompts.ts           # Prompt 模板
+│   └── providers/
+│       ├── registry.ts      # Provider 注册（11 个）
+│       ├── anthropic-adapter.ts
+│       └── openai-compat-adapter.ts
+├── mcp/
+│   ├── builtins.ts          # 内置工具技能
+│   ├── manager.ts           # MCP 工具注册与调度
+│   └── types.ts
+├── memory/
+│   └── agentMemory.ts       # Agent 记忆系统
+├── sdk/
+│   └── plugin.ts            # 插件 SDK
+├── tui/
+│   ├── index.ts             # TUI 入口
+│   ├── theme.ts             # 主题系统
+│   ├── agents/              # Agent 系统（7 内置）
+│   ├── companion/           # AI 伴侣 + 语音引擎
+│   ├── components/          # React UI 组件
+│   ├── contexts/            # React Context
+│   ├── hooks/               # 自定义 Hooks
+│   ├── intel/               # 情报引擎
+│   └── plugins/             # 内置插件
+└── utils/
+    ├── config.ts            # 配置管理 (conf)
+    ├── history.ts           # 历史记录
+    └── security.ts          # 安全工具
 ```
 
-**技术栈**: TypeScript (strict) · ESM · Node 18+ · SQLite · Playwright · React TUI
+## 🏛️ 架构
 
-## 🛣️ 路线图
+```
+┌─────────────────────────────────────────────────────────┐
+│                    NEO TUI (React + Ink)                  │
+│    Sidebar · MainPanel · TaskPanel · CommandPalette       │
+├─────────────────────────────────────────────────────────┤
+│                   Agent Runtime (7 内置)                  │
+│  companion · researcher · planner · coder · reviewer      │
+│                   writer · analyst                        │
+│         AutonomousEngine · AgentMemory                   │
+├─────────────────────────────────────────────────────────┤
+│              AI Provider Layer (11 个)                    │
+│  Anthropic · OpenAI · Gemini · DeepSeek · Groq · ...    │
+├─────────────────────────────────────────────────────────┤
+│              MCP 工具系统 + Plugin SDK                    │
+│   web_search · http_get · read_file · write_file · shell │
+├─────────────────────────────────────────────────────────┤
+│               配置 & 存储 (conf · SQLite)                 │
+└─────────────────────────────────────────────────────────┘
+```
 
-### v0.2 (当前 ✅)
-- ✅ 完整 CLI 框架（50+ 命令）
-- ✅ AI Agent 系统（5 角色 + 多 Agent 编排）
-- ✅ 工作流引擎（DAG + 自动化规则）
-- ✅ 记忆系统（4 种记忆类型）
-- ✅ 知识图谱
-- ✅ 交互式 TUI 界面
-- ✅ 组织与经济系统
-- ✅ 集成工具（GitHub、浏览器、语音）
-- ✅ 数据持久化（SQLite）
-- ✅ 81 项测试全部通过
-
-### v0.3 (开发中 🔄)
-- 🔄 团队协作空间
-- 🔄 实时通讯（频道、消息、线程）
-- 🔄 可视化工作流编排器
-- 🔄 个人任务与日历视图
-- 🔄 WebSocket 实时推送
-
-### v0.5 (计划中 📋)
-- 📋 AI 智能摘要与行动项提取
-- 📋 团队数据仪表板
-- 📋 SSO 与数据加密
-- 📋 代码 AI Review 自动化
-
-### v1.0 (愿景 🌟)
-- 🌟 虚拟工作空间（3D 办公室）
-- 🌟 插件与技能市场
-- 🌟 自主 Agent（24/7 运行）
-- 🌟 完整社会模拟
+**技术栈**: TypeScript (strict) · ESM · Node 18+ · React 18 · Ink 5 · Commander.js · better-sqlite3 · Playwright · Zod
 
 ## 🤝 贡献
-
-欢迎提交 Issue 和 PR！
 
 ```bash
 git clone https://github.com/theneoai/modern-cli.git
 cd modern-cli
 npm install
-npm run dev
+npm run dev      # 监听构建
+npm run build    # 生产构建
+npm run lint     # ESLint
+npm run typecheck # TypeScript 类型检查
 ```
-
-详见 [完整文档](docs/) | [快速入门](docs/QUICKSTART.md) | [使用指南](docs/USAGE.md) | [架构设计](docs/ARCHITECTURE.md)
 
 ## 📄 许可
 
-MIT License © 2026 HyperTerminal Contributors
+MIT License © 2026 NEO Contributors
 
 ---
 

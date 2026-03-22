@@ -86,7 +86,7 @@ export default function App() {
       {
         id: 'welcome',
         type: 'system',
-        content: `✨ Welcome to ${theme.gradient('HyperTerminal')} v0.2.0\nYour AI-native personal OS is ready.\nTerminal: ${terminalSize.width}x${terminalSize.height} | Type /help for commands.`,
+        content: `✨ Welcome to ${theme.gradient('NEO')} v0.4.0\nYour AI-native personal OS is ready.\nTerminal: ${terminalSize.width}x${terminalSize.height} | Type /help for commands.`,
         timestamp: new Date(),
       },
     ]);
@@ -333,8 +333,8 @@ export default function App() {
         {/* Header */}
         <Box height={layoutSizes.headerHeight} flexShrink={0}>
           <Header 
-            title="HyperTerminal" 
-            subtitle={`v0.2.0 | ${terminalSize.width}×${terminalSize.height}`}
+            title="NEO"
+            subtitle={`v0.4.0 | ${terminalSize.width}×${terminalSize.height}`}
             notifications={emails.filter(e => !e.read).length}
           />
         </Box>
@@ -470,7 +470,7 @@ export default function App() {
         {/* Exit Confirmation Dialog */}
         {showExitConfirm && (
           <ConfirmDialog
-            title="Exit HyperTerminal?"
+            title="Exit NEO?"
             message={hasPendingTasks ? `You have ${tasks.filter(t => t.status === 'pending').length} pending tasks.` : undefined}
             onConfirm={() => exit()}
             onCancel={() => setShowExitConfirm(false)}

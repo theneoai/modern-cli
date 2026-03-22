@@ -1,12 +1,12 @@
 /**
- * HyperTerminal Plugin SDK
+ * NEO Plugin SDK
  * ========================
  * 开发者友好的插件系统，三行代码即可创建一个功能插件。
  *
  * ## 快速开始
  *
  * ```typescript
- * import { definePlugin } from 'hyperterminal/sdk';
+ * import { definePlugin } from 'neocli/sdk';
  *
  * export default definePlugin({
  *   id: 'my-plugin',

@@ -22,9 +22,9 @@ export interface HeaderProps {
 }
 
 export function Header({
-  title = 'HyperTerminal',
+  title = 'NEO',
   subtitle,
-  version = 'v0.2.0',
+  version = 'v0.4.0',
   notifications = 0,
   isConnected = true,
   terminalSize,
@@ -98,7 +98,7 @@ interface CompactHeaderProps {
 }
 
 export function CompactHeader({
-  title = 'HyperTerminal',
+  title = 'NEO',
   isConnected = true,
 }: CompactHeaderProps) {
   return (
