@@ -3,7 +3,7 @@
  * 按 ? 或 /help 显示
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 

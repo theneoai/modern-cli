@@ -143,5 +143,5 @@ export class AnthropicAdapter implements ProviderAdapter {
 
 async function buildTools(): Promise<Tool[]> {
   const active = await getActiveTools();
-  return active.map((t: { name: string; description: string; input_schema: Tool['input_schema'] }) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+  return active.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema as unknown as Tool.InputSchema }));
 }

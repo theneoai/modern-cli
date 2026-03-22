@@ -12,7 +12,7 @@
  *   p           置顶笔记
  */
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 

@@ -464,7 +464,7 @@ function VoicePanel({ innerH: _innerH, forceUpdate: _forceUpdate }: { innerH: nu
 
       <Box marginTop={1} flexDirection="column">
         <Text color={theme.colors.muted}>音色列表 (/voice &lt;名称&gt; 切换):</Text>
-        {voices.slice(0, Math.max(4, innerH - 10)).map(([id, label]) => (
+        {voices.slice(0, Math.max(4, _innerH - 10)).map(([id, label]) => (
           <Box key={id}>
             <Text color={cfg.voice === id ? theme.colors.accent : theme.colors.muted}>
               {cfg.voice === id ? '▶ ' : '  '}

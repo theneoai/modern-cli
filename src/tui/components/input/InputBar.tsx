@@ -3,7 +3,7 @@
  * 使用新的 TUI 架构: useKeyboard, useToast, useModal
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
 import { tuiTheme as theme, icons, layout as layoutConfig } from '../../../theme/index.js';

@@ -17,7 +17,7 @@
  *   f      切换自由漫游模式
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import {

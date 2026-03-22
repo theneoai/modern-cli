@@ -6,7 +6,7 @@
  * 整合团队工作、个人任务、沟通协作于一体
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout, Spacer } from 'ink';
 import { tuiTheme as theme, icons, layout, formatTime, truncate } from '../theme/index.js';
 import type {
@@ -220,7 +220,7 @@ export default function Workbench() {
               messages={messages}
               workflows={workflows}
               members={teamMembers}
-              onTaskToggle={(id) => {
+              onTaskToggle={(id: string) => {
                 setPersonalTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
               }}
             />
@@ -237,7 +237,7 @@ export default function Workbench() {
           {mainView === 'tasks' && (
             <TasksView 
               tasks={personalTasks}
-              onTaskToggle={(id) => {
+              onTaskToggle={(id: string) => {
                 setPersonalTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
               }}
             />
@@ -270,7 +270,7 @@ export default function Workbench() {
       {showCommandPalette && (
         <CommandPalette 
           onClose={() => setShowCommandPalette(false)}
-          onSelect={(_command) => {
+          onSelect={(_command: string) => {
             // 处理命令
             setShowCommandPalette(false);
           }}
@@ -281,7 +281,7 @@ export default function Workbench() {
         <NotificationsPanel 
           notifications={notifications}
           onClose={() => setShowNotifications(false)}
-          onMarkRead={(id) => {
+          onMarkRead={(id: string) => {
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
           }}
         />

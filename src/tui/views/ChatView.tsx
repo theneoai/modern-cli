@@ -11,7 +11,7 @@
  * 滚动感知: 顶/底指示仅在溢出时显示
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import type { Message } from '../FlowApp.js';

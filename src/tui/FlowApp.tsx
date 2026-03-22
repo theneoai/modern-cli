@@ -12,7 +12,7 @@
  *   /plan /sup /rev  AI 效率工具
  */
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { sendMessageStream, resetClient } from '../ai/client.js';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';

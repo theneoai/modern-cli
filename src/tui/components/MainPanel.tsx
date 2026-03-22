@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useInput, useStdin } from 'ink';
 import { tuiTheme as theme, icons, formatTime, wrapTextLines } from '../../theme/index.js';
 import type { Message } from '../App.js';
@@ -30,8 +30,9 @@ export function MainPanel({ messages, height, width, isFocused = true }: MainPan
 
   // Handle scrolling - only when focused and raw mode supported
   useInput((_, key) => {
+    const extKey = key as typeof key & { home?: boolean; end?: boolean };
     if (!isFocused || !isRawModeSupported) return;
-    
+
     // Only handle scroll keys (not regular input)
     if (key.upArrow) {
       setScrollOffset(prev => Math.max(0, prev - 1));
@@ -47,9 +48,9 @@ export function MainPanel({ messages, height, width, isFocused = true }: MainPan
         Math.max(0, messages.length - maxVisibleMessages),
         prev + maxVisibleMessages
       ));
-    } else if (key.home) {
+    } else if (extKey.home) {
       setScrollOffset(0);
-    } else if (key.end) {
+    } else if (extKey.end) {
       setScrollOffset(Math.max(0, messages.length - maxVisibleMessages));
     }
   });

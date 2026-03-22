@@ -1,38 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme, icons, formatTime, formatDate, truncate } from '../../theme/index.js';
+import type { CalendarEvent, Email, Meeting } from '../types/ui.js';
 
 type TabType = 'calendar' | 'email' | 'meetings';
 
-interface Event {
-  id: string;
-  title: string;
-  startTime: Date;
-  endTime?: Date;
-  type: 'event' | 'reminder';
-}
-
-interface Email {
-  id: string;
-  subject: string;
-  from: string;
-  preview: string;
-  read: boolean;
-  receivedAt: Date;
-  priority: 'high' | 'normal' | 'low';
-}
-
-interface Meeting {
-  id: string;
-  title: string;
-  time: Date;
-  duration: number;
-  attendees: number;
-  link?: string;
-}
-
 interface SidebarProps {
-  events: Event[];
+  events: CalendarEvent[];
   emails: Email[];
   meetings: Meeting[];
   loading: boolean;
@@ -153,7 +127,7 @@ interface TabProps {
   maxItems: number;
 }
 
-function CalendarTab({ events, maxItems }: { events: Event[] } & TabProps) {
+function CalendarTab({ events, maxItems }: { events: CalendarEvent[] } & TabProps) {
   const today = new Date();
   
   return (

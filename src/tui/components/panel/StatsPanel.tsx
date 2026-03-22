@@ -3,7 +3,7 @@
  * 显示任务和系统统计信息
  */
 
-import React from 'react';
+
 import { Box, Text } from 'ink';
 import { tuiTheme, icons } from '../../../theme/index.js';
 import { FocusLayer } from '../../contexts/FocusContext.js';

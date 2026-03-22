@@ -67,7 +67,17 @@ export function ToastProvider({ children, maxToasts = MAX_TOASTS }: ToastProvide
       timeoutsRef.current.clear();
     };
   }, []);
-  
+
+  // Dismiss a specific toast (defined before showToast to avoid forward reference)
+  const dismissToast = useCallback((id: string) => {
+    const timeout = timeoutsRef.current.get(id);
+    if (timeout) {
+      clearTimeout(timeout);
+      timeoutsRef.current.delete(id);
+    }
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   // Show a new toast
   const showToast = useCallback((
     type: ToastType,
@@ -126,17 +136,6 @@ export function ToastProvider({ children, maxToasts = MAX_TOASTS }: ToastProvide
   const showInfo = useCallback((content: string, duration?: number) => {
     return showToast('info', content, duration);
   }, [showToast]);
-  
-  // Dismiss a specific toast
-  const dismissToast = useCallback((id: string) => {
-    const timeout = timeoutsRef.current.get(id);
-    if (timeout) {
-      clearTimeout(timeout);
-      timeoutsRef.current.delete(id);
-    }
-    
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
   
   // Dismiss all toasts
   const dismissAll = useCallback(() => {

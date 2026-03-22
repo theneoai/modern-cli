@@ -3,7 +3,7 @@
  * 使用新的 TUI 架构: Selectable, Focusable
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, type Key } from 'ink';
 import { tuiTheme as theme, icons, formatTime, formatDate, truncate } from '../../../theme/index.js';
 import { FocusLayer } from '../../contexts/FocusContext.js';

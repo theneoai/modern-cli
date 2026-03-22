@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme, icons, truncate } from '../../theme/index.js';
 

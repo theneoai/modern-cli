@@ -20,7 +20,7 @@
  *   ESC    关闭
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import { PROVIDERS, type ProviderDef, type ModelDef } from '../../ai/providers/registry.js';

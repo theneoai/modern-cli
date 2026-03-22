@@ -66,6 +66,7 @@ export function Selectable<T>({
   
   // Handle keyboard input
   const handleKey = (_input: string, key: Key): boolean => {
+    const extKey = key as typeof key & { home?: boolean; end?: boolean };
     if (key.upArrow) {
       actions.moveUp();
       return true;
@@ -78,11 +79,11 @@ export function Selectable<T>({
       actions.confirm();
       return true;
     }
-    if (key.home) {
+    if (extKey.home) {
       actions.moveToFirst();
       return true;
     }
-    if (key.end) {
+    if (extKey.end) {
       actions.moveToLast();
       return true;
     }

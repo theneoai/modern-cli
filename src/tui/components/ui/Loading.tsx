@@ -2,7 +2,7 @@
  * Loading - 加载组件
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { tuiTheme, icons } from '../../../theme/index.js';
 

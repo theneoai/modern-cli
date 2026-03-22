@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { tuiTheme as theme, icons, layout } from '../../theme/index.js';
 import { useInputHistory } from '../hooks/useTasks.js';
@@ -64,6 +64,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
   }, [input]);
 
   useInput((value, key) => {
+    const extKey = key as typeof key & { home?: boolean; end?: boolean };
     // Only handle input when focused
     if (!isFocused) return;
     
@@ -129,12 +130,12 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
       return;
     }
 
-    if (key.home) {
+    if (extKey.home) {
       setCursorPosition(0);
       return;
     }
 
-    if (key.end) {
+    if (extKey.end) {
       setCursorPosition(input.length);
       return;
     }

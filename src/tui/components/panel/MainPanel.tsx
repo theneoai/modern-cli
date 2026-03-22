@@ -3,7 +3,7 @@
  * 使用新的 TUI 架构: useScrollable, Focusable
  */
 
-import React from 'react';
+
 import { Box, Text, type Key } from 'ink';
 import { tuiTheme as theme, icons, formatTime, wrapTextLines } from '../../../theme/index.js';
 import { useScrollable, useScrollableKeyboard } from '../../hooks/useScrollable.js';

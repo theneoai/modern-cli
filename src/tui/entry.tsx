@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import React from 'react';
+
 import { render } from 'ink';
 import FlowApp from './FlowApp.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';

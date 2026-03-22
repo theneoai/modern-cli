@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * NEO — AI 原生超级终端  v0.4.0
  *

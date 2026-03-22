@@ -3,7 +3,7 @@
  * 模糊搜索 + 分类展示全部命令
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import type { AppMode } from '../FlowApp.js';

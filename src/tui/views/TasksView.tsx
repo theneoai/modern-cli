@@ -13,7 +13,7 @@
  *   v            切换已完成显示
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import type { Task } from '../FlowApp.js';

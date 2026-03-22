@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { Header } from './components/Header.js';
 import { MainPanel } from './components/MainPanel.js';

@@ -16,7 +16,7 @@
  * └────────────┴────────────────────────────────────────┘
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 import type { LoadedPlugin, StatusContext } from '../../sdk/plugin.js';
