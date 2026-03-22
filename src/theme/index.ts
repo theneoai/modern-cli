@@ -1,5 +1,5 @@
 /**
- * Unified Theme System for HyperTerminal
+ * Unified Theme System for NEO
  * 
  * This module provides a consistent theme across both CLI and TUI interfaces.
  * All colors, icons, and styles are centralized here.

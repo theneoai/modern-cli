@@ -180,7 +180,7 @@ export default definePlugin({
   name: '天气时间',
   version: '1.0.0',
   description: '实时天气 (Open-Meteo 免费) + 多时区时间显示, 无需 API Key',
-  author: 'hyperterminal',
+  author: 'neo',
   tags: ['weather', 'time', 'utility'],
 
   onLoad: async ({ getConfig }) => {

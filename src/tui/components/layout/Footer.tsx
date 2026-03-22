@@ -95,7 +95,7 @@ interface CompactFooterProps {
   message?: string;
 }
 
-export function CompactFooter({ message = 'HyperTerminal' }: CompactFooterProps) {
+export function CompactFooter({ message = 'NEO' }: CompactFooterProps) {
   return (
     <Box
       height={1}

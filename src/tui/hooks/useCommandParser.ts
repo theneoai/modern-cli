@@ -29,8 +29,8 @@ interface Command {
 const commands: Command[] = [
   // Navigation
   { name: 'help', description: 'Show this help', usage: '/help [page]', category: 'navigation' },
-  { name: 'exit', description: 'Exit HyperTerminal', usage: '/exit', category: 'navigation' },
-  { name: 'quit', description: 'Exit HyperTerminal', usage: '/quit', category: 'navigation' },
+  { name: 'exit', description: 'Exit NEO', usage: '/exit', category: 'navigation' },
+  { name: 'quit', description: 'Exit NEO', usage: '/quit', category: 'navigation' },
   { name: 'clear', description: 'Clear screen', usage: '/clear', category: 'navigation' },
   
   // Tasks

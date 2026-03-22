@@ -68,7 +68,7 @@ function AppContent() {
     {
       id: '1',
       type: 'system',
-      content: 'Welcome to HyperTerminal! Type /help for commands.',
+      content: 'Welcome to NEO! Type /help for commands.',
       timestamp: new Date(),
     },
     {
@@ -262,8 +262,8 @@ function AppHeader() {
     >
       <Box width="30%">
         <Text color={theme.colors.primary} bold>
-          {icons.logo} HyperTerminal
-          <Text color={theme.colors.muted}> v0.2.0</Text>
+          {icons.logo} NEO
+          <Text color={theme.colors.muted}> v0.4.0</Text>
         </Text>
       </Box>
       

@@ -117,7 +117,7 @@ export default definePlugin({
   name: 'Token 统计',
   version: '1.0.0',
   description: '实时追踪 token 消耗和 API 费用, 支持预算提醒',
-  author: 'hyperterminal',
+  author: 'neo',
   tags: ['utility', 'analytics', 'cost'],
 
   // ── 预算告警 ─────────────────────────────────────────────────────────────
