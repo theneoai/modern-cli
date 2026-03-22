@@ -12,6 +12,7 @@
  *   /plan /sup /rev  AI 效率工具
  */
 
+import { randomUUID } from 'crypto';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { sendMessageStream, resetClient } from '../ai/client.js';
@@ -434,7 +435,7 @@ export default function FlowApp() {
 
   // ── Task Operations ───────────────────────────────────────────────────────
   const addTask = useCallback((title: string, priority: Task['priority'] = 'normal') => {
-    const t: Task = { id: Date.now().toString(), title, status: 'pending', priority, createdAt: new Date() };
+    const t: Task = { id: randomUUID(), title, status: 'pending', priority, createdAt: new Date() };
     setTasks(prev => [t, ...prev]);
     return t;
   }, []);
@@ -462,7 +463,7 @@ export default function FlowApp() {
     const words = content.split(' ').slice(0, 6).join(' ');
     const title = words.length > 30 ? words.slice(0, 30) + '…' : words;
     const n: Note = {
-      id: `n-${Date.now()}`, title, content, tags,
+      id: randomUUID(), title, content, tags,
       pinned: false, createdAt: new Date(), updatedAt: new Date(),
     };
     setNotes(prev => [n, ...prev]);

@@ -178,10 +178,13 @@ export class OpenAICompatAdapter implements ProviderAdapter {
       }
     }
 
-    // Estimate tokens if not provided
+    // Estimate tokens if not provided by the API.
+    // Using ~3.5 chars/token for English prose (GPT/Claude average).
+    // This is an approximation — actual counts vary by language/model.
     if (inputTokens === 0 && outputTokens === 0) {
-      inputTokens  = Math.ceil(messages.reduce((s, m) => s + String(m.content).length, 0) / 4);
-      outputTokens = Math.ceil(fullText.length / 4);
+      const CHARS_PER_TOKEN = 3.5;
+      inputTokens  = Math.ceil(messages.reduce((s, m) => s + String(m.content).length, 0) / CHARS_PER_TOKEN);
+      outputTokens = Math.ceil(fullText.length / CHARS_PER_TOKEN);
     }
 
     return { content: fullText, usage: { inputTokens, outputTokens }, model: responseModel, stopReason };
