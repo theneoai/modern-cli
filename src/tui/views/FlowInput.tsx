@@ -209,8 +209,8 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     // Cursor movement
     if (key.leftArrow)  { setCursor(p => Math.max(0, p - 1)); return; }
     if (key.rightArrow) { setCursor(p => Math.min(value.length, p + 1)); return; }
-    if (key.home || (key.ctrl && ch === 'a')) { setCursor(0); return; }
-    if (key.end  || (key.ctrl && ch === 'e')) { setCursor(value.length); return; }
+    if (key.ctrl && ch === 'a') { setCursor(0); return; }
+    if (key.ctrl && ch === 'e') { setCursor(value.length); return; }
 
     // Deletion
     if (key.backspace) {
@@ -267,7 +267,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
 
       {/* Input row */}
       <Box
-        height={2}
+        height={3}
         borderStyle="single"
         borderColor={isFocused ? promptColor : theme.colors.border}
         paddingX={1}

@@ -224,18 +224,21 @@ export default function FlowApp() {
       setPluginList(pluginRegistry.list());
     });
 
-    // Widget refresh every second
+    // Widget refresh every second — wrapped in try/catch so a misbehaving
+    // plugin widget cannot throw an uncaught exception and crash the process.
     const widgetTimer = setInterval(() => {
-      const ctx2: StatusContext = {
-        now: new Date(),
-        getConfig: () => undefined,
-        getTokenStats: () => ({
-          totalInput: 0, totalOutput: totalTokens,
-          totalTokens, sessionCost: totalTokens * 0.000003, model: 'claude-sonnet',
-        }),
-      };
-      setStatusWidgets(pluginRegistry.getStatusWidgets(ctx2));
-      forceUpdate(n => n + 1);
+      try {
+        const ctx2: StatusContext = {
+          now: new Date(),
+          getConfig: () => undefined,
+          getTokenStats: () => ({
+            totalInput: 0, totalOutput: totalTokens,
+            totalTokens, sessionCost: totalTokens * 0.000003, model: 'claude-sonnet',
+          }),
+        };
+        setStatusWidgets(pluginRegistry.getStatusWidgets(ctx2));
+        forceUpdate(n => n + 1);
+      } catch (_) { /* ignore plugin widget errors */ }
     }, 1000);
 
     return () => {
@@ -292,8 +295,10 @@ export default function FlowApp() {
   }, [intelHotItems]);
 
   // ── Layout ────────────────────────────────────────────────────────────────
-  const headerHeight = 1;
-  const inputHeight = 3;
+  // headerHeight=2: 1 row content + 1 row bottom-border separator
+  // inputHeight=4:  1 row hint   + 3 rows input-box (top-border+content+bottom-border)
+  const headerHeight = 2;
+  const inputHeight = 4;
   const contentHeight = termSize.height - headerHeight - inputHeight;
   const tooSmall = termSize.width < 60 || termSize.height < 12;
 
@@ -808,18 +813,22 @@ export default function FlowApp() {
       return;
     }
 
-    if (showPalette || showHelp) return;
+    // Block global shortcuts while any overlay is open; let overlays handle their own keys.
+    if (showPalette || showHelp || showModelSelector || showCompanionDash) return;
 
     if (key.ctrl && ch === 'k') { setShowPalette(true); return; }
     if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
-    if (key.ctrl && ch === '1') { setMode('chat');    return; }
-    if (key.ctrl && ch === '2') { setMode('tasks');   return; }
-    if (key.ctrl && ch === '3') { setMode('notes');   return; }
-    if (key.ctrl && ch === '4') { setMode('agents');  return; }
-    if (key.ctrl && ch === '5') { setMode('plugins'); return; }
-    if (key.ctrl && ch === '6') { setShowCompanionDash(p => !p); return; }
+    // Mode switching: support both Ctrl+1-6 (kitty/foot) and Alt+1-6 (most terminals).
+    // In standard terminals Ctrl+digit doesn't produce a ctrl-modified keypress,
+    // but Alt+digit (key.meta) reliably works everywhere.
+    if ((key.ctrl || key.meta) && ch === '1') { setMode('chat');    return; }
+    if ((key.ctrl || key.meta) && ch === '2') { setMode('tasks');   return; }
+    if ((key.ctrl || key.meta) && ch === '3') { setMode('notes');   return; }
+    if ((key.ctrl || key.meta) && ch === '4') { setMode('agents');  return; }
+    if ((key.ctrl || key.meta) && ch === '5') { setMode('plugins'); return; }
+    if ((key.ctrl || key.meta) && ch === '6') { setShowCompanionDash(p => !p); return; }
     // Ctrl+V — toggle voice
     if (key.ctrl && ch === 'v') {
       const on = voiceEngine.toggle();
@@ -827,7 +836,7 @@ export default function FlowApp() {
       return;
     }
 
-    // Quick capture: Ctrl+T = task, Ctrl+Shift+N = note (without Ctrl+N conflict)
+    // Quick capture: Ctrl+T = task
     if (key.ctrl && ch === 't') { setCapture({ mode: 'task', text: '' }); return; }
 
     if (key.ctrl && ch === 'n') {
@@ -843,7 +852,9 @@ export default function FlowApp() {
     }
 
     if (key.escape && !focusOnInput) { setFocusOnInput(true); return; }
-    if (key.tab) { setFocusOnInput(prev => !prev); return; }
+    // Tab: only toggle focus when content is focused; when input is focused,
+    // FlowInput's own useInput handles Tab (completion or focus-content).
+    if (key.tab && !focusOnInput) { setFocusOnInput(true); return; }
   });
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -888,11 +899,15 @@ export default function FlowApp() {
         </Box>
       )}
 
-      {/* ── Header: compact one-line ── */}
+      {/* ── Header: content row + bottom-border separator ── */}
       <Box
         height={headerHeight}
         flexShrink={0}
         borderStyle="single"
+        borderTop={false}
+        borderLeft={false}
+        borderRight={false}
+        borderBottom={true}
         borderColor={
           timer.active && timer.type === 'focus'
             ? theme.colors.warning
@@ -1019,7 +1034,7 @@ export default function FlowApp() {
         <FlowInput
           onSubmit={handleInput}
           mode={mode}
-          isFocused={focusOnInput}
+          isFocused={focusOnInput && !capture && !showPalette && !showHelp && !showModelSelector && !showCompanionDash}
           isStreaming={isStreaming}
           width={termSize.width}
           onFocusContent={() => setFocusOnInput(false)}

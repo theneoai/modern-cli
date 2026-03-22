@@ -10,16 +10,20 @@ process.env.NODE_ENV = 'production';
 export function startTUI() {
   const app = render(
     <ErrorBoundary onReset={() => {
-      // Clear any problematic state and restart
       console.clear();
     }}>
       <FlowApp />
     </ErrorBoundary>
   );
-  
-  // Handle cleanup on exit
+
+  // Guard against double-cleanup: SIGINT calls cleanup() then process.exit(0),
+  // which fires the 'exit' event again — calling cleanup() a second time would
+  // throw "React tree has been unmounted".
+  let cleanedUp = false;
   const cleanup = () => {
-    app.unmount();
+    if (cleanedUp) return;
+    cleanedUp = true;
+    try { app.unmount(); } catch (_) { /* already unmounted */ }
   };
 
   process.on('exit', cleanup);
@@ -30,6 +34,20 @@ export function startTUI() {
   process.on('SIGTERM', () => {
     cleanup();
     process.exit(0);
+  });
+
+  // Prevent uncaught async errors from crashing with a raw stack trace.
+  // These can come from plugin timers, companion, or intel background tasks.
+  process.on('uncaughtException', (err) => {
+    cleanup();
+    process.stderr.write(`\nError: ${err.message}\n`);
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (reason) => {
+    cleanup();
+    const msg = reason instanceof Error ? reason.message : String(reason);
+    process.stderr.write(`\nUnhandled rejection: ${msg}\n`);
+    process.exit(1);
   });
 }
 
