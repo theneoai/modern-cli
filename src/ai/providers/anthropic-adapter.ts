@@ -96,7 +96,8 @@ export class AnthropicAdapter implements ProviderAdapter {
     let stopReason: string | null = null;
     const system = opts.system ?? '';
 
-    for (let round = 0; round < 10; round++) {
+    const MAX_TOOL_ROUNDS = 10;
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       if (onDelta) {
         const stream = await client.messages.stream({ model: opts.model, max_tokens: opts.maxTokens, system, messages: local, tools });
         for await (const event of stream) {
@@ -135,6 +136,14 @@ export class AnthropicAdapter implements ProviderAdapter {
           })
         );
         local.push({ role: 'user', content: results });
+      }
+    }
+    if (fullText && !fullText.includes('[⚠ 工具调用达到上限]')) {
+      // If we exhausted all rounds without end_turn, append a notice
+      const finalStopReason = stopReason;
+      if (finalStopReason === 'tool_use') {
+        fullText += '\n\n[⚠ 工具调用达到上限 (10 次)，任务已截断]';
+        if (onDelta) onDelta('\n\n[⚠ 工具调用达到上限 (10 次)，任务已截断]');
       }
     }
     return { content: fullText, usage: { inputTokens, outputTokens }, model, stopReason };

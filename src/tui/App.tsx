@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { randomUUID } from 'crypto';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { Header } from './components/Header.js';
@@ -51,7 +52,7 @@ export default function App() {
 
   // Toast helper
   const showToast = useCallback((type: ToastMessage['type'], content: string, duration = 3000) => {
-    const id = Date.now().toString();
+    const id = randomUUID();
     setToasts(prev => [...prev, { id, type, content, duration }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
@@ -154,7 +155,7 @@ export default function App() {
 
     // Add user message
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: randomUUID(),
       type: 'user',
       content: input,
       timestamp: new Date(),
@@ -217,7 +218,7 @@ export default function App() {
 
     // Default: echo with AI processing indicator
     setMessages(prev => [...prev, {
-      id: Date.now().toString() + '-ai',
+      id: randomUUID(),
       type: 'agent',
       content: `Processing: "${input}"...\nTry starting with:\n  • "Add buy milk" - create task\n  • "/calendar" - view calendar\n  • "/tasks" - view all tasks\n  • "/help" - see all commands`,
       timestamp: new Date(),

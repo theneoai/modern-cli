@@ -12,6 +12,7 @@
  *   /plan /sup /rev  AI 效率工具
  */
 
+import { randomUUID } from 'crypto';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { sendMessageStream, resetClient } from '../ai/client.js';
@@ -41,6 +42,8 @@ import { voiceEngine } from './companion/voice/VoiceEngine.js';
 import { intelEngine } from './intel/IntelEngine.js';
 import { useVoice } from './hooks/useVoice.js';
 import { useIntel } from './hooks/useIntel.js';
+import { layoutManager, LAYOUT_PRESETS } from './utils/layoutManager.js';
+import { InfoSidebar } from './views/InfoSidebar.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,14 +96,41 @@ export default function FlowApp() {
 
   // ── Core State ───────────────────────────────────────────────────────────────
   const [mode, setMode] = useState<AppMode>('chat');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'system',
-      content: '◆ NEO  直接输入对话 · / 触发命令 · Ctrl+K 面板 · ? 帮助',
-      timestamp: new Date(),
-    },
-  ]);
+
+  // Detect first-run: check if current provider has an API key configured
+  const needsSetup = (() => {
+    const cfg = getConfig();
+    const envKey = cfg.provider === 'anthropic' ? process.env['ANTHROPIC_API_KEY'] : undefined;
+    const hasKey = keyStore.getKey(cfg.provider) || envKey;
+    return !hasKey;
+  })();
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const msgs: Message[] = [
+      {
+        id: 'welcome',
+        role: 'system',
+        content: '◆ NEO  直接输入对话 · / 触发命令 · Ctrl+K 命令面板 · /h 帮助',
+        timestamp: new Date(),
+      },
+    ];
+    if (needsSetup) {
+      msgs.push({
+        id: 'setup-guide',
+        role: 'system',
+        content:
+          '⚙  首次使用 — 请先配置 AI 服务商和 API 密钥:\n' +
+          '  1. 按 Ctrl+M 或输入 /model  → 选择服务商和模型\n' +
+          '  2. 输入 /key add <provider> <api-key>  → 添加密钥\n' +
+          '     例如: /key add anthropic sk-ant-xxxxxxxx\n' +
+          '     例如: /key add openai sk-xxxxxxxx\n' +
+          '  3. 也可设置环境变量: export ANTHROPIC_API_KEY=sk-ant-xxx\n' +
+          '  配置完成后即可直接输入消息与 AI 对话。',
+        timestamp: new Date(),
+      });
+    }
+    return msgs;
+  });
 
   const [tasks, setTasks] = useState<Task[]>([
     { id: '1', title: '查看项目文档', status: 'pending', priority: 'high', createdAt: new Date() },
@@ -132,6 +162,9 @@ export default function FlowApp() {
   const [pluginList, setPluginList] = useState<LoadedPlugin[]>([]);
   const [statusWidgets, setStatusWidgets] = useState<string[]>([]);
   const [, forceUpdate] = useState(0);  // for plugin widget refresh
+
+  // Layout state — driven by layoutManager singleton
+  const [layoutState, setLayoutState] = useState(() => layoutManager.getState());
 
   // Companion state — messages appear inline in main chat
   const [companionThinking, setCompanionThinking] = useState(false);
@@ -186,7 +219,7 @@ export default function FlowApp() {
   const makePluginCtx = useCallback((): PluginContext => ({
     addMessage: (content, role = 'system') => {
       setMessages(prev => [...prev, {
-        id: `plug-${Date.now()}`,
+        id: randomUUID(),
         role: role as Message['role'],
         content,
         timestamp: new Date(),
@@ -194,7 +227,7 @@ export default function FlowApp() {
     },
     notify: (content) => {
       setMessages(prev => [...prev, {
-        id: `notif-${Date.now()}`,
+        id: randomUUID(),
         role: 'system',
         content: `ℹ ${content}`,
         timestamp: new Date(),
@@ -302,10 +335,14 @@ export default function FlowApp() {
   const contentHeight = termSize.height - headerHeight - inputHeight;
   const tooSmall = termSize.width < 60 || termSize.height < 12;
 
+  // Sidebar width (0 when hidden or terminal too narrow)
+  const activeSidebarWidth = tooSmall ? 0 : layoutManager.effectiveWidth(termSize.width, mode);
+  const mainWidth = termSize.width - activeSidebarWidth;
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   const sysMsg = useCallback((content: string) => {
     setMessages(prev => [...prev, {
-      id: `sys-${Date.now()}`,
+      id: randomUUID(),
       role: 'system',
       content,
       timestamp: new Date(),
@@ -316,7 +353,7 @@ export default function FlowApp() {
   const sendToAI = useCallback(async (userText: string, systemOverride?: string) => {
     if (isStreaming) return;
     const userMsg: Message = {
-      id: `user-${Date.now()}`,
+      id: randomUUID(),
       role: 'user',
       content: userText,
       timestamp: new Date(),
@@ -326,7 +363,7 @@ export default function FlowApp() {
 
     conversationRef.current = [...conversationRef.current, { role: 'user', content: userText }];
 
-    const aiId = `ai-${Date.now()}`;
+    const aiId = randomUUID();
     setMessages(prev => [...prev, {
       id: aiId, role: 'assistant', content: '', timestamp: new Date(), streaming: true,
     }]);
@@ -407,7 +444,7 @@ export default function FlowApp() {
 
   // ── Task Operations ───────────────────────────────────────────────────────
   const addTask = useCallback((title: string, priority: Task['priority'] = 'normal') => {
-    const t: Task = { id: Date.now().toString(), title, status: 'pending', priority, createdAt: new Date() };
+    const t: Task = { id: randomUUID(), title, status: 'pending', priority, createdAt: new Date() };
     setTasks(prev => [t, ...prev]);
     return t;
   }, []);
@@ -424,6 +461,10 @@ export default function FlowApp() {
     setTasks(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const updateTaskPriority = useCallback((id: string, priority: Task['priority']) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, priority } : t));
+  }, []);
+
   const setTaskStatus = useCallback((id: string, status: Task['status']) => {
     setTasks(prev => prev.map(t =>
       t.id === id ? { ...t, status, ...(status === 'done' ? { doneAt: new Date() } : {}) } : t
@@ -435,7 +476,7 @@ export default function FlowApp() {
     const words = content.split(' ').slice(0, 6).join(' ');
     const title = words.length > 30 ? words.slice(0, 30) + '…' : words;
     const n: Note = {
-      id: `n-${Date.now()}`, title, content, tags,
+      id: randomUUID(), title, content, tags,
       pinned: false, createdAt: new Date(), updatedAt: new Date(),
     };
     setNotes(prev => [n, ...prev]);
@@ -572,7 +613,7 @@ export default function FlowApp() {
 
         // ── Timer: /ti or /timer ────────────────────────────────────────
         case 'timer': case 'ti': {
-          const mins = parseInt(arg) || 25;
+          const mins = parseInt(arg, 10) || 25;
           const label = mins <= 5 ? `休息 ${mins}m` : `专注 ${mins}m`;
           setTimer({ active: true, seconds: mins * 60, total: mins * 60, label, type: mins <= 5 ? 'break' : 'focus' });
           sysMsg(`⏱ ${label} 开始`);
@@ -698,6 +739,26 @@ export default function FlowApp() {
           return;
         }
 
+        // ── Layout control ─────────────────────────────────────────────
+        case 'layout': case 'lay': {
+          if (!arg) {
+            const names = LAYOUT_PRESETS.map(p => `${p.icon}${p.label}`).join('  ');
+            sysMsg(`布局预设: ${names}\n用法: /layout <focus|split|wide|zen|custom>\n当前: ${layoutState.preset}  侧栏: ${activeSidebarWidth > 0 ? `${activeSidebarWidth}列` : '隐藏'}`);
+            return;
+          }
+          const presetId = arg.toLowerCase() as Parameters<typeof layoutManager.applyPreset>[0];
+          const validIds = LAYOUT_PRESETS.map(p => p.id);
+          if (!validIds.includes(presetId)) {
+            sysMsg(`未知预设: ${arg}  可选: ${validIds.join(' | ')}`);
+            return;
+          }
+          const newState = layoutManager.applyPreset(presetId);
+          setLayoutState(newState);
+          const def = LAYOUT_PRESETS.find(p => p.id === presetId)!;
+          sysMsg(`${def.icon} 已切换布局: ${def.name} (${def.description})`);
+          return;
+        }
+
         case 'exit': case 'quit': case 'q':
           exit();
           return;
@@ -765,7 +826,7 @@ export default function FlowApp() {
       if (!text) return;
       // Add user message to chat
       setMessages(prev => [...prev, {
-        id: `user-neo-${Date.now()}`,
+        id: randomUUID(),
         role: 'user',
         content: input,
         timestamp: new Date(),
@@ -808,8 +869,8 @@ export default function FlowApp() {
         setCapture(null);
         return;
       }
-      if (key.backspace) { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
-      if (ch && !key.ctrl && !key.meta) { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
+      if (key.backspace || ch === '\x7f') { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
+      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
       return;
     }
 
@@ -848,6 +909,28 @@ export default function FlowApp() {
     if (key.ctrl && ch === 'l') {
       setMessages([]);
       conversationRef.current = [];
+      return;
+    }
+
+    // Layout shortcuts
+    if (key.ctrl && ch === 'b') {
+      setLayoutState(layoutManager.toggleSidebar());
+      return;
+    }
+    // Alt+[ — shrink sidebar, Alt+] — expand sidebar
+    if (key.meta && ch === '[') {
+      setLayoutState(layoutManager.resizeSidebar(-2, mode));
+      return;
+    }
+    if (key.meta && ch === ']') {
+      setLayoutState(layoutManager.resizeSidebar(2, mode));
+      return;
+    }
+    // Alt+L — cycle through layout presets
+    if (key.meta && ch === 'l') {
+      const { state, preset } = layoutManager.cyclePreset();
+      setLayoutState(state);
+      sysMsg(`${preset.icon} 布局: ${preset.name}`);
       return;
     }
 
@@ -961,70 +1044,90 @@ export default function FlowApp() {
           )}
           {/* Provider/Model + hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^6 ^V ^K ?</Text>
+          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  /h:帮助</Text>
         </Box>
       </Box>
 
       {/* ── Content ── */}
-      <Box height={contentHeight} flexShrink={0} overflow="hidden">
-        {mode === 'chat' && (
-          <ChatView
-            messages={messages}
+      <Box height={contentHeight} flexShrink={0} overflow="hidden" flexDirection="row">
+        {/* Main view panel */}
+        <Box width={mainWidth} height={contentHeight} overflow="hidden" flexShrink={0}>
+          {mode === 'chat' && (
+            <ChatView
+              messages={messages}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              streamingId={streamingId}
+            />
+          )}
+          {mode === 'tasks' && (
+            <TasksView
+              tasks={tasks}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onToggle={toggleTask}
+              onDelete={deleteTask}
+              onSetStatus={setTaskStatus}
+              onUpdatePriority={updateTaskPriority}
+              onAddTask={(title) => { addTask(title); sysMsg(`✓ 任务: ${title}`); }}
+            />
+          )}
+          {mode === 'notes' && (
+            <NotesView
+              notes={notes}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onDelete={deleteNote}
+              onPin={pinNote}
+              onAddTag={addNoteTag}
+            />
+          )}
+          {mode === 'agents' && (
+            <AgentsView
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onRunAgent={(agentName, goal) => {
+                setMode('chat');
+                void handleInput(`作为 ${agentName}, 请帮我: ${goal}`);
+              }}
+              onAutoTask={(task: AutonomousTask) => {
+                sysMsg(`🤖 自主任务已启动: ${task.goal.slice(0, 50)}`);
+              }}
+            />
+          )}
+          {mode === 'plugins' && (
+            <PluginsView
+              plugins={pluginList}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onToggle={async (id) => {
+                const p = pluginList.find(x => x.def.id === id);
+                if (p) await pluginRegistry.setEnabled(id, !p.enabled);
+                setPluginList(pluginRegistry.list());
+              }}
+              statusCtx={statusCtx}
+            />
+          )}
+        </Box>
+
+        {/* Info Sidebar */}
+        {activeSidebarWidth > 0 && (
+          <InfoSidebar
+            mode={mode}
+            width={activeSidebarWidth}
             height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            streamingId={streamingId}
-          />
-        )}
-        {mode === 'tasks' && (
-          <TasksView
             tasks={tasks}
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onToggle={toggleTask}
-            onDelete={deleteTask}
-            onSetStatus={setTaskStatus}
-            onAddTask={(title) => { addTask(title); sysMsg(`✓ 任务: ${title}`); }}
-          />
-        )}
-        {mode === 'notes' && (
-          <NotesView
             notes={notes}
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onDelete={deleteNote}
-            onPin={pinNote}
-            onAddTag={addNoteTag}
-          />
-        )}
-        {mode === 'agents' && (
-          <AgentsView
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onRunAgent={(agentName, goal) => {
-              setMode('chat');
-              void handleInput(`作为 ${agentName}, 请帮我: ${goal}`);
-            }}
-            onAutoTask={(task: AutonomousTask) => {
-              sysMsg(`🤖 自主任务已启动: ${task.goal.slice(0, 50)}`);
-            }}
-          />
-        )}
-        {mode === 'plugins' && (
-          <PluginsView
+            agentTasks={autonomousEngine.list()}
             plugins={pluginList}
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onToggle={async (id) => {
-              const p = pluginList.find(x => x.def.id === id);
-              if (p) await pluginRegistry.setEnabled(id, !p.enabled);
-              setPluginList(pluginRegistry.list());
-            }}
-            statusCtx={statusCtx}
+            messages={messages}
+            activePreset={LAYOUT_PRESETS.find(p => p.id === layoutState.preset) ?? LAYOUT_PRESETS[1]!}
+            sidebarWidth={activeSidebarWidth}
           />
         )}
       </Box>
@@ -1036,7 +1139,7 @@ export default function FlowApp() {
           mode={mode}
           isFocused={focusOnInput && !capture && !showPalette && !showHelp && !showModelSelector && !showCompanionDash}
           isStreaming={isStreaming}
-          width={termSize.width}
+          width={mainWidth}
           onFocusContent={() => setFocusOnInput(false)}
         />
       </Box>
@@ -1085,7 +1188,7 @@ export default function FlowApp() {
             setMode('chat');
             // Add user message then companion reply
             setMessages(prev => [...prev, {
-              id: `user-neo-${Date.now()}`,
+              id: randomUUID(),
               role: 'user',
               content: `@neo ${text}`,
               timestamp: new Date(),

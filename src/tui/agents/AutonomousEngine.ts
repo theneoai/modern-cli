@@ -14,6 +14,7 @@
  *   engine.createTask({ goal: '持续监控 GitHub PR...', role: 'Reviewer', freeRoam: true });
  */
 
+import { randomUUID } from 'crypto';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import type { AIResponse } from '../../ai/client.js';
 import { agentMemory } from '../../memory/agentMemory.js';
@@ -180,7 +181,7 @@ export class AutonomousEngine {
     tokensBudget?: number;
   }): AutonomousTask {
     const task: AutonomousTask = {
-      id: `auto-${Date.now()}`,
+      id: `auto-${randomUUID()}`,
       goal: config.goal,
       role: config.role || 'Assistant',
       agentDefId: config.agentDefId,
@@ -237,7 +238,7 @@ export class AutonomousEngine {
 
   resume(id: string): void {
     const t = this.tasks.get(id);
-    if (!t || t.status !== 'paused') return;
+    if (t?.status !== 'paused') return;
     t.status = 'idle';
     this.notify();
     void this.runTask(id);
@@ -333,7 +334,7 @@ export class AutonomousEngine {
             }
             const result = await t.run(args, task.id);
             toolResults.push(result);
-            task.tokensUsed += Math.ceil(result.length / 4); // rough token estimate
+            task.tokensUsed += Math.ceil(result.length / 3.5); // ~3.5 chars/token estimate
           }
           // Append tool results to context as a user turn
           const toolFeedback = toolResults.join('\n\n');
@@ -471,14 +472,14 @@ function calcNextRun(schedule: Schedule): Date {
   if (schedule.type === 'daily' && typeof schedule.value === 'string') {
     const [hStr, mStr] = schedule.value.split(':');
     const next = new Date(now);
-    next.setHours(parseInt(hStr ?? '9'), parseInt(mStr ?? '0'), 0, 0);
+    next.setHours(parseInt(hStr ?? '9', 10), parseInt(mStr ?? '0', 10), 0, 0);
     if (next <= now) next.setDate(next.getDate() + 1);
     return next;
   }
   if (schedule.type === 'cron' && typeof schedule.value === 'string') {
     // Simple: "*/30m" = every 30 minutes
     const match = schedule.value.match(/\*\/(\d+)m/);
-    if (match) return new Date(now.getTime() + parseInt(match[1]) * 60000);
+    if (match) return new Date(now.getTime() + parseInt(match[1], 10) * 60000);
   }
   return new Date(now.getTime() + 3600000); // default 1h
 }

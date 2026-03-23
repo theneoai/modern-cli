@@ -204,8 +204,8 @@ function buildLines(messages: Message[], width: number, streamingId: string | nu
     const isStreaming = msg.id === streamingId;
     const timeStr = fmtTime(msg.timestamp);
 
-    // Show divider if gap > 5 min between user-messages
-    if (prev && msg.role === 'user' && prev.role !== 'user') {
+    // Show divider if gap > 5 min between any consecutive messages
+    if (prev) {
       const gap = msg.timestamp.getTime() - prev.timestamp.getTime();
       if (gap > 5 * 60 * 1000) {
         lines.push({ kind: 'divider', time: timeStr });

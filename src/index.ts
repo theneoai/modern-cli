@@ -54,6 +54,17 @@ program
     // Parse value
     let parsed: unknown = value;
     try { parsed = JSON.parse(value); } catch { /* keep as string */ }
+
+    // Validate providerBaseURL to prevent SSRF via config
+    if (key === 'providerBaseURL' && typeof parsed === 'string' && parsed) {
+      const { checkUrl } = await import('./utils/security.js');
+      const check = checkUrl(parsed);
+      if (!check.allowed) {
+        console.error(chalk.red(`✗ providerBaseURL 被拒绝: ${check.reason}`));
+        process.exit(1);
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setConfig(key as any, parsed as any);
     console.log(chalk.green(`✓ ${key} = ${JSON.stringify(parsed)}`));

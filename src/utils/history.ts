@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import {
   readFileSync,
   writeFileSync,
@@ -18,11 +19,11 @@ export interface ChatSession {
   messages: MessageParam[];
 }
 
-const HISTORY_DIR = join(homedir(), ".modern-ai-cli", "history");
+const HISTORY_DIR = join(homedir(), ".neo", "history");
 
 function ensureHistoryDir(): void {
   if (!existsSync(HISTORY_DIR)) {
-    mkdirSync(HISTORY_DIR, { recursive: true });
+    mkdirSync(HISTORY_DIR, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -32,7 +33,7 @@ function sessionPath(id: string): string {
 
 export function saveSession(session: ChatSession): void {
   ensureHistoryDir();
-  writeFileSync(sessionPath(session.id), JSON.stringify(session, null, 2), "utf-8");
+  writeFileSync(sessionPath(session.id), JSON.stringify(session, null, 2), { encoding: "utf-8", mode: 0o600 });
 }
 
 export function loadSession(id: string): ChatSession | null {
@@ -79,7 +80,7 @@ export function deleteSession(id: string): boolean {
 }
 
 export function createSession(firstMessage?: string): ChatSession {
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const id = randomUUID();
   const now = new Date().toISOString();
   return {
     id,

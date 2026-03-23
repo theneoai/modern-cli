@@ -22,7 +22,9 @@
  *   NEO_DING_WEBHOOK   https://oapi.dingtalk.com/robot/send?access_token=...
  */
 
+import { randomUUID } from 'crypto';
 import { definePlugin } from '../../sdk/plugin.js';
+import { assertSafeUrl } from '../../utils/security.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,10 +64,12 @@ const calEvents: CalEvent[] = [
 
 async function sendWebhook(url: string, payload: Record<string, unknown>): Promise<boolean> {
   try {
+    assertSafeUrl(url);
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
     });
     return res.ok;
   } catch {
@@ -220,7 +224,7 @@ export const messagingPlugin = definePlugin({
         if (!timeMatch) { addMessage('用法: /cal add <HH:MM> <标题>'); return; }
         const [, time, title] = timeMatch;
         const event: CalEvent = {
-          id: `c-${Date.now()}`,
+          id: randomUUID(),
           title: title ?? '新日程',
           time: time ?? '00:00',
           duration: 30,

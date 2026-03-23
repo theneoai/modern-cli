@@ -16,6 +16,7 @@
  *   read      是否已读
  */
 
+import { randomUUID } from 'crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -112,7 +113,7 @@ export class IntelStore {
 
       const newItem: IntelItem = {
         ...item,
-        id: `${item.source}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: `${item.source}-${randomUUID()}`,
         fetchedAt: now,
         read: false,
       };
@@ -145,7 +146,7 @@ export class IntelStore {
   // ── Query ────────────────────────────────────────────────────────────────
 
   getRecent(limit = 20, source?: IntelSource): IntelItem[] {
-    let items = source ? this.items.filter(i => i.source === source) : this.items;
+    const items = source ? this.items.filter(i => i.source === source) : this.items;
     return items.slice(0, limit);
   }
 

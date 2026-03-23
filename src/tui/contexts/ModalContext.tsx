@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { randomUUID } from 'crypto';
 import { FocusLayer } from './FocusContext.js';
 import { ConfirmDialogContent } from '../components/modal/ConfirmDialogContent.js';
 import { InputDialogContent } from '../components/modal/InputDialogContent.js';
@@ -128,7 +129,7 @@ function getLayerForType(type: ModalType): FocusLayer {
 }
 
 function generateId(): string {
-  return `modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return randomUUID();
 }
 
 // ============================================================================

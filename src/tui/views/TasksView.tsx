@@ -26,12 +26,13 @@ interface TasksViewProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onSetStatus: (id: string, status: Task['status']) => void;
+  onUpdatePriority?: (id: string, priority: Task['priority']) => void;
   onAddTask: (title: string) => void;
 }
 
 export function TasksView({
   tasks, height, width, isFocused,
-  onToggle, onDelete, onSetStatus,
+  onToggle, onDelete, onSetStatus, onUpdatePriority,
 }: TasksViewProps) {
   const [cursor, setCursor] = useState(0);
   const [showDone, setShowDone] = useState(false);
@@ -137,10 +138,8 @@ export function TasksView({
     if (ch === 'p' && displayTasks[safeIdx]) {
       const task = displayTasks[safeIdx];
       const priorities: Task['priority'][] = ['low', 'normal', 'high'];
-      const next = priorities[(priorities.indexOf(task.priority) + 1) % 3];
-      // Update via status change (we only have onSetStatus, so we need a workaround)
-      // Actually we need onUpdatePriority - let's use a different signal
-      // For now cycle status as well
+      const next = priorities[(priorities.indexOf(task.priority) + 1) % priorities.length] ?? 'normal';
+      onUpdatePriority?.(task.id, next);
       notify(`优先级: ${next}`);
       return;
     }

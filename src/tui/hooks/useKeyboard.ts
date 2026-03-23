@@ -36,11 +36,11 @@ function matchesKey(input: string, key: Key, binding: string): boolean {
   // Check modifiers
   const hasCtrl = parts.includes('ctrl');
   const hasShift = parts.includes('shift');
-  const hasAlt = parts.includes('alt') ?? parts.includes('meta');
+  const hasAlt = parts.includes('alt') || parts.includes('meta');
   
   if (hasCtrl !== key.ctrl) return false;
   if (hasShift !== key.shift) return false;
-  if (hasAlt !== (key.meta || (key as Record<string, unknown>)['alt'])) return false;
+  if (hasAlt !== key.meta) return false;
   
   // Check main key
   const mainKey = parts.find(p => !['ctrl', 'shift', 'alt', 'meta'].includes(p));

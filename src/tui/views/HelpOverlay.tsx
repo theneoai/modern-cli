@@ -91,6 +91,13 @@ function KeysTab({ height: _height, width }: { height: number; width: number }) 
           ['Ctrl+N',       '新建对话'],
           ['Ctrl+L',       '清空当前视图'],
         ]} />
+        <Section title="▤ 窗口布局" items={[
+          ['Ctrl+B',       '显示 / 隐藏侧栏'],
+          ['Alt+[',        '侧栏收窄 -2 列'],
+          ['Alt+]',        '侧栏展宽 +2 列'],
+          ['Alt+L',        '循环切换布局预设'],
+          ['/layout',      '查看 / 应用布局预设'],
+        ]} />
         <Section title="💬 对话 CHAT" items={[
           ['Enter',        '发送消息 / 触发 AI'],
           ['↑↓ 历史',      '浏览输入历史记录'],

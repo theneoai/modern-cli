@@ -18,6 +18,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { randomUUID } from 'crypto';
 import type { AgentDef, AgentType, AgentCapabilityDef } from './AgentDef.js';
 import { BUILTIN_AGENT_DEFS, now } from './AgentDef.js';
 
@@ -123,7 +124,12 @@ export class AgentRegistry {
    * id defaults to slug of persona.name if not provided.
    */
   create(partial: Partial<AgentDef> & { persona: Pick<AgentDef['persona'], 'name' | 'role'> }): AgentDef {
-    const id = partial.id ?? slugify(partial.persona.name);
+    const rawId = partial.id ?? slugify(partial.persona.name);
+    // Guard against path traversal in caller-supplied IDs
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(rawId)) {
+      throw new Error(`Agent id "${rawId}" contains invalid characters (a-z0-9_- only, max 64)`);
+    }
+    const id = rawId;
     if (this.cache.has(id)) throw new Error(`Agent "${id}" already exists`);
 
     const def: AgentDef = {
@@ -217,7 +223,7 @@ function slugify(name: string): string {
     .replace(/[\u4e00-\u9fff]/g, (c) => c.codePointAt(0)!.toString(36)) // CJK → base36
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 32) || `agent-${Date.now()}`;
+    .slice(0, 32) || `agent-${randomUUID().slice(0, 8)}`;
 }
 
 // Minimal deep partial type

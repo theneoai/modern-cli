@@ -50,14 +50,14 @@ function parseTime(timeStr: string, _message: string): { fireAt: Date; label: st
   // "30min" / "30m" / "30分钟"
   const minsMatch = lc.match(/^(\d+)\s*(min|m|分钟|分)$/);
   if (minsMatch) {
-    const mins = parseInt(minsMatch[1]);
+    const mins = parseInt(minsMatch[1], 10);
     return { fireAt: new Date(now + mins * 60000), label: `${mins}分钟后` };
   }
 
   // "2h" / "2小时"
   const hoursMatch = lc.match(/^(\d+)\s*(h|小时|hour)s?$/);
   if (hoursMatch) {
-    const hours = parseInt(hoursMatch[1]);
+    const hours = parseInt(hoursMatch[1], 10);
     return { fireAt: new Date(now + hours * 3600000), label: `${hours}小时后` };
   }
 
@@ -65,7 +65,7 @@ function parseTime(timeStr: string, _message: string): { fireAt: Date; label: st
   const clockMatch = lc.match(/^(\d{1,2}):(\d{2})$/);
   if (clockMatch) {
     const target = new Date();
-    target.setHours(parseInt(clockMatch[1]), parseInt(clockMatch[2]), 0, 0);
+    target.setHours(parseInt(clockMatch[1], 10), parseInt(clockMatch[2], 10), 0, 0);
     if (target.getTime() <= now) target.setDate(target.getDate() + 1); // tomorrow
     return { fireAt: target, label: `${clockMatch[1]}:${clockMatch[2]}` };
   }

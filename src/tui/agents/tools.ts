@@ -13,7 +13,10 @@
 import { readFileSync, writeFileSync, existsSync, statSync } from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { homedir } from 'os';
 import { assertSafeUrl, assertSafePath, rateLimit } from '../../utils/security.js';
+
+const HOME = homedir();
 
 const execAsync = promisify(exec);
 
@@ -100,7 +103,7 @@ const readFileTool: AgentTool = {
   async run(args) {
     const p = (args['path'] ?? '').trim();
     try {
-      assertSafePath(p);
+      assertSafePath(p, HOME);
       if (!existsSync(p)) return `[工具错误] 文件不存在: ${p}`;
       const stat = statSync(p);
       if (!stat.isFile()) return `[工具错误] 不是文件: ${p}`;
@@ -125,9 +128,9 @@ const writeFileTool: AgentTool = {
     const p       = (args['path'] ?? '').trim();
     const content = args['content'] ?? '';
     try {
-      assertSafePath(p);
+      assertSafePath(p, HOME);
       if (content.length > 200 * 1024) return '[工具错误] 内容过大 (> 200KB)';
-      writeFileSync(p, content, { encoding: 'utf-8' });
+      writeFileSync(p, content, { encoding: 'utf-8', mode: 0o600 });
       return `[write_file] ✓ 已写入 ${p} (${content.length} 字节)`;
     } catch (e) {
       return `[工具错误] write_file: ${e instanceof Error ? e.message : String(e)}`;
@@ -137,13 +140,14 @@ const writeFileTool: AgentTool = {
 
 // ── Tool: run_shell — Execute a shell command (sandboxed) ─────────────────────
 
+// Note: node -e, python -c, and curl are intentionally excluded — they allow
+// arbitrary code execution or SSRF that bypasses security controls.
+// Use http_get tool for network access (which enforces assertSafeUrl).
 const SHELL_ALLOWLIST = [
   /^ls(\s|$)/, /^cat\s/, /^echo\s/, /^pwd$/, /^date$/,
   /^grep\s/, /^find\s/, /^wc\s/, /^head\s/, /^tail\s/,
   /^git\s(status|log|diff|show|branch|stash list)/,
   /^npm\s(list|ls|outdated|run\s+[\w:-]+)$/,
-  /^node\s+-e\s/, /^python3?\s+-c\s/,
-  /^curl\s+-s\s+https:\/\//,
   /^jq\s/,
 ];
 
@@ -161,7 +165,7 @@ const runShellTool: AgentTool = {
     // Allowlist check
     const allowed = SHELL_ALLOWLIST.some(r => r.test(cmd));
     if (!allowed) {
-      return `[工具拒绝] 命令未在白名单中: "${cmd}"\n允许: ls, cat, grep, find, git status/log/diff, npm list, node -e, python -c, curl -s https://`;
+      return `[工具拒绝] 命令未在白名单中: "${cmd}"\n允许: ls, cat, echo, grep, find, wc, head, tail, git status/log/diff/show/branch, npm list/outdated/run, jq`;
     }
 
     try {
