@@ -3,7 +3,7 @@
  * FlowApp.tsx — NEO  键盘优先 · AI 原生 · 心流体验
  *
  * 模式: CHAT / TASKS / NOTES / AGENTS / PLUGINS
- * 按键: Ctrl+1-5 切换模式  Ctrl+K 命令面板  ? 帮助
+ * 按键: Alt+1-5 切换模式  Ctrl+K 命令面板  ? 帮助
  *
  * 命令 (短命令优先):
  *   /c  代码   /d  调试   /e  解释   /w  写作
@@ -881,9 +881,11 @@ export default function FlowApp() {
     if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
-    // Mode switching: support both Ctrl+1-6 (kitty/foot) and Alt+1-6 (most terminals).
-    // In standard terminals Ctrl+digit doesn't produce a ctrl-modified keypress,
-    // but Alt+digit (key.meta) reliably works everywhere.
+    // Mode switching via Alt+1-6 (key.meta).
+    // On macOS: requires Option key configured as "Esc+" in terminal settings.
+    //   iTerm2: Profiles → Keys → Left Option key → Esc+
+    //   Terminal.app: Preferences → Profiles → Keyboard → Use Option as Meta Key
+    // Ctrl+digit (key.ctrl) works in kitty/foot/WezTerm with Kitty protocol enabled.
     if ((key.ctrl || key.meta) && ch === '1') { setMode('chat');    return; }
     if ((key.ctrl || key.meta) && ch === '2') { setMode('tasks');   return; }
     if ((key.ctrl || key.meta) && ch === '3') { setMode('notes');   return; }
@@ -917,12 +919,15 @@ export default function FlowApp() {
       setLayoutState(layoutManager.toggleSidebar());
       return;
     }
-    // Alt+[ — shrink sidebar, Alt+] — expand sidebar
-    if (key.meta && ch === '[') {
+    // Alt+- — shrink sidebar, Alt+= — expand sidebar
+    // NOTE: Alt+[ / Alt+] are intentionally avoided: on macOS with Option-as-Meta,
+    // they produce \x1b[ (CSI) and \x1b] (OSC) which are ANSI control prefixes and
+    // will NOT be delivered as key events by most terminal parsers.
+    if (key.meta && ch === '-') {
       setLayoutState(layoutManager.resizeSidebar(-2, mode));
       return;
     }
-    if (key.meta && ch === ']') {
+    if (key.meta && ch === '=') {
       setLayoutState(layoutManager.resizeSidebar(2, mode));
       return;
     }

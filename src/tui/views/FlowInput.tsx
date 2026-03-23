@@ -297,13 +297,16 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     // Tab — focus content (no suggestions)
     if (key.tab) { onFocusContent(); return; }
 
-    // Regular input — filter out control characters and escape sequences
+    // Regular input — filter out control characters and escape sequences.
+    // On macOS with Option-as-Meta the Ink key parser sets key.meta so the
+    // guard above already blocks alt sequences.  The regex below is a safety
+    // net for any escape bytes that slip through (e.g. unrecognised terminals).
     if (ch && !key.ctrl && !key.meta && !key.escape) {
       // Filter DEL (\x7f) and BS (\b) that weren't caught above
       if (ch === '\x7f' || ch === '\b') return;
-      const clean = ch.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-      if (!clean) return;
-      dispatch({ type: 'insert', ch: clean });
+      // Drop anything still containing a raw ESC byte (CSI, OSC, bare alt-seq…)
+      if (ch.includes('\x1b')) return;
+      dispatch({ type: 'insert', ch });
       setHistIdx(-1);
     }
   }, { isActive: isFocused });

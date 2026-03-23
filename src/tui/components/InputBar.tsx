@@ -158,10 +158,10 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
 
     // Character input - handle one character at a time
     if (value && !key.ctrl && !key.meta) {
-      // Filter out backspace bytes and escape sequences (mouse events, etc)
+      // Filter out backspace bytes and any raw ESC bytes (unhandled escape sequences)
       if (value === '\x7f' || value === '\b') return;
-      const cleanValue = value.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-      if (cleanValue.length === 0) return;
+      if (value.includes('\x1b')) return;
+      const cleanValue = value;
       
       const char = cleanValue[0];
       const newInput = input.slice(0, cursorPosition) + char + input.slice(cursorPosition);
