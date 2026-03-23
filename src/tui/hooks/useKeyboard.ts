@@ -36,7 +36,7 @@ function matchesKey(input: string, key: Key, binding: string): boolean {
   // Check modifiers
   const hasCtrl = parts.includes('ctrl');
   const hasShift = parts.includes('shift');
-  const hasAlt = parts.includes('alt') ?? parts.includes('meta');
+  const hasAlt = parts.includes('alt') || parts.includes('meta');
   
   if (hasCtrl !== key.ctrl) return false;
   if (hasShift !== key.shift) return false;

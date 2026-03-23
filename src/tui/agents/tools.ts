@@ -130,7 +130,7 @@ const writeFileTool: AgentTool = {
     try {
       assertSafePath(p, HOME);
       if (content.length > 200 * 1024) return '[工具错误] 内容过大 (> 200KB)';
-      writeFileSync(p, content, { encoding: 'utf-8' });
+      writeFileSync(p, content, { encoding: 'utf-8', mode: 0o600 });
       return `[write_file] ✓ 已写入 ${p} (${content.length} 字节)`;
     } catch (e) {
       return `[工具错误] write_file: ${e instanceof Error ? e.message : String(e)}`;
@@ -165,7 +165,7 @@ const runShellTool: AgentTool = {
     // Allowlist check
     const allowed = SHELL_ALLOWLIST.some(r => r.test(cmd));
     if (!allowed) {
-      return `[工具拒绝] 命令未在白名单中: "${cmd}"\n允许: ls, cat, grep, find, git status/log/diff, npm list, node -e, python -c, curl -s https://`;
+      return `[工具拒绝] 命令未在白名单中: "${cmd}"\n允许: ls, cat, echo, grep, find, wc, head, tail, git status/log/diff/show/branch, npm list/outdated/run, jq`;
     }
 
     try {
