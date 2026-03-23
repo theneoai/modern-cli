@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { randomUUID } from 'crypto';
 
 // ============================================================================
 // Types
@@ -84,7 +85,7 @@ export function ToastProvider({ children, maxToasts = MAX_TOASTS }: ToastProvide
     content: string,
     duration: number = DEFAULT_DURATIONS[type]
   ): string => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = randomUUID();
     
     const newToast: ToastMessage = {
       id,

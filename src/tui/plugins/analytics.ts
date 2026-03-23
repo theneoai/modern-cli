@@ -67,7 +67,7 @@ interface SessionStats {
   byType: Record<TaskType, number>;
 }
 
-let _stats: SessionStats = {
+const _stats: SessionStats = {
   totalInputTokens: 0, totalOutputTokens: 0, rounds: 0, agentRounds: 0,
   sessionStartAt: Date.now(),
   byType: { chat: 0, code: 0, research: 0, write: 0, debug: 0, agent: 0 },
@@ -235,13 +235,13 @@ export async function fetchNewsDigest(_category: NewsCategory = 'all', limit = 1
     const check = checkUrl(hnUrl);
     if (!check.allowed) throw new Error(check.reason);
 
-    const idsRes = await fetch(hnUrl);
+    const idsRes = await fetch(hnUrl, { signal: AbortSignal.timeout(10000) });
     if (!idsRes.ok) throw new Error(`HTTP ${idsRes.status}`);
     const ids = (await idsRes.json() as number[]).slice(0, limit * 2);
 
     const stories = await Promise.allSettled(
       ids.map(id =>
-        fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
+        fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { signal: AbortSignal.timeout(8000) })
           .then(r => r.json() as Promise<{ title: string; url?: string; score: number; type: string }>)
       )
     );
