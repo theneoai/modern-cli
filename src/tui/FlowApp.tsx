@@ -452,6 +452,10 @@ export default function FlowApp() {
     setTasks(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const updateTaskPriority = useCallback((id: string, priority: Task['priority']) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, priority } : t));
+  }, []);
+
   const setTaskStatus = useCallback((id: string, status: Task['status']) => {
     setTasks(prev => prev.map(t =>
       t.id === id ? { ...t, status, ...(status === 'done' ? { doneAt: new Date() } : {}) } : t
@@ -1013,6 +1017,7 @@ export default function FlowApp() {
             onToggle={toggleTask}
             onDelete={deleteTask}
             onSetStatus={setTaskStatus}
+            onUpdatePriority={updateTaskPriority}
             onAddTask={(title) => { addTask(title); sysMsg(`✓ 任务: ${title}`); }}
           />
         )}
