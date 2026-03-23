@@ -214,7 +214,7 @@ export default function FlowApp() {
   const makePluginCtx = useCallback((): PluginContext => ({
     addMessage: (content, role = 'system') => {
       setMessages(prev => [...prev, {
-        id: `plug-${Date.now()}`,
+        id: randomUUID(),
         role: role as Message['role'],
         content,
         timestamp: new Date(),
@@ -222,7 +222,7 @@ export default function FlowApp() {
     },
     notify: (content) => {
       setMessages(prev => [...prev, {
-        id: `notif-${Date.now()}`,
+        id: randomUUID(),
         role: 'system',
         content: `ℹ ${content}`,
         timestamp: new Date(),
@@ -333,7 +333,7 @@ export default function FlowApp() {
   // ── Helpers ───────────────────────────────────────────────────────────────
   const sysMsg = useCallback((content: string) => {
     setMessages(prev => [...prev, {
-      id: `sys-${Date.now()}`,
+      id: randomUUID(),
       role: 'system',
       content,
       timestamp: new Date(),
@@ -344,7 +344,7 @@ export default function FlowApp() {
   const sendToAI = useCallback(async (userText: string, systemOverride?: string) => {
     if (isStreaming) return;
     const userMsg: Message = {
-      id: `user-${Date.now()}`,
+      id: randomUUID(),
       role: 'user',
       content: userText,
       timestamp: new Date(),
@@ -354,7 +354,7 @@ export default function FlowApp() {
 
     conversationRef.current = [...conversationRef.current, { role: 'user', content: userText }];
 
-    const aiId = `ai-${Date.now()}`;
+    const aiId = randomUUID();
     setMessages(prev => [...prev, {
       id: aiId, role: 'assistant', content: '', timestamp: new Date(), streaming: true,
     }]);
@@ -797,7 +797,7 @@ export default function FlowApp() {
       if (!text) return;
       // Add user message to chat
       setMessages(prev => [...prev, {
-        id: `user-neo-${Date.now()}`,
+        id: randomUUID(),
         role: 'user',
         content: input,
         timestamp: new Date(),
@@ -1118,7 +1118,7 @@ export default function FlowApp() {
             setMode('chat');
             // Add user message then companion reply
             setMessages(prev => [...prev, {
-              id: `user-neo-${Date.now()}`,
+              id: randomUUID(),
               role: 'user',
               content: `@neo ${text}`,
               timestamp: new Date(),
