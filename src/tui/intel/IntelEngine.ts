@@ -47,6 +47,7 @@ export interface IntelConfig {
 export class IntelEngine {
   private collectors: Collector[];
   private timers = new Map<string, ReturnType<typeof setInterval>>();
+  private initTimeout: ReturnType<typeof setTimeout> | null = null;
   private onNewItems: ((items: IntelItem[]) => void) | null = null;
   private initialized = false;
 
@@ -105,10 +106,11 @@ export class IntelEngine {
     }
 
     // Run first-pass collection after 5s (give app time to boot)
-    setTimeout(() => void this.runAll(), 5000);
+    this.initTimeout = setTimeout(() => void this.runAll(), 5000);
   }
 
   destroy() {
+    if (this.initTimeout) { clearTimeout(this.initTimeout); this.initTimeout = null; }
     for (const timer of this.timers.values()) clearInterval(timer);
     this.timers.clear();
     this.initialized = false;
