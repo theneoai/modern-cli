@@ -22,6 +22,7 @@
  *   NEO_DING_WEBHOOK   https://oapi.dingtalk.com/robot/send?access_token=...
  */
 
+import { randomUUID } from 'crypto';
 import { definePlugin } from '../../sdk/plugin.js';
 import { assertSafeUrl } from '../../utils/security.js';
 
@@ -223,7 +224,7 @@ export const messagingPlugin = definePlugin({
         if (!timeMatch) { addMessage('用法: /cal add <HH:MM> <标题>'); return; }
         const [, time, title] = timeMatch;
         const event: CalEvent = {
-          id: `c-${Date.now()}`,
+          id: randomUUID(),
           title: title ?? '新日程',
           time: time ?? '00:00',
           duration: 30,

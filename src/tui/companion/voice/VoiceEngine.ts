@@ -189,7 +189,7 @@ async function synthesizeOpenAI(text: string, _style: SSMLStyle): Promise<string
 
     if (!resp.ok) return null;
     const buf = await resp.arrayBuffer();
-    const outFile = join(tmpdir(), `neo_voice_oai_${Date.now()}.mp3`);
+    const outFile = join(tmpdir(), `neo_voice_oai_${randomUUID()}.mp3`);
     writeFileSync(outFile, Buffer.from(buf));
     return outFile;
   } catch {
