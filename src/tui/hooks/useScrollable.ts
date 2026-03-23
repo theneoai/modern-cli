@@ -150,39 +150,30 @@ export function useScrollableKeyboard(
   const { enabled = true } = options;
   
   const handleKey = useCallback((_input: string, key: Key): boolean => {
-    const extKey = key as typeof key & { home?: boolean; end?: boolean };
     if (!enabled) return false;
 
     if (key.upArrow) {
       options.onUp ? options.onUp() : scrollActions.scrollUp();
       return true;
     }
-    
+
     if (key.downArrow) {
       options.onDown ? options.onDown() : scrollActions.scrollDown();
       return true;
     }
-    
+
     if (key.pageUp) {
       options.onPageUp ? options.onPageUp() : scrollActions.pageUp();
       return true;
     }
-    
+
     if (key.pageDown) {
       options.onPageDown ? options.onPageDown() : scrollActions.pageDown();
       return true;
     }
-    
-    if (extKey.home) {
-      options.onHome ? options.onHome() : scrollActions.scrollToTop();
-      return true;
-    }
 
-    if (extKey.end) {
-      options.onEnd ? options.onEnd() : scrollActions.scrollToBottom();
-      return true;
-    }
-    
+    // Ink v5 Key does not include home/end; these keys are not reliably detectable
+
     return false;
   }, [enabled, scrollActions, options]);
   

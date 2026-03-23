@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { useState, useCallback, useMemo } from 'react';
 import { layout } from '../../theme/index.js';
 
@@ -42,7 +43,7 @@ export function useTasks() {
 
   const addTask = useCallback((taskData: Partial<Task>): Task => {
     const newTask: Task = {
-      id: Date.now().toString(),
+      id: randomUUID(),
       title: taskData.title || 'New Task',
       status: taskData.status || 'pending',
       priority: taskData.priority || 'medium',

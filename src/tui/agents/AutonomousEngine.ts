@@ -14,6 +14,7 @@
  *   engine.createTask({ goal: '持续监控 GitHub PR...', role: 'Reviewer', freeRoam: true });
  */
 
+import { randomUUID } from 'crypto';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import type { AIResponse } from '../../ai/client.js';
 import { agentMemory } from '../../memory/agentMemory.js';
@@ -180,7 +181,7 @@ export class AutonomousEngine {
     tokensBudget?: number;
   }): AutonomousTask {
     const task: AutonomousTask = {
-      id: `auto-${Date.now()}`,
+      id: `auto-${randomUUID()}`,
       goal: config.goal,
       role: config.role || 'Assistant',
       agentDefId: config.agentDefId,
@@ -237,7 +238,7 @@ export class AutonomousEngine {
 
   resume(id: string): void {
     const t = this.tasks.get(id);
-    if (!t || t.status !== 'paused') return;
+    if (t?.status !== 'paused') return;
     t.status = 'idle';
     this.notify();
     void this.runTask(id);
@@ -333,7 +334,7 @@ export class AutonomousEngine {
             }
             const result = await t.run(args, task.id);
             toolResults.push(result);
-            task.tokensUsed += Math.ceil(result.length / 4); // rough token estimate
+            task.tokensUsed += Math.ceil(result.length / 3.5); // ~3.5 chars/token estimate
           }
           // Append tool results to context as a user turn
           const toolFeedback = toolResults.join('\n\n');
