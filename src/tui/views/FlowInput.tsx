@@ -120,9 +120,9 @@ const MODE_COLORS: Record<AppMode, string> = {
 const MODE_ICONS: Record<AppMode, string> = {
   chat:    '◆',
   tasks:   '☐',
-  notes:   '📝',
-  agents:  '🤖',
-  plugins: '⚡',
+  notes:   '✎',
+  agents:  '⬡',
+  plugins: '◈',
 };
 
 // ── Input State Reducer ───────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
   return (
     <Box flexDirection="column" width={width}>
       {/* Hint / suggestion line */}
-      <Box height={1} paddingX={2}>
+      <Box height={1} paddingX={2} overflow="hidden">
         {hintContent}
       </Box>
 

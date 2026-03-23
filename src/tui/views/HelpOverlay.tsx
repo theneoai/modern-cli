@@ -47,7 +47,7 @@ export function HelpOverlay({ width, height, onClose }: HelpOverlayProps) {
     >
       {/* Title + tabs */}
       <Box height={1} paddingX={2} alignItems="center">
-        <Text color={theme.colors.primary} bold>⌨  NEO 使用指南</Text>
+        <Text color={theme.colors.primary} bold>◆  NEO 使用指南</Text>
         <Box flexGrow={1} />
         <TabBtn label="1:快捷键" active={tab === 'keys'} />
         <Text color={theme.colors.muted}> </Text>

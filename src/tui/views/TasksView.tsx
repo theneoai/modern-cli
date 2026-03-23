@@ -80,11 +80,11 @@ export function TasksView({
         setIsFiltering(false);
         return;
       }
-      if (key.backspace) {
+      if (key.backspace || ch === '\x7f') {
         setFilterQuery(prev => prev.slice(0, -1));
         return;
       }
-      if (ch && !key.ctrl && !key.meta) {
+      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') {
         setFilterQuery(prev => prev + ch);
       }
       return;

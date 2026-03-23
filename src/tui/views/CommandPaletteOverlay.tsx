@@ -95,8 +95,8 @@ export function CommandPaletteOverlay({
       if (item) onSelect(item.value);
       return;
     }
-    if (key.backspace) { setQuery(prev => prev.slice(0, -1)); setCursor(0); return; }
-    if (ch && !key.ctrl && !key.meta) { setQuery(prev => prev + ch); setCursor(0); }
+    if (key.backspace || ch === '\x7f') { setQuery(prev => prev.slice(0, -1)); setCursor(0); return; }
+    if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setQuery(prev => prev + ch); setCursor(0); }
   });
 
   // Collect unique categories for display
@@ -116,7 +116,7 @@ export function CommandPaletteOverlay({
     >
       {/* Title bar */}
       <Box height={1} paddingX={2} alignItems="center">
-        <Text color={theme.colors.primary} bold>⌘ 命令面板</Text>
+        <Text color={theme.colors.primary} bold>◆ 命令面板</Text>
         <Text color={theme.colors.muted}> {filtered.length}/{ALL_COMMANDS.length} 命令</Text>
         <Box flexGrow={1} justifyContent="flex-end">
           <Text color={theme.colors.muted}>ESC 关闭</Text>

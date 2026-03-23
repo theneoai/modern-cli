@@ -101,8 +101,8 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
         setGoalInput('');
         return;
       }
-      if (key.backspace || key.delete) { setGoalInput(prev => prev.slice(0, -1)); return; }
-      if (ch && !key.ctrl && !key.meta) { setGoalInput(prev => prev + ch); }
+      if (key.backspace || key.delete || ch === '\x7f') { setGoalInput(prev => prev.slice(0, -1)); return; }
+      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setGoalInput(prev => prev + ch); }
       return;
     }
 

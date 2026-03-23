@@ -89,8 +89,8 @@ export function NotesView({
 
     if (isFiltering) {
       if (key.escape || key.return) { setIsFiltering(false); return; }
-      if (key.backspace) { setFilterQuery(prev => prev.slice(0, -1)); return; }
-      if (ch && !key.ctrl) { setFilterQuery(prev => prev + ch); }
+      if (key.backspace || ch === '\x7f') { setFilterQuery(prev => prev.slice(0, -1)); return; }
+      if (ch && !key.ctrl && ch !== '\x7f' && ch !== '\b') { setFilterQuery(prev => prev + ch); }
       return;
     }
 
