@@ -13,6 +13,7 @@
  * 所有采集器实现 Collector 接口, 统一由 IntelEngine 调度。
  */
 
+import { assertSafeUrl } from '../../utils/security.js';
 import type { IntelItem, IntelSource } from './IntelStore.js';
 
 type RawItem = Omit<IntelItem, 'id' | 'read' | 'fetchedAt'>;
@@ -84,12 +85,12 @@ export class HackerNewsCollector implements Collector {
 
     return stories
       .filter(r => r.status === 'fulfilled')
-      .map((r) => {
+      .map((r, idx) => {
         const s = (r as PromiseFulfilledResult<{ title: string; url?: string; score: number; by: string; descendants?: number }>).value;
         return {
           source: 'hackernews' as IntelSource,
           title: s.title,
-          url: s.url ?? `https://news.ycombinator.com/item?id=${top[0]}`,
+          url: s.url ?? `https://news.ycombinator.com/item?id=${top[idx]}`,
           body: `Score: ${s.score} | by ${s.by} | ${s.descendants ?? 0} comments`,
           score: Math.min(100, Math.floor(s.score / 5)),
           tags: ['tech', 'news'],
@@ -386,6 +387,7 @@ export class URLMonitorCollector implements Collector {
   private targets: MonitorTarget[] = [];
 
   addTarget(target: MonitorTarget) {
+    assertSafeUrl(target.url);
     this.targets.push(target);
     this.config.enabled = true;
   }
