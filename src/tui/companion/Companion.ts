@@ -15,6 +15,7 @@
  *   caring  → 细心关怀, 主动嘘寒问暖
  */
 
+import { randomUUID } from 'crypto';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import { companionMemory } from './CompanionMemory.js';
 import type { CompanionPersona, EmotionalState } from './CompanionMemory.js';
@@ -157,7 +158,7 @@ export class Companion {
 
     const emotion = this.getEmotionEmoji(emotional);
     const msg: CompanionMessage = {
-      id: `comp-${Date.now()}`,
+      id: randomUUID(),
       content: reply,
       type: 'chat',
       at: new Date(),
@@ -184,7 +185,7 @@ export class Companion {
 
     this.lastProactiveAt = now;
     const msg: CompanionMessage = {
-      id: `sug-${Date.now()}`,
+      id: randomUUID(),
       content: picked,
       type: 'suggestion',
       at: new Date(),
@@ -256,7 +257,7 @@ export class Companion {
     }
 
     this.emit({
-      id: `greet-${Date.now()}`,
+      id: randomUUID(),
       content: greeting,
       type: 'chat',
       at: new Date(),
@@ -293,7 +294,7 @@ export class Companion {
     const surprise = companionMemory.addSurprise({ type, content });
 
     this.emit({
-      id: `sur-${Date.now()}`,
+      id: randomUUID(),
       content: `✨ 有个小惊喜给你：\n\n${content}`,
       type: 'surprise',
       at: new Date(),
@@ -431,7 +432,7 @@ export class Companion {
   private localReply(_text: string): CompanionMessage {
     const p = companionMemory.getPersona();
     return {
-      id: `local-${Date.now()}`,
+      id: randomUUID(),
       content: `${p.masterTitle}，我需要先连接 AI 才能回复你。请先配置 API Key (/key add <provider> <key>)`,
       type: 'chat',
       at: new Date(),

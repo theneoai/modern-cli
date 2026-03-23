@@ -16,6 +16,7 @@
  *   URLMonitor  每 15min
  */
 
+import { assertSafeUrl } from '../../utils/security.js';
 import { intelStore, type IntelItem } from './IntelStore.js';
 import {
   HackerNewsCollector,
@@ -165,6 +166,7 @@ export class IntelEngine {
   /** Scrape any URL and store as intel */
   async scrapeURL(url: string, name: string): Promise<IntelItem[]> {
     try {
+      assertSafeUrl(url);
       const resp = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NEO-CLI/1.0)' },
         signal: AbortSignal.timeout(12000),
