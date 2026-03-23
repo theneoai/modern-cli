@@ -124,7 +124,12 @@ function loadStore(): StoreFile {
   if (!existsSync(STORE_PATH)) {
     return { version: 1, deviceSalt: randomBytes(32).toString('hex'), activeKeys: {}, keys: [] };
   }
-  return JSON.parse(readFileSync(STORE_PATH, 'utf-8')) as StoreFile;
+  try {
+    return JSON.parse(readFileSync(STORE_PATH, 'utf-8')) as StoreFile;
+  } catch {
+    // Corrupted store — return empty (keys will need to be re-added)
+    return { version: 1, deviceSalt: randomBytes(32).toString('hex'), activeKeys: {}, keys: [] };
+  }
 }
 
 function saveStore(store: StoreFile): void {
