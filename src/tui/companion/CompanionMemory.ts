@@ -7,6 +7,7 @@
  *   - 个性配置: 名字 / 性格倾向 / 称呼主人的方式
  */
 
+import { randomUUID } from 'crypto';
 import { homedir } from 'os';
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -233,7 +234,7 @@ export class CompanionMemory {
   addMilestone(m: Omit<Milestone, 'id' | 'at'>): Milestone {
     const ms: Milestone = {
       ...m,
-      id: `ms-${Date.now()}`,
+      id: randomUUID(),
       at: new Date().toISOString(),
     };
     this.data.milestones.unshift(ms);
