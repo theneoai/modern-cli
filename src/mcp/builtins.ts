@@ -202,13 +202,23 @@ const httpSkill: Skill = {
 
 // ── shell ─────────────────────────────────────────────────────────────────────
 
+// Allowlist of safe read-only commands (same policy as tools.ts).
+// node -e, python -c, and curl are excluded: they allow arbitrary code/SSRF.
+const SHELL_ALLOWLIST = [
+  /^ls(\s|$)/, /^cat\s/, /^echo\s/, /^pwd$/, /^date$/,
+  /^grep\s/, /^find\s/, /^wc\s/, /^head\s/, /^tail\s/,
+  /^git\s(status|log|diff|show|branch|stash list)/,
+  /^npm\s(list|ls|outdated|run\s+[\w:-]+)$/,
+  /^jq\s/,
+];
+
 const shellSkill: Skill = {
   name: 'shell',
   version: '1.0.0',
   description: '执行 Shell 命令 (受限环境)',
   tools: [{
     name: 'run_command',
-    description: '运行 shell 命令，返回 stdout',
+    description: '运行 shell 命令，返回 stdout (只允许安全只读命令)',
     input_schema: {
       type: 'object',
       properties: { command: { type: 'string', description: 'Shell 命令' } },
@@ -219,6 +229,9 @@ const shellSkill: Skill = {
     async run_command({ command }) {
       const cmd = String(command ?? '').trim();
       if (!cmd) return { content: 'Command is empty', isError: true };
+      if (!SHELL_ALLOWLIST.some(r => r.test(cmd))) {
+        return { content: `Command not in allowlist: "${cmd}". Allowed: ls, cat, grep, find, git status/log/diff, npm list, jq`, isError: true };
+      }
       try {
         const out = execSync(cmd, { timeout: 15000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
         return { content: out };
