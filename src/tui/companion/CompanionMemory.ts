@@ -245,7 +245,7 @@ export class CompanionMemory {
   addSurprise(s: Omit<SurpriseEvent, 'id' | 'at' | 'seen'>): SurpriseEvent {
     const ev: SurpriseEvent = {
       ...s,
-      id: `sur-${Date.now()}`,
+      id: randomUUID(),
       at: new Date().toISOString(),
       seen: false,
     };

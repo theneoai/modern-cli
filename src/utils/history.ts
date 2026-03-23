@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import {
   readFileSync,
   writeFileSync,
@@ -79,7 +80,7 @@ export function deleteSession(id: string): boolean {
 }
 
 export function createSession(firstMessage?: string): ChatSession {
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const id = randomUUID();
   const now = new Date().toISOString();
   return {
     id,

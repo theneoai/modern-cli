@@ -19,6 +19,7 @@
  * SSML 情感风格: chat / affectionate / cheerful / gentle / sad / excited
  */
 
+import { randomUUID } from 'crypto';
 import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir, platform } from 'os';
@@ -151,7 +152,7 @@ async function synthesizeEdgeTTS(
   rate: string,
   pitch: string,
 ): Promise<string> {
-  const outFile = join(tmpdir(), `neo_voice_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`);
+  const outFile = join(tmpdir(), `neo_voice_${randomUUID()}.mp3`);
   const ssml = [
     `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'`,
     ` xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='zh-CN'>`,
