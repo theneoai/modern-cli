@@ -137,13 +137,14 @@ const writeFileTool: AgentTool = {
 
 // ── Tool: run_shell — Execute a shell command (sandboxed) ─────────────────────
 
+// Note: node -e, python -c, and curl are intentionally excluded — they allow
+// arbitrary code execution or SSRF that bypasses security controls.
+// Use http_get tool for network access (which enforces assertSafeUrl).
 const SHELL_ALLOWLIST = [
   /^ls(\s|$)/, /^cat\s/, /^echo\s/, /^pwd$/, /^date$/,
   /^grep\s/, /^find\s/, /^wc\s/, /^head\s/, /^tail\s/,
   /^git\s(status|log|diff|show|branch|stash list)/,
   /^npm\s(list|ls|outdated|run\s+[\w:-]+)$/,
-  /^node\s+-e\s/, /^python3?\s+-c\s/,
-  /^curl\s+-s\s+https:\/\//,
   /^jq\s/,
 ];
 
