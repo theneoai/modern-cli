@@ -42,6 +42,8 @@ import { voiceEngine } from './companion/voice/VoiceEngine.js';
 import { intelEngine } from './intel/IntelEngine.js';
 import { useVoice } from './hooks/useVoice.js';
 import { useIntel } from './hooks/useIntel.js';
+import { layoutManager, LAYOUT_PRESETS } from './utils/layoutManager.js';
+import { InfoSidebar } from './views/InfoSidebar.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,6 +162,9 @@ export default function FlowApp() {
   const [pluginList, setPluginList] = useState<LoadedPlugin[]>([]);
   const [statusWidgets, setStatusWidgets] = useState<string[]>([]);
   const [, forceUpdate] = useState(0);  // for plugin widget refresh
+
+  // Layout state — driven by layoutManager singleton
+  const [layoutState, setLayoutState] = useState(() => layoutManager.getState());
 
   // Companion state — messages appear inline in main chat
   const [companionThinking, setCompanionThinking] = useState(false);
@@ -329,6 +334,10 @@ export default function FlowApp() {
   const inputHeight = 4;
   const contentHeight = termSize.height - headerHeight - inputHeight;
   const tooSmall = termSize.width < 60 || termSize.height < 12;
+
+  // Sidebar width (0 when hidden or terminal too narrow)
+  const activeSidebarWidth = tooSmall ? 0 : layoutManager.effectiveWidth(termSize.width, mode);
+  const mainWidth = termSize.width - activeSidebarWidth;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const sysMsg = useCallback((content: string) => {
@@ -604,7 +613,7 @@ export default function FlowApp() {
 
         // ── Timer: /ti or /timer ────────────────────────────────────────
         case 'timer': case 'ti': {
-          const mins = parseInt(arg) || 25;
+          const mins = parseInt(arg, 10) || 25;
           const label = mins <= 5 ? `休息 ${mins}m` : `专注 ${mins}m`;
           setTimer({ active: true, seconds: mins * 60, total: mins * 60, label, type: mins <= 5 ? 'break' : 'focus' });
           sysMsg(`⏱ ${label} 开始`);
@@ -727,6 +736,26 @@ export default function FlowApp() {
           } else {
             sysMsg('key 子命令: list | add <provider> <key> | rm <provider>');
           }
+          return;
+        }
+
+        // ── Layout control ─────────────────────────────────────────────
+        case 'layout': case 'lay': {
+          if (!arg) {
+            const names = LAYOUT_PRESETS.map(p => `${p.icon}${p.label}`).join('  ');
+            sysMsg(`布局预设: ${names}\n用法: /layout <focus|split|wide|zen|custom>\n当前: ${layoutState.preset}  侧栏: ${activeSidebarWidth > 0 ? `${activeSidebarWidth}列` : '隐藏'}`);
+            return;
+          }
+          const presetId = arg.toLowerCase() as Parameters<typeof layoutManager.applyPreset>[0];
+          const validIds = LAYOUT_PRESETS.map(p => p.id);
+          if (!validIds.includes(presetId)) {
+            sysMsg(`未知预设: ${arg}  可选: ${validIds.join(' | ')}`);
+            return;
+          }
+          const newState = layoutManager.applyPreset(presetId);
+          setLayoutState(newState);
+          const def = LAYOUT_PRESETS.find(p => p.id === presetId)!;
+          sysMsg(`${def.icon} 已切换布局: ${def.name} (${def.description})`);
           return;
         }
 
@@ -883,6 +912,28 @@ export default function FlowApp() {
       return;
     }
 
+    // Layout shortcuts
+    if (key.ctrl && ch === 'b') {
+      setLayoutState(layoutManager.toggleSidebar());
+      return;
+    }
+    // Alt+[ — shrink sidebar, Alt+] — expand sidebar
+    if (key.meta && ch === '[') {
+      setLayoutState(layoutManager.resizeSidebar(-2, mode));
+      return;
+    }
+    if (key.meta && ch === ']') {
+      setLayoutState(layoutManager.resizeSidebar(2, mode));
+      return;
+    }
+    // Alt+L — cycle through layout presets
+    if (key.meta && ch === 'l') {
+      const { state, preset } = layoutManager.cyclePreset();
+      setLayoutState(state);
+      sysMsg(`${preset.icon} 布局: ${preset.name}`);
+      return;
+    }
+
     if (key.escape && !focusOnInput) { setFocusOnInput(true); return; }
     // Tab: only toggle focus when content is focused; when input is focused,
     // FlowInput's own useInput handles Tab (completion or focus-content).
@@ -998,66 +1049,85 @@ export default function FlowApp() {
       </Box>
 
       {/* ── Content ── */}
-      <Box height={contentHeight} flexShrink={0} overflow="hidden">
-        {mode === 'chat' && (
-          <ChatView
-            messages={messages}
+      <Box height={contentHeight} flexShrink={0} overflow="hidden" flexDirection="row">
+        {/* Main view panel */}
+        <Box width={mainWidth} height={contentHeight} overflow="hidden" flexShrink={0}>
+          {mode === 'chat' && (
+            <ChatView
+              messages={messages}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              streamingId={streamingId}
+            />
+          )}
+          {mode === 'tasks' && (
+            <TasksView
+              tasks={tasks}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onToggle={toggleTask}
+              onDelete={deleteTask}
+              onSetStatus={setTaskStatus}
+              onUpdatePriority={updateTaskPriority}
+              onAddTask={(title) => { addTask(title); sysMsg(`✓ 任务: ${title}`); }}
+            />
+          )}
+          {mode === 'notes' && (
+            <NotesView
+              notes={notes}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onDelete={deleteNote}
+              onPin={pinNote}
+              onAddTag={addNoteTag}
+            />
+          )}
+          {mode === 'agents' && (
+            <AgentsView
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onRunAgent={(agentName, goal) => {
+                setMode('chat');
+                void handleInput(`作为 ${agentName}, 请帮我: ${goal}`);
+              }}
+              onAutoTask={(task: AutonomousTask) => {
+                sysMsg(`🤖 自主任务已启动: ${task.goal.slice(0, 50)}`);
+              }}
+            />
+          )}
+          {mode === 'plugins' && (
+            <PluginsView
+              plugins={pluginList}
+              height={contentHeight}
+              width={mainWidth}
+              isFocused={!focusOnInput}
+              onToggle={async (id) => {
+                const p = pluginList.find(x => x.def.id === id);
+                if (p) await pluginRegistry.setEnabled(id, !p.enabled);
+                setPluginList(pluginRegistry.list());
+              }}
+              statusCtx={statusCtx}
+            />
+          )}
+        </Box>
+
+        {/* Info Sidebar */}
+        {activeSidebarWidth > 0 && (
+          <InfoSidebar
+            mode={mode}
+            width={activeSidebarWidth}
             height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            streamingId={streamingId}
-          />
-        )}
-        {mode === 'tasks' && (
-          <TasksView
             tasks={tasks}
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onToggle={toggleTask}
-            onDelete={deleteTask}
-            onSetStatus={setTaskStatus}
-            onUpdatePriority={updateTaskPriority}
-            onAddTask={(title) => { addTask(title); sysMsg(`✓ 任务: ${title}`); }}
-          />
-        )}
-        {mode === 'notes' && (
-          <NotesView
             notes={notes}
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onDelete={deleteNote}
-            onPin={pinNote}
-            onAddTag={addNoteTag}
-          />
-        )}
-        {mode === 'agents' && (
-          <AgentsView
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onRunAgent={(agentName, goal) => {
-              setMode('chat');
-              void handleInput(`作为 ${agentName}, 请帮我: ${goal}`);
-            }}
-            onAutoTask={(task: AutonomousTask) => {
-              sysMsg(`🤖 自主任务已启动: ${task.goal.slice(0, 50)}`);
-            }}
-          />
-        )}
-        {mode === 'plugins' && (
-          <PluginsView
+            agentTasks={autonomousEngine.list()}
             plugins={pluginList}
-            height={contentHeight}
-            width={termSize.width}
-            isFocused={!focusOnInput}
-            onToggle={async (id) => {
-              const p = pluginList.find(x => x.def.id === id);
-              if (p) await pluginRegistry.setEnabled(id, !p.enabled);
-              setPluginList(pluginRegistry.list());
-            }}
-            statusCtx={statusCtx}
+            messages={messages}
+            activePreset={LAYOUT_PRESETS.find(p => p.id === layoutState.preset) ?? LAYOUT_PRESETS[1]!}
+            sidebarWidth={activeSidebarWidth}
           />
         )}
       </Box>
@@ -1069,7 +1139,7 @@ export default function FlowApp() {
           mode={mode}
           isFocused={focusOnInput && !capture && !showPalette && !showHelp && !showModelSelector && !showCompanionDash}
           isStreaming={isStreaming}
-          width={termSize.width}
+          width={mainWidth}
           onFocusContent={() => setFocusOnInput(false)}
         />
       </Box>
