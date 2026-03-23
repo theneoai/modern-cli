@@ -472,14 +472,14 @@ function calcNextRun(schedule: Schedule): Date {
   if (schedule.type === 'daily' && typeof schedule.value === 'string') {
     const [hStr, mStr] = schedule.value.split(':');
     const next = new Date(now);
-    next.setHours(parseInt(hStr ?? '9'), parseInt(mStr ?? '0'), 0, 0);
+    next.setHours(parseInt(hStr ?? '9', 10), parseInt(mStr ?? '0', 10), 0, 0);
     if (next <= now) next.setDate(next.getDate() + 1);
     return next;
   }
   if (schedule.type === 'cron' && typeof schedule.value === 'string') {
     // Simple: "*/30m" = every 30 minutes
     const match = schedule.value.match(/\*\/(\d+)m/);
-    if (match) return new Date(now.getTime() + parseInt(match[1]) * 60000);
+    if (match) return new Date(now.getTime() + parseInt(match[1], 10) * 60000);
   }
   return new Date(now.getTime() + 3600000); // default 1h
 }

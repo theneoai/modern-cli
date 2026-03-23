@@ -71,6 +71,7 @@ async function postJSON(url: string, body: OAIRequest, apiKey: string): Promise<
     method: 'POST',
     headers: headers(apiKey),
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) {
     const err = await res.text().catch(() => res.statusText);
@@ -85,6 +86,7 @@ async function* streamSSE(url: string, body: OAIRequest, apiKey: string): AsyncG
     method: 'POST',
     headers: headers(apiKey),
     body: JSON.stringify({ ...body, stream: true }),
+    signal: AbortSignal.timeout(300_000),
   });
   if (!res.ok) {
     const err = await res.text().catch(() => res.statusText);

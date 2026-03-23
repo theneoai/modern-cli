@@ -149,7 +149,7 @@ export default definePlugin({
       }
 
       if (args.startsWith('budget')) {
-        const n = parseInt(args.split(/\s+/)[1] ?? '0');
+        const n = parseInt(args.split(/\s+/)[1] ?? '0', 10);
         session.budgetTokens = n;
         addMessage(n > 0
           ? `✓ Token 预算设为 ${formatNum(n)} (超出 80% 时提醒)`
