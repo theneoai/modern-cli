@@ -13,7 +13,10 @@
 import { readFileSync, writeFileSync, existsSync, statSync } from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { homedir } from 'os';
 import { assertSafeUrl, assertSafePath, rateLimit } from '../../utils/security.js';
+
+const HOME = homedir();
 
 const execAsync = promisify(exec);
 
@@ -100,7 +103,7 @@ const readFileTool: AgentTool = {
   async run(args) {
     const p = (args['path'] ?? '').trim();
     try {
-      assertSafePath(p);
+      assertSafePath(p, HOME);
       if (!existsSync(p)) return `[工具错误] 文件不存在: ${p}`;
       const stat = statSync(p);
       if (!stat.isFile()) return `[工具错误] 不是文件: ${p}`;
@@ -125,7 +128,7 @@ const writeFileTool: AgentTool = {
     const p       = (args['path'] ?? '').trim();
     const content = args['content'] ?? '';
     try {
-      assertSafePath(p);
+      assertSafePath(p, HOME);
       if (content.length > 200 * 1024) return '[工具错误] 内容过大 (> 200KB)';
       writeFileSync(p, content, { encoding: 'utf-8' });
       return `[write_file] ✓ 已写入 ${p} (${content.length} 字节)`;
