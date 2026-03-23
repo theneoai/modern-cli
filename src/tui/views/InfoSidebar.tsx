@@ -501,10 +501,10 @@ function StatusRow({ icon, label, count, color }: {
 
 function modeIcon(mode: AppMode): string {
   switch (mode) {
-    case 'chat':    return '💬';
+    case 'chat':    return '◆';
     case 'tasks':   return '✓';
-    case 'notes':   return '📝';
-    case 'agents':  return '🤖';
+    case 'notes':   return '✎';
+    case 'agents':  return '⬡';
     case 'plugins': return '⚙';
   }
 }

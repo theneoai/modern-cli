@@ -48,22 +48,26 @@ export function ChatView({ messages, height, width, isFocused, streamingId }: Ch
   const usableHeight = height - 2; // minus border
   const maxScroll = Math.max(0, totalLines - usableHeight);
 
-  // Auto-scroll to bottom on new messages / streaming
+  // Auto-scroll to bottom on new messages / streaming; clamp offset on resize
   useEffect(() => {
     const isNew = messages.length !== prevMsgCount.current;
     prevMsgCount.current = messages.length;
-    if (isNew || streamingId) setScrollOffset(maxScroll);
+    if (isNew || streamingId) {
+      setScrollOffset(maxScroll);
+    } else {
+      // Terminal was resized — clamp offset so we never show empty rows
+      setScrollOffset(prev => Math.min(prev, maxScroll));
+    }
   }, [messages.length, streamingId, maxScroll]);
 
   useInput((ch, key) => {
-    if (!isFocused) return;
     if (key.upArrow   || ch === 'k') setScrollOffset(p => Math.max(0, p - 1));
     else if (key.downArrow  || ch === 'j') setScrollOffset(p => Math.min(maxScroll, p + 1));
     else if (key.pageUp     || (key.ctrl && ch === 'u')) setScrollOffset(p => Math.max(0, p - Math.floor(usableHeight / 2)));
     else if (key.pageDown   || (key.ctrl && ch === 'd')) setScrollOffset(p => Math.min(maxScroll, p + Math.floor(usableHeight / 2)));
     else if (ch === 'g') setScrollOffset(0);
     else if (ch === 'G') setScrollOffset(maxScroll);
-  });
+  }, { isActive: isFocused });
 
   const visible = lines.slice(scrollOffset, scrollOffset + usableHeight);
   const atBottom = scrollOffset >= maxScroll;

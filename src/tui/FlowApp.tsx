@@ -957,7 +957,7 @@ export default function FlowApp() {
 
   // Companion mood from memory
   const companionEmotional = companionMemory.getEmotional();
-  const companionMoodEmoji = companionEmotional.mood > 0.5 ? '😊' : companionEmotional.mood > 0.1 ? '🙂' : companionEmotional.mood > -0.2 ? '😐' : '😔';
+  const companionMoodEmoji = companionEmotional.mood > 0.5 ? '+' : companionEmotional.mood > 0.1 ? '~' : companionEmotional.mood > -0.2 ? '-' : 'v';
   return (
     <Box flexDirection="column" width={termSize.width} height={termSize.height}>
 
@@ -974,7 +974,7 @@ export default function FlowApp() {
           width={Math.min(60, termSize.width - 8)}
         >
           <Text color={capture.mode === 'task' ? theme.colors.success : theme.colors.info} bold>
-            {capture.mode === 'task' ? '☐ 快速任务  ' : '📝 快速笔记  '}
+            {capture.mode === 'task' ? '☐ 快速任务  ' : '✎ 快速笔记  '}
           </Text>
           <Text color={theme.colors.text}>{capture.text}</Text>
           <Text color={theme.colors.primary} backgroundColor={theme.colors.primary}> </Text>
@@ -986,6 +986,7 @@ export default function FlowApp() {
       <Box
         height={headerHeight}
         flexShrink={0}
+        overflow="hidden"
         borderStyle="single"
         borderTop={false}
         borderLeft={false}
@@ -1018,7 +1019,7 @@ export default function FlowApp() {
           {/* Timer bar */}
           {timer.active && (
             <Text color={timer.type === 'focus' ? theme.colors.warning : theme.colors.success} bold>
-              {timer.type === 'focus' ? '⏱' : '☕'} {formatTimer(timer.seconds)}
+              {timer.type === 'focus' ? '▶' : '◌'} {formatTimer(timer.seconds)}
               <Text color={theme.colors.muted}> {timerPct}%  </Text>
             </Text>
           )}
@@ -1029,18 +1030,18 @@ export default function FlowApp() {
           {/* Voice indicator */}
           {voiceEnabled && (
             <Text color={voicePlaying ? theme.colors.accent : theme.colors.success}>
-              {voicePlaying ? '🔊 ' : '🔈 '}
+              {voicePlaying ? '♪ ' : '♫ '}
             </Text>
           )}
           {/* Intel unread badge */}
           {intelUnread > 0 && (
-            <Text color={theme.colors.warning}>📡{intelUnread}  </Text>
+            <Text color={theme.colors.warning}>◈{intelUnread}  </Text>
           )}
           {/* Companion mood — always visible, click Ctrl+6 to open dashboard */}
           {companionThinking ? (
-            <Text color={theme.colors.accent}>💝 ✦  </Text>
+            <Text color={theme.colors.accent}>♥ ✦  </Text>
           ) : (
-            <Text color={theme.colors.accent}>💝{companionMoodEmoji} </Text>
+            <Text color={theme.colors.accent}>♥{companionMoodEmoji} </Text>
           )}
           {/* Provider/Model + hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
@@ -1139,7 +1140,7 @@ export default function FlowApp() {
           mode={mode}
           isFocused={focusOnInput && !capture && !showPalette && !showHelp && !showModelSelector && !showCompanionDash}
           isStreaming={isStreaming}
-          width={mainWidth}
+          width={termSize.width}
           onFocusContent={() => setFocusOnInput(false)}
         />
       </Box>

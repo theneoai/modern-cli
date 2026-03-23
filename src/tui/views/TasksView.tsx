@@ -72,8 +72,6 @@ export function TasksView({
   const visibleTasks = displayTasks.slice(scrollStart, scrollStart + listAreaHeight);
 
   useInput((ch, key) => {
-    if (!isFocused) return;
-
     // Filter mode
     if (isFiltering) {
       if (key.escape || key.return) {
@@ -168,7 +166,7 @@ export function TasksView({
       notify(showDone ? '隐藏已完成' : '显示已完成');
       return;
     }
-  });
+  }, { isActive: isFocused });
 
   const stats = {
     total: tasks.length,
