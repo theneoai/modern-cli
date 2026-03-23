@@ -15,7 +15,7 @@ import { join } from "path";
 import { homedir } from "os";
 import { VERSION_META } from "../version.js";
 
-const CACHE_DIR  = join(homedir(), ".modern-ai-cli");
+const CACHE_DIR  = join(homedir(), ".neo");
 const CACHE_FILE = join(CACHE_DIR, "update-check.json");
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const NPM_REGISTRY = "https://registry.npmjs.org";
@@ -37,8 +37,8 @@ function readCache(): CacheEntry | null {
 
 function writeCache(entry: CacheEntry): void {
   try {
-    mkdirSync(CACHE_DIR, { recursive: true });
-    writeFileSync(CACHE_FILE, JSON.stringify(entry, null, 2), "utf-8");
+    mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
+    writeFileSync(CACHE_FILE, JSON.stringify(entry, null, 2), { encoding: "utf-8", mode: 0o600 });
   } catch {
     // Non-critical: ignore write errors
   }
