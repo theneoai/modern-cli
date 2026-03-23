@@ -15,7 +15,7 @@
  *   { version, deviceSalt, keys: [ { id, providerId, label, hint, iv, tag, cipher } ] }
  */
 
-import { createCipheriv, createDecipheriv, scryptSync, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, scryptSync, randomBytes, randomUUID } from 'crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -163,7 +163,7 @@ export class KeyStore {
     id?: string,
   ): Omit<KeyEntry, 'iv' | 'tag' | 'cipher'> {
     const store = this.store;
-    const keyId = id ?? `${providerId}-${Date.now()}`;
+    const keyId = id ?? `${providerId}-${randomUUID()}`;
     const hint = '...' + plainKey.slice(-4);
     const enc = encrypt(plainKey, this.encKey);
 
