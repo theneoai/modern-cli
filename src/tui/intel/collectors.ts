@@ -175,7 +175,9 @@ export class GitHubCollector implements Collector {
 
   async collect(): Promise<RawItem[]> {
     const lang = this.config.params?.['lang'] ?? '';
-    const url = `https://github.com/trending${lang ? `/${lang}` : ''}?since=daily`;
+    // Only allow safe language slugs (alphanumeric + dash); default to '' if invalid
+    const safeLang = /^[a-zA-Z0-9+-]*$/.test(lang) ? lang : '';
+    const url = `https://github.com/trending${safeLang ? `/${encodeURIComponent(safeLang)}` : ''}?since=daily`;
     const html = await fetchText(url);
 
     // Parse repo items from HTML
