@@ -121,7 +121,7 @@ export default function FlowApp() {
         role: 'system',
         content:
           '⚙  首次使用 — 请先配置 AI 服务商和 API 密钥:\n' +
-          '  1. 按 Ctrl+M 或输入 /model  → 选择服务商和模型\n' +
+          '  1. 按 Alt+M 或输入 /model  → 选择服务商和模型\n' +
           '  2. 输入 /key add <provider> <api-key>  → 添加密钥\n' +
           '     例如: /key add anthropic sk-ant-xxxxxxxx\n' +
           '     例如: /key add openai sk-xxxxxxxx\n' +
@@ -880,7 +880,8 @@ export default function FlowApp() {
     if (showPalette || showHelp || showModelSelector || showCompanionDash) return;
 
     if (key.ctrl && key.char === 'k') { setShowPalette(true); return; }
-    if (key.ctrl && key.char === 'm') { setShowModelSelector(true); return; }
+    // Ctrl+M = 0x0d = Enter 在 POSIX 层无法区分，改用 Alt+M
+    if (key.meta && key.char === 'm') { setShowModelSelector(true); return; }
     if (key.char === '?' && !focusOnInput) { setShowHelp(true); return; }
 
     // Mode switching: Alt+1-6
@@ -1036,7 +1037,7 @@ export default function FlowApp() {
           {/* Provider/Model + context-sensitive hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
           {focusOnInput ? (
-            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  ?:帮助</Text>
+            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  Alt+M:模型  ?:帮助</Text>
           ) : (
             <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  <Text color={theme.colors.accent}>内容模式</Text>  ESC:返回  ?:帮助  Alt+1-5:切视图</Text>
           )}

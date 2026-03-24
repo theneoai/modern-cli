@@ -77,7 +77,7 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
     { key: '/plan', label: '规划' },
     { key: '@neo', label: '和助理聊' },
     { key: '^K', label: '命令面板' },
-    { key: '^M', label: '切换模型' },
+    { key: 'Alt+M', label: '切换模型' },
     { key: '/h', label: '帮助' },
   ],
   tasks: [

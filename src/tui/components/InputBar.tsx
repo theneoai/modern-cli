@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useReducer } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme, icons, layout } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import { useInputHistory } from '../hooks/useTasks.js';
 
 interface InputBarProps {
@@ -28,15 +29,6 @@ const commandSuggestions: Suggestion[] = [
   { command: '/clear', description: 'Clear screen' },
   { command: '/exit', description: 'Exit' },
 ];
-
-// ── Ctrl-key helper ────────────────────────────────────────────────────────────
-// Ink 5.x passes the RAW control character as `input` (e.g. '\x01' for Ctrl+A).
-// Handle both that and the normalised-letter form used by Ink 4.x.
-function isCtrlKey(ch: string, key: { ctrl: boolean }, letter: string): boolean {
-  if (!key.ctrl) return false;
-  const raw = String.fromCharCode(letter.toLowerCase().charCodeAt(0) & 0x1f);
-  return ch === letter.toLowerCase() || ch === letter.toUpperCase() || ch === raw;
-}
 
 // ── Input reducer — atomic updates, no stale-closure bugs ──────────────────────
 interface InputState { value: string; cursor: number }
@@ -106,13 +98,11 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
     }
   }, [input]);
 
-  useInput((value, key) => {
-    const extKey = key as typeof key & { home?: boolean; end?: boolean };
-
-    // Handle suggestion navigation
+  useRawInput((key) => {
+    // Suggestion navigation
     if (suggestions.length > 0) {
-      if (key.downArrow) { setSelectedSuggestion(prev => Math.min(suggestions.length - 1, prev + 1)); return; }
-      if (key.upArrow)   { setSelectedSuggestion(prev => Math.max(0, prev - 1)); return; }
+      if (key.down) { setSelectedSuggestion(prev => Math.min(suggestions.length - 1, prev + 1)); return; }
+      if (key.up)   { setSelectedSuggestion(prev => Math.max(0, prev - 1)); return; }
       if (key.tab || (key.return && suggestions[selectedSuggestion])) {
         const suggestion = suggestions[selectedSuggestion];
         dispatch({ type: 'set_value', value: suggestion.command + ' ' });
@@ -130,47 +120,35 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
     if (key.return) { handleSubmit(); return; }
 
     // History navigation
-    if (key.upArrow && suggestions.length === 0) {
+    if (key.up && suggestions.length === 0) {
       const { newInput, newIndex } = navigateHistory('up', input);
       if (newIndex !== -1) dispatch({ type: 'set_value', value: newInput });
       return;
     }
-    if (key.downArrow && suggestions.length === 0) {
+    if (key.down && suggestions.length === 0) {
       const { newInput } = navigateHistory('down', input);
       dispatch({ type: 'set_value', value: newInput });
       return;
     }
 
     // Cursor movement
-    if (key.leftArrow)  { dispatch({ type: 'cursor_left' });  return; }
-    if (key.rightArrow) { dispatch({ type: 'cursor_right' }); return; }
-    if (extKey.home)    { dispatch({ type: 'cursor_home' });  return; }
-    if (extKey.end)     { dispatch({ type: 'cursor_end' });   return; }
+    if (key.left)  { dispatch({ type: 'cursor_left' });  return; }
+    if (key.right) { dispatch({ type: 'cursor_right' }); return; }
+    if (key.home || (key.ctrl && key.char === 'a')) { dispatch({ type: 'cursor_home' }); return; }
+    if (key.end  || (key.ctrl && key.char === 'e')) { dispatch({ type: 'cursor_end' });  return; }
 
-    // Ctrl shortcuts (handle both Ink 5.x raw chars and Ink 4.x normalised letters)
-    if (isCtrlKey(value, key, 'a')) { dispatch({ type: 'cursor_home' }); return; }
-    if (isCtrlKey(value, key, 'e')) { dispatch({ type: 'cursor_end' });  return; }
-    if (isCtrlKey(value, key, 'u')) { dispatch({ type: 'clear' }); setSuggestions([]); return; }
+    // Ctrl shortcuts
+    if (key.ctrl && key.char === 'u') { dispatch({ type: 'clear' }); setSuggestions([]); return; }
 
     // Deletion
-    if (key.delete) {
-      dispatch({ type: 'delete_fwd' });
-      return;
-    }
-    // Backspace: macOS Terminal sends \x7f (DEL byte); some terminals send \x08 (BS)
-    if (key.backspace || value === '\x7f' || value === '\x08') {
-      dispatch({ type: 'backspace' });
-      return;
-    }
+    if (key.delete)    { dispatch({ type: 'delete_fwd' }); return; }
+    if (key.backspace) { dispatch({ type: 'backspace' });   return; }
 
-    // Character input
-    if (value && !key.ctrl && !key.meta) {
-      if (value === '\x7f' || value === '\x08' || value === '\b') return;
-      if (value.charCodeAt(0) < 0x20) return;   // drop remaining ASCII control bytes
-      if (value.includes('\x1b')) return;        // drop raw ESC sequences
-      dispatch({ type: 'insert', ch: value[0]! });
+    // Printable character input
+    if (key.char && !key.ctrl && !key.meta) {
+      dispatch({ type: 'insert', ch: key.char[0]! });
     }
-  }, { isActive: isFocused });
+  }, isFocused);
 
   // Calculate visible portion of input (for very long lines)
   const maxVisibleChars = width - 15;
