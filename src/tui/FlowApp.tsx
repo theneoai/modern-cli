@@ -1048,9 +1048,13 @@ export default function FlowApp() {
           ) : (
             <Text color={theme.colors.accent}>♥{companionMoodEmoji} </Text>
           )}
-          {/* Provider/Model + hints */}
+          {/* Provider/Model + context-sensitive hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  /h:帮助</Text>
+          {focusOnInput ? (
+            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  ?:帮助</Text>
+          ) : (
+            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  <Text color={theme.colors.accent}>内容模式</Text>  ESC:返回  ?:帮助  Alt+1-5:切视图</Text>
+          )}
         </Box>
       </Box>
 
