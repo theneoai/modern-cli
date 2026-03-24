@@ -216,6 +216,16 @@ export function parseBuffer(buf: Buffer): ParseResult {
         continue;
       }
 
+      // ── 双 ESC: \x1b\x1b — 第一个是裸 ESC，第二个重新进入循环 ───────
+      if (next === 0x1b) {
+        const escKey = emptyKey();
+        escKey.escape = true;
+        escKey.sequence = '\x1b';
+        keys.push(escKey);
+        i++; // 只跳过第一个 ESC，第二个在下轮循环处理
+        continue;
+      }
+
       // ── Alt + 单字节: ESC <key> ───────────────────────────────────────
       {
         const altCharBuf = buf.slice(i + 1, i + 2); // 紧跟 ESC 的字节
@@ -340,6 +350,7 @@ type KeyListener = (key: RawKey) => void;
 class RawInputEngine {
   private readonly listeners = new Set<KeyListener>();
   private residual = Buffer.alloc(0);
+  private residualTimer: ReturnType<typeof setTimeout> | null = null;
   private escTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingEsc: RawKey | null = null;
   private started = false;
@@ -376,9 +387,15 @@ class RawInputEngine {
   removeListener(fn: KeyListener): void { this.listeners.delete(fn); }
 
   private handleChunk(chunk: Buffer | string): void {
+    // 新数据到达 — 取消待处理的残余 ESC 定时器（残余将与新数据合并重解析）
+    if (this.residualTimer !== null) {
+      clearTimeout(this.residualTimer);
+      this.residualTimer = null;
+    }
+
     const incoming = Buffer.isBuffer(chunk)
       ? chunk
-      : Buffer.from(chunk as string, 'binary');
+      : Buffer.from(chunk as string, 'utf8');
 
     // 前置上次残余字节
     const buf = this.residual.length > 0
@@ -394,6 +411,38 @@ class RawInputEngine {
 
     for (const key of keys) {
       this.deliver(key);
+    }
+
+    // 残余以 ESC 开头 → 启动 50ms 定时器，超时后作为裸 ESC 投递
+    // （若 50ms 内有新 chunk 到达，上面的 clearTimeout 会取消此定时器）
+    if (this.residual.length > 0 && this.residual[0] === 0x1b) {
+      this.residualTimer = setTimeout(() => this.flushResidual(), 50);
+    }
+  }
+
+  private flushResidual(): void {
+    this.residualTimer = null;
+    if (this.residual.length === 0) return;
+
+    // 取出残余并清空，避免后续 handleChunk 重复处理
+    const residual = this.residual;
+    this.residual = Buffer.alloc(0);
+
+    // 将首字节（ESC）作为裸 Escape 键投递
+    const esc = emptyKey();
+    esc.escape = true;
+    esc.sequence = '\x1b';
+    this.deliver(esc);
+
+    // 解析 ESC 之后的剩余字节（如果有）
+    if (residual.length > 1) {
+      const { keys, residual: rest } = parseBuffer(Buffer.from(residual.slice(1)));
+      this.residual = rest.length > 0 ? Buffer.from(rest) : Buffer.alloc(0);
+      for (const key of keys) this.deliver(key);
+      // 若仍有 ESC 残余，重启定时器
+      if (this.residual.length > 0 && this.residual[0] === 0x1b) {
+        this.residualTimer = setTimeout(() => this.flushResidual(), 50);
+      }
     }
   }
 
