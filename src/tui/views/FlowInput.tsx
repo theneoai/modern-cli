@@ -17,8 +17,9 @@
  */
 
 import React, { useState, useCallback, useEffect, useReducer } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import type { AppMode } from '../FlowApp.js';
 
 // ── Command Registry ──────────────────────────────────────────────────────────
@@ -219,16 +220,6 @@ function inputReducer(state: InputState, action: InputAction): InputState {
   }
 }
 
-// ── Ctrl-key helper ──────────────────────────────────────────────────────────
-// Ink 5.x passes the RAW control character as `input` (e.g. '\x01' for Ctrl+A).
-// Ink 4.x passed the normalised letter ('a').  Support both so the code works
-// regardless of Ink version and terminal emulator.
-function isCtrlKey(ch: string, key: { ctrl: boolean }, letter: string): boolean {
-  if (!key.ctrl) return false;
-  // Raw control character: Ctrl+letter = letter.charCodeAt & 0x1f
-  const raw = String.fromCharCode(letter.toLowerCase().charCodeAt(0) & 0x1f);
-  return ch === letter.toLowerCase() || ch === letter.toUpperCase() || ch === raw;
-}
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -278,20 +269,14 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     setSuggestions([]);
   }, [value, isStreaming, onSubmit]);
 
-  useInput((ch, key) => {
-    if (!isFocused) return;
-
+  useRawInput((key) => {
     // Suggestion navigation
     if (suggestions.length > 0) {
-      if (key.downArrow) { setSuggIdx(p => Math.min(suggestions.length - 1, p + 1)); return; }
-      if (key.upArrow)   { setSuggIdx(p => Math.max(0, p - 1)); return; }
+      if (key.down) { setSuggIdx(p => Math.min(suggestions.length - 1, p + 1)); return; }
+      if (key.up)   { setSuggIdx(p => Math.max(0, p - 1)); return; }
       if (key.tab) {
         const sug = suggestions[suggIdx];
-        if (sug) {
-          const c = sug.cmd + ' ';
-          dispatch({ type: 'set_value', value: c });
-          setSuggestions([]);
-        }
+        if (sug) { dispatch({ type: 'set_value', value: sug.cmd + ' ' }); setSuggestions([]); }
         return;
       }
       if (key.return) {
@@ -305,7 +290,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
 
     // History (no suggestions)
     if (suggestions.length === 0) {
-      if (key.upArrow) {
+      if (key.up) {
         const ni = Math.min(histIdx + 1, history.length - 1);
         if (ni >= 0) {
           const h = history[history.length - 1 - ni];
@@ -313,7 +298,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
         }
         return;
       }
-      if (key.downArrow) {
+      if (key.down) {
         if (histIdx <= 0) { dispatch({ type: 'clear' }); setHistIdx(-1); }
         else {
           const ni = histIdx - 1;
@@ -325,42 +310,28 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     }
 
     // Cursor movement
-    if (key.leftArrow)  { dispatch({ type: 'cursor_left' });  return; }
-    if (key.rightArrow) { dispatch({ type: 'cursor_right' }); return; }
-    if (isCtrlKey(ch, key, 'a')) { dispatch({ type: 'cursor_home' }); return; }
-    if (isCtrlKey(ch, key, 'e')) { dispatch({ type: 'cursor_end' });  return; }
+    if (key.left)  { dispatch({ type: 'cursor_left' });  return; }
+    if (key.right) { dispatch({ type: 'cursor_right' }); return; }
+    if (key.home || (key.ctrl && key.char === 'a')) { dispatch({ type: 'cursor_home' }); return; }
+    if (key.end  || (key.ctrl && key.char === 'e')) { dispatch({ type: 'cursor_end' });  return; }
 
-    // Deletion — handle both key.backspace and raw \x7f / \x08 (DEL/BS sent by macOS terminals)
-    if (key.backspace || ch === '\x7f' || ch === '\x08') {
-      dispatch({ type: 'backspace' });
-      return;
-    }
-    if (key.delete) {
-      dispatch({ type: 'delete_fwd' });
-      return;
-    }
+    // Deletion
+    if (key.backspace) { dispatch({ type: 'backspace' });   return; }
+    if (key.delete)    { dispatch({ type: 'delete_fwd' });  return; }
 
     // Ctrl shortcuts
-    if (isCtrlKey(ch, key, 'u')) { dispatch({ type: 'clear' }); setSuggestions([]); setHistIdx(-1); return; }
-    if (isCtrlKey(ch, key, 'w')) { dispatch({ type: 'delete_word' }); return; }
+    if (key.ctrl && key.char === 'u') { dispatch({ type: 'clear' }); setSuggestions([]); setHistIdx(-1); return; }
+    if (key.ctrl && key.char === 'w') { dispatch({ type: 'delete_word' }); return; }
 
-    // Tab — focus content (no suggestions)
+    // Tab — focus content panel
     if (key.tab) { onFocusContent(); return; }
 
-    // Regular input — filter out control characters and escape sequences.
-    // On macOS with Option-as-Meta the Ink key parser sets key.meta so the
-    // guard above already blocks alt sequences.  The regex below is a safety
-    // net for any escape bytes that slip through (e.g. unrecognised terminals).
-    if (ch && !key.ctrl && !key.meta && !key.escape) {
-      // Filter DEL (\x7f), BS (\x08/\b) and any control chars that weren't caught above
-      if (ch === '\x7f' || ch === '\x08' || ch === '\b') return;
-      if (ch.charCodeAt(0) < 0x20) return;   // drop any remaining ASCII control bytes
-      // Drop anything still containing a raw ESC byte (CSI, OSC, bare alt-seq…)
-      if (ch.includes('\x1b')) return;
-      dispatch({ type: 'insert', ch });
+    // Regular printable character
+    if (key.char && !key.ctrl && !key.meta && !key.escape) {
+      dispatch({ type: 'insert', ch: key.char });
       setHistIdx(-1);
     }
-  }, { isActive: isFocused });
+  }, isFocused);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
