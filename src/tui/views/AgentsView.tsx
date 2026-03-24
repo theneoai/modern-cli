@@ -69,8 +69,6 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
   const selectedTask = autoTasks[taskCursor];
 
   useInput((ch, key) => {
-    if (!isFocused) return;
-
     // Text input mode
     if (inputMode !== 'none') {
       if (key.escape) { setInputMode('none'); setGoalInput(''); return; }
@@ -101,8 +99,8 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
         setGoalInput('');
         return;
       }
-      if (key.backspace || key.delete) { setGoalInput(prev => prev.slice(0, -1)); return; }
-      if (ch && !key.ctrl && !key.meta) { setGoalInput(prev => prev + ch); }
+      if (key.backspace || key.delete || ch === '\x7f') { setGoalInput(prev => prev.slice(0, -1)); return; }
+      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setGoalInput(prev => prev + ch); }
       return;
     }
 
@@ -149,7 +147,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
       }
       else if (ch === 'n') { setPane('agents'); setInputMode('newtask'); setGoalInput(''); }
     }
-  });
+  }, { isActive: isFocused });
 
   const leftWidth = Math.floor(width * 0.40);
   const rightWidth = width - leftWidth - 3;

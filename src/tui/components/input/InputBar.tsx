@@ -156,7 +156,7 @@ export function InputBar({
       <Box
         height={layout.layoutSizes.inputBarHeight}
         borderStyle="single"
-        borderColor={showSuggestions ? theme.colors.primary : theme.colors.primary}
+        borderColor={showSuggestions ? theme.colors.primary : theme.colors.border}
         paddingX={1}
         alignItems="center"
         flexShrink={0}
@@ -170,20 +170,16 @@ export function InputBar({
         
         {/* Input area */}
         <Box flexGrow={1}>
-          {input.length === 0 ? (
-            <Text color={theme.colors.muted}>{placeholder}</Text>
-          ) : (
-            <TextInput
-              value={visibleInput}
-              onChange={(newValue) => {
-                if (newValue.length <= layoutConfig.maxInputLength) {
-                  setInput(newValue);
-                }
-              }}
-              placeholder={placeholder}
-              focus={true}
-            />
-          )}
+          <TextInput
+            value={input}
+            onChange={(newValue) => {
+              if (newValue.length <= layoutConfig.maxInputLength) {
+                setInput(newValue);
+              }
+            }}
+            placeholder={placeholder}
+            focus={true}
+          />
         </Box>
         
         {/* Right side hints */}

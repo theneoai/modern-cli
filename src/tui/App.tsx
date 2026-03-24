@@ -441,16 +441,14 @@ export default function App() {
         </Box>
 
         {/* Input Bar */}
-        <Box 
-          height={layoutSizes.inputBarHeight} 
+        <Box
+          height={layoutSizes.inputBarHeight}
           flexShrink={0}
-          borderStyle={focusedPanel === 'input' ? 'double' : 'single'}
-          borderColor={focusedPanel === 'input' ? theme.colors.primary : theme.colors.border}
         >
-          <InputBar 
-            onSubmit={handleInput} 
+          <InputBar
+            onSubmit={handleInput}
             mode={inputMode}
-            width={layoutSizes.width - 2}
+            width={layoutSizes.width}
             isFocused={focusedPanel === 'input'}
           />
         </Box>

@@ -87,18 +87,23 @@ export function Selectable<T>({
       actions.moveToLast();
       return true;
     }
+    // Number keys: jump directly to item N (1-based)
+    const num = parseInt(_input, 10);
+    if (!isNaN(num) && num >= 1 && num <= items.length) {
+      actions.moveTo(num - 1);
+      return true;
+    }
     return false;
   };
-  
-  // Register focus zone if focusId is provided
-  if (focusId) {
-    useFocusZone({
-      id: focusId,
-      layer: focusLayer,
-      captureInput: true,
-      onKey: handleKey,
-    });
-  }
+
+  // Always call useFocusZone (Rules of Hooks: no conditional hook calls)
+  useFocusZone({
+    id: focusId ?? '__selectable_no_focus__',
+    layer: focusLayer,
+    captureInput: !!focusId,
+    disabled: !focusId,
+    onKey: focusId ? handleKey : undefined,
+  });
   
   const visibleRange = state.visibleRange;
   const visibleItemsList = items.slice(visibleRange.start, visibleRange.end);

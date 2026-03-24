@@ -3,7 +3,7 @@
  * FlowApp.tsx — NEO  键盘优先 · AI 原生 · 心流体验
  *
  * 模式: CHAT / TASKS / NOTES / AGENTS / PLUGINS
- * 按键: Ctrl+1-5 切换模式  Ctrl+K 命令面板  ? 帮助
+ * 按键: Alt+1-5 切换模式  Ctrl+K 命令面板  ? 帮助
  *
  * 命令 (短命令优先):
  *   /c  代码   /d  调试   /e  解释   /w  写作
@@ -881,9 +881,11 @@ export default function FlowApp() {
     if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
-    // Mode switching: support both Ctrl+1-6 (kitty/foot) and Alt+1-6 (most terminals).
-    // In standard terminals Ctrl+digit doesn't produce a ctrl-modified keypress,
-    // but Alt+digit (key.meta) reliably works everywhere.
+    // Mode switching via Alt+1-6 (key.meta).
+    // On macOS: requires Option key configured as "Esc+" in terminal settings.
+    //   iTerm2: Profiles → Keys → Left Option key → Esc+
+    //   Terminal.app: Preferences → Profiles → Keyboard → Use Option as Meta Key
+    // Ctrl+digit (key.ctrl) works in kitty/foot/WezTerm with Kitty protocol enabled.
     if ((key.ctrl || key.meta) && ch === '1') { setMode('chat');    return; }
     if ((key.ctrl || key.meta) && ch === '2') { setMode('tasks');   return; }
     if ((key.ctrl || key.meta) && ch === '3') { setMode('notes');   return; }
@@ -917,12 +919,15 @@ export default function FlowApp() {
       setLayoutState(layoutManager.toggleSidebar());
       return;
     }
-    // Alt+[ — shrink sidebar, Alt+] — expand sidebar
-    if (key.meta && ch === '[') {
+    // Alt+- — shrink sidebar, Alt+= — expand sidebar
+    // NOTE: Alt+[ / Alt+] are intentionally avoided: on macOS with Option-as-Meta,
+    // they produce \x1b[ (CSI) and \x1b] (OSC) which are ANSI control prefixes and
+    // will NOT be delivered as key events by most terminal parsers.
+    if (key.meta && ch === '-') {
       setLayoutState(layoutManager.resizeSidebar(-2, mode));
       return;
     }
-    if (key.meta && ch === ']') {
+    if (key.meta && ch === '=') {
       setLayoutState(layoutManager.resizeSidebar(2, mode));
       return;
     }
@@ -957,7 +962,7 @@ export default function FlowApp() {
 
   // Companion mood from memory
   const companionEmotional = companionMemory.getEmotional();
-  const companionMoodEmoji = companionEmotional.mood > 0.5 ? '😊' : companionEmotional.mood > 0.1 ? '🙂' : companionEmotional.mood > -0.2 ? '😐' : '😔';
+  const companionMoodEmoji = companionEmotional.mood > 0.5 ? '+' : companionEmotional.mood > 0.1 ? '~' : companionEmotional.mood > -0.2 ? '-' : 'v';
   return (
     <Box flexDirection="column" width={termSize.width} height={termSize.height}>
 
@@ -974,7 +979,7 @@ export default function FlowApp() {
           width={Math.min(60, termSize.width - 8)}
         >
           <Text color={capture.mode === 'task' ? theme.colors.success : theme.colors.info} bold>
-            {capture.mode === 'task' ? '☐ 快速任务  ' : '📝 快速笔记  '}
+            {capture.mode === 'task' ? '☐ 快速任务  ' : '✎ 快速笔记  '}
           </Text>
           <Text color={theme.colors.text}>{capture.text}</Text>
           <Text color={theme.colors.primary} backgroundColor={theme.colors.primary}> </Text>
@@ -986,6 +991,7 @@ export default function FlowApp() {
       <Box
         height={headerHeight}
         flexShrink={0}
+        overflow="hidden"
         borderStyle="single"
         borderTop={false}
         borderLeft={false}
@@ -1018,7 +1024,7 @@ export default function FlowApp() {
           {/* Timer bar */}
           {timer.active && (
             <Text color={timer.type === 'focus' ? theme.colors.warning : theme.colors.success} bold>
-              {timer.type === 'focus' ? '⏱' : '☕'} {formatTimer(timer.seconds)}
+              {timer.type === 'focus' ? '▶' : '◌'} {formatTimer(timer.seconds)}
               <Text color={theme.colors.muted}> {timerPct}%  </Text>
             </Text>
           )}
@@ -1029,22 +1035,26 @@ export default function FlowApp() {
           {/* Voice indicator */}
           {voiceEnabled && (
             <Text color={voicePlaying ? theme.colors.accent : theme.colors.success}>
-              {voicePlaying ? '🔊 ' : '🔈 '}
+              {voicePlaying ? '♪ ' : '♫ '}
             </Text>
           )}
           {/* Intel unread badge */}
           {intelUnread > 0 && (
-            <Text color={theme.colors.warning}>📡{intelUnread}  </Text>
+            <Text color={theme.colors.warning}>◈{intelUnread}  </Text>
           )}
           {/* Companion mood — always visible, click Ctrl+6 to open dashboard */}
           {companionThinking ? (
-            <Text color={theme.colors.accent}>💝 ✦  </Text>
+            <Text color={theme.colors.accent}>♥ ✦  </Text>
           ) : (
-            <Text color={theme.colors.accent}>💝{companionMoodEmoji} </Text>
+            <Text color={theme.colors.accent}>♥{companionMoodEmoji} </Text>
           )}
-          {/* Provider/Model + hints */}
+          {/* Provider/Model + context-sensitive hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
-          <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  /h:帮助</Text>
+          {focusOnInput ? (
+            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  ?:帮助</Text>
+          ) : (
+            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  <Text color={theme.colors.accent}>内容模式</Text>  ESC:返回  ?:帮助  Alt+1-5:切视图</Text>
+          )}
         </Box>
       </Box>
 
@@ -1139,7 +1149,7 @@ export default function FlowApp() {
           mode={mode}
           isFocused={focusOnInput && !capture && !showPalette && !showHelp && !showModelSelector && !showCompanionDash}
           isStreaming={isStreaming}
-          width={mainWidth}
+          width={termSize.width}
           onFocusContent={() => setFocusOnInput(false)}
         />
       </Box>

@@ -45,12 +45,12 @@ const COMMANDS: CmdDef[] = [
   { cmd: '/timer',    short: '/ti', desc: '番茄计时',       args: '<分钟>' },
   { cmd: '/stop',     desc: '停止计时' },
   // 系统
-  { cmd: '/chat',      desc: '切换到对话 (Ctrl+1)' },
-  { cmd: '/tasks',     desc: '切换到任务 (Ctrl+2)' },
-  { cmd: '/notes',     desc: '切换到笔记 (Ctrl+3)' },
-  { cmd: '/agents',    desc: '切换到 Agent (Ctrl+4)' },
-  { cmd: '/plugins',   desc: '切换到插件 (Ctrl+5)' },
-  { cmd: '/companion', short: '/mate', desc: '打开 Neo 关系看板 (Ctrl+6)' },
+  { cmd: '/chat',      desc: '切换到对话 (Alt+1)' },
+  { cmd: '/tasks',     desc: '切换到任务 (Alt+2)' },
+  { cmd: '/notes',     desc: '切换到笔记 (Alt+3)' },
+  { cmd: '/agents',    desc: '切换到 Agent (Alt+4)' },
+  { cmd: '/plugins',   desc: '切换到插件 (Alt+5)' },
+  { cmd: '/companion', short: '/mate', desc: '打开 Neo 关系看板 (Alt+6)' },
   // 语音 & 情报
   { cmd: '/voice',     short: '/v',   desc: '开关语音  (Ctrl+V)',  args: '[on|off|<音色名>]' },
   { cmd: '/intel',     short: '/i',   desc: '查看最新情报' },
@@ -67,7 +67,7 @@ const COMMANDS: CmdDef[] = [
 
 // ── Context Hints ─────────────────────────────────────────────────────────────
 
-// What to show in the hint bar when idle (no input)
+// Hint bar when idle and INPUT is focused
 const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
   chat: [
     { key: '/c', label: '代码' },
@@ -109,6 +109,45 @@ const MODE_HINTS: Record<AppMode, { key: string; label: string }[]> = {
   ],
 };
 
+// Hint bar when CONTENT panel is focused (Tab was pressed)
+const CONTENT_HINTS: Record<AppMode, { key: string; label: string }[]> = {
+  chat: [
+    { key: 'j/k',      label: '滚动' },
+    { key: 'g/G',      label: '顶/底' },
+    { key: 'Ctrl+U/D', label: '半页' },
+    { key: 'PgUp/Dn',  label: '整页' },
+    { key: '?',        label: '帮助' },
+    { key: 'ESC/Tab',  label: '返回输入' },
+  ],
+  tasks: [
+    { key: 'j/k',     label: '导航' },
+    { key: 'Space',   label: '完成' },
+    { key: 's',       label: '切状态' },
+    { key: 'd',       label: '删除' },
+    { key: '/',       label: '搜索' },
+    { key: 'ESC/Tab', label: '返回输入' },
+  ],
+  notes: [
+    { key: 'j/k',     label: '导航' },
+    { key: 'Enter',   label: '展开' },
+    { key: 'p',       label: '置顶' },
+    { key: 'd',       label: '删除' },
+    { key: '/',       label: '搜索' },
+    { key: 'ESC/Tab', label: '返回输入' },
+  ],
+  agents: [
+    { key: 'j/k',     label: '选择' },
+    { key: 'Enter',   label: '运行' },
+    { key: 'i',       label: '自定义目标' },
+    { key: 'ESC/Tab', label: '返回输入' },
+  ],
+  plugins: [
+    { key: 'j/k',     label: '导航' },
+    { key: 'Space',   label: '启/禁' },
+    { key: 'ESC/Tab', label: '返回输入' },
+  ],
+};
+
 const MODE_COLORS: Record<AppMode, string> = {
   chat:    theme.colors.primary,
   tasks:   theme.colors.success,
@@ -120,9 +159,9 @@ const MODE_COLORS: Record<AppMode, string> = {
 const MODE_ICONS: Record<AppMode, string> = {
   chat:    '◆',
   tasks:   '☐',
-  notes:   '📝',
-  agents:  '🤖',
-  plugins: '⚡',
+  notes:   '✎',
+  agents:  '⬡',
+  plugins: '◈',
 };
 
 // ── Input State Reducer ───────────────────────────────────────────────────────
@@ -297,13 +336,16 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     // Tab — focus content (no suggestions)
     if (key.tab) { onFocusContent(); return; }
 
-    // Regular input — filter out control characters and escape sequences
+    // Regular input — filter out control characters and escape sequences.
+    // On macOS with Option-as-Meta the Ink key parser sets key.meta so the
+    // guard above already blocks alt sequences.  The regex below is a safety
+    // net for any escape bytes that slip through (e.g. unrecognised terminals).
     if (ch && !key.ctrl && !key.meta && !key.escape) {
       // Filter DEL (\x7f) and BS (\b) that weren't caught above
       if (ch === '\x7f' || ch === '\b') return;
-      const clean = ch.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-      if (!clean) return;
-      dispatch({ type: 'insert', ch: clean });
+      // Drop anything still containing a raw ESC byte (CSI, OSC, bare alt-seq…)
+      if (ch.includes('\x1b')) return;
+      dispatch({ type: 'insert', ch });
       setHistIdx(-1);
     }
   }, { isActive: isFocused });
@@ -311,7 +353,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
   // ── Render ──────────────────────────────────────────────────────────────────
 
   // Build hint line content
-  const hintContent = buildHint(value, mode, isStreaming, suggestions, suggIdx);
+  const hintContent = buildHint(value, mode, isStreaming, suggestions, suggIdx, isFocused);
 
   // Build cursor-aware input display
   const maxVisible = width - 8;
@@ -325,7 +367,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
   return (
     <Box flexDirection="column" width={width}>
       {/* Hint / suggestion line */}
-      <Box height={1} paddingX={2}>
+      <Box height={1} paddingX={2} overflow="hidden">
         {hintContent}
       </Box>
 
@@ -367,7 +409,7 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
         {/* Right label */}
         <Text color={theme.colors.muted}>
           {value.length > 80 ? ` ${value.length}` : ''}
-          {isFocused ? ' ↵' : ' Tab'}
+          {isFocused ? ' ↵' : ' ESC/Tab'}
         </Text>
       </Box>
     </Box>
@@ -382,11 +424,28 @@ function buildHint(
   isStreaming: boolean,
   suggestions: CmdDef[],
   suggIdx: number,
+  isFocused: boolean,
 ): React.ReactNode {
 
-  // Streaming: show spinner
+  // Streaming: show spinner (always, regardless of focus)
   if (isStreaming) {
     return <ThinkingDots />;
+  }
+
+  // Content panel is focused: show navigation shortcuts for the active panel
+  if (!isFocused) {
+    const hints = CONTENT_HINTS[mode];
+    return (
+      <Box>
+        <Text color={theme.colors.accent} bold dimColor>内容 </Text>
+        {hints.map((h, i) => (
+          <Box key={i} marginRight={2}>
+            <Text color={theme.colors.accent}>{h.key}</Text>
+            <Text color={theme.colors.muted}>:{h.label}</Text>
+          </Box>
+        ))}
+      </Box>
+    );
   }
 
   // Typing a command: show matching suggestions inline
@@ -409,7 +468,7 @@ function buildHint(
     }
   }
 
-  // Idle: show mode hints
+  // Input idle: show mode hints
   const hints = MODE_HINTS[mode];
   return (
     <Box>

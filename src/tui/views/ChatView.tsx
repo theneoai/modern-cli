@@ -48,22 +48,26 @@ export function ChatView({ messages, height, width, isFocused, streamingId }: Ch
   const usableHeight = height - 2; // minus border
   const maxScroll = Math.max(0, totalLines - usableHeight);
 
-  // Auto-scroll to bottom on new messages / streaming
+  // Auto-scroll to bottom on new messages / streaming; clamp offset on resize
   useEffect(() => {
     const isNew = messages.length !== prevMsgCount.current;
     prevMsgCount.current = messages.length;
-    if (isNew || streamingId) setScrollOffset(maxScroll);
+    if (isNew || streamingId) {
+      setScrollOffset(maxScroll);
+    } else {
+      // Terminal was resized — clamp offset so we never show empty rows
+      setScrollOffset(prev => Math.min(prev, maxScroll));
+    }
   }, [messages.length, streamingId, maxScroll]);
 
   useInput((ch, key) => {
-    if (!isFocused) return;
     if (key.upArrow   || ch === 'k') setScrollOffset(p => Math.max(0, p - 1));
     else if (key.downArrow  || ch === 'j') setScrollOffset(p => Math.min(maxScroll, p + 1));
     else if (key.pageUp     || (key.ctrl && ch === 'u')) setScrollOffset(p => Math.max(0, p - Math.floor(usableHeight / 2)));
     else if (key.pageDown   || (key.ctrl && ch === 'd')) setScrollOffset(p => Math.min(maxScroll, p + Math.floor(usableHeight / 2)));
     else if (ch === 'g') setScrollOffset(0);
     else if (ch === 'G') setScrollOffset(maxScroll);
-  });
+  }, { isActive: isFocused });
 
   const visible = lines.slice(scrollOffset, scrollOffset + usableHeight);
   const atBottom = scrollOffset >= maxScroll;
@@ -290,15 +294,60 @@ function EmptyState() {
     <Box flexDirection="column" paddingX={1} paddingTop={1}>
       <Text color={theme.colors.primary} bold>◆ NEO — AI 原生超级终端</Text>
       <Box marginTop={1} flexDirection="column">
-        <Text color={theme.colors.muted}>直接输入与 AI 对话，或使用快捷命令:</Text>
+        <Text color={theme.colors.muted}>直接输入与 AI 对话，或使用 / 命令:</Text>
         <Text color={theme.colors.muted}> </Text>
-        <Text color={theme.colors.text}>  /c  <Text color={theme.colors.muted}>生成代码</Text>   /d  <Text color={theme.colors.muted}>调试分析</Text>   /rs <Text color={theme.colors.muted}>深度研究</Text></Text>
-        <Text color={theme.colors.text}>  /w  <Text color={theme.colors.muted}>写作助手</Text>   /tr <Text color={theme.colors.muted}>翻译</Text>      /sm <Text color={theme.colors.muted}>摘要总结</Text></Text>
+
+        {/* AI 命令 */}
+        <Box>
+          <Cmd k="/c"    d="生成代码" />
+          <Cmd k="/d"    d="调试分析" />
+          <Cmd k="/e"    d="解释说明" />
+          <Cmd k="/rs"   d="深度研究" />
+        </Box>
+        <Box>
+          <Cmd k="/w"    d="写作助手" />
+          <Cmd k="/tr"   d="翻译"     />
+          <Cmd k="/sm"   d="摘要总结" />
+          <Cmd k="/rf"   d="代码重构" />
+        </Box>
         <Text color={theme.colors.muted}> </Text>
-        <Text color={theme.colors.text}>  /plan  <Text color={theme.colors.muted}>规划今日</Text>   /sup <Text color={theme.colors.muted}>站会内容</Text>   /rev <Text color={theme.colors.muted}>工作回顾</Text></Text>
+
+        {/* 效率工具 */}
+        <Box>
+          <Cmd k="/plan" d="规划今日" />
+          <Cmd k="/sup"  d="站会内容" />
+          <Cmd k="/rev"  d="工作回顾" />
+          <Cmd k="/ti N" d="番茄计时" />
+        </Box>
         <Text color={theme.colors.muted}> </Text>
-        <Text color={theme.colors.muted}>  Ctrl+K 命令面板   Ctrl+T 快速任务   Ctrl+N 新对话</Text>
+
+        {/* 全局快捷键 */}
+        <Box>
+          <Hint k="Ctrl+K" d="命令面板" />
+          <Hint k="Alt+1-5" d="切换视图" />
+          <Hint k="Ctrl+T"  d="快速任务" />
+          <Hint k="Ctrl+N"  d="新对话"   />
+          <Hint k="?"       d="帮助"      />
+        </Box>
       </Box>
+    </Box>
+  );
+}
+
+function Cmd({ k, d }: { k: string; d: string }) {
+  return (
+    <Box marginRight={3}>
+      <Text color={theme.colors.primary}>{k}</Text>
+      <Text color={theme.colors.muted}> {d}</Text>
+    </Box>
+  );
+}
+
+function Hint({ k, d }: { k: string; d: string }) {
+  return (
+    <Box marginRight={3}>
+      <Text color={theme.colors.accent}>{k}</Text>
+      <Text color={theme.colors.muted}>:{d}</Text>
     </Box>
   );
 }

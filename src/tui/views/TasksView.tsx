@@ -72,19 +72,17 @@ export function TasksView({
   const visibleTasks = displayTasks.slice(scrollStart, scrollStart + listAreaHeight);
 
   useInput((ch, key) => {
-    if (!isFocused) return;
-
     // Filter mode
     if (isFiltering) {
       if (key.escape || key.return) {
         setIsFiltering(false);
         return;
       }
-      if (key.backspace) {
+      if (key.backspace || ch === '\x7f') {
         setFilterQuery(prev => prev.slice(0, -1));
         return;
       }
-      if (ch && !key.ctrl && !key.meta) {
+      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') {
         setFilterQuery(prev => prev + ch);
       }
       return;
@@ -168,7 +166,7 @@ export function TasksView({
       notify(showDone ? '隐藏已完成' : '显示已完成');
       return;
     }
-  });
+  }, { isActive: isFocused });
 
   const stats = {
     total: tasks.length,

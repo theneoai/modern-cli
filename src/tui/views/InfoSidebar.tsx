@@ -9,9 +9,9 @@
  *   PLUGINS → 插件列表 + 状态
  *
  * 布局快捷键提示:
- *   Ctrl+B       显示/隐藏侧栏
- *   Ctrl+[/]     缩小/放大侧栏
- *   Ctrl+Alt+L   循环切换布局预设
+ *   Ctrl+B    显示/隐藏侧栏
+ *   Alt+-/=   收窄/展宽侧栏
+ *   Alt+L     循环切换布局预设
  */
 
 import { Box, Text } from 'ink';
@@ -106,13 +106,13 @@ export function InfoSidebar({
       {/* ── Footer: resize hints ── */}
       <Box height={2} paddingX={1} flexDirection="column">
         <Box>
-          <Text color={theme.colors.muted} dimColor>^[</Text>
+          <Text color={theme.colors.muted} dimColor>Alt-</Text>
           <Text color={theme.colors.border}> ◀▶ </Text>
-          <Text color={theme.colors.muted} dimColor>^]</Text>
+          <Text color={theme.colors.muted} dimColor>Alt=</Text>
           <Box flexGrow={1} />
           <Text color={theme.colors.muted} dimColor>^B 隐藏</Text>
         </Box>
-        <Text color={theme.colors.border} dimColor>^Alt+L 切换预设</Text>
+        <Text color={theme.colors.border} dimColor>Alt+L 切换预设</Text>
       </Box>
     </Box>
   );
@@ -501,10 +501,10 @@ function StatusRow({ icon, label, count, color }: {
 
 function modeIcon(mode: AppMode): string {
   switch (mode) {
-    case 'chat':    return '💬';
+    case 'chat':    return '◆';
     case 'tasks':   return '✓';
-    case 'notes':   return '📝';
-    case 'agents':  return '🤖';
+    case 'notes':   return '✎';
+    case 'agents':  return '⬡';
     case 'plugins': return '⚙';
   }
 }

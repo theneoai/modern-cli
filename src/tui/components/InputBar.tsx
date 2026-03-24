@@ -65,8 +65,6 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
 
   useInput((value, key) => {
     const extKey = key as typeof key & { home?: boolean; end?: boolean };
-    // Only handle input when focused
-    if (!isFocused) return;
     
     // Handle suggestion navigation
     if (suggestions.length > 0) {
@@ -149,7 +147,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
       return;
     }
 
-    if (key.backspace) {
+    if (key.backspace || value === '\x7f') {
       if (cursorPosition > 0) {
         const newInput = input.slice(0, cursorPosition - 1) + input.slice(cursorPosition);
         setInput(newInput);
@@ -160,9 +158,10 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
 
     // Character input - handle one character at a time
     if (value && !key.ctrl && !key.meta) {
-      // Filter out escape sequences (mouse events, etc)
-      const cleanValue = value.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-      if (cleanValue.length === 0) return;
+      // Filter out backspace bytes and any raw ESC bytes (unhandled escape sequences)
+      if (value === '\x7f' || value === '\b') return;
+      if (value.includes('\x1b')) return;
+      const cleanValue = value;
       
       const char = cleanValue[0];
       const newInput = input.slice(0, cursorPosition) + char + input.slice(cursorPosition);
@@ -184,7 +183,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
     if (key.ctrl && value === 'c') {
       return;
     }
-  });
+  }, { isActive: isFocused });
 
   // Calculate visible portion of input (for very long lines)
   const maxVisibleChars = width - 15;
@@ -231,10 +230,10 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
       )}
       
       {/* Input bar */}
-      <Box 
-        height={3} 
-        borderStyle="single" 
-        borderColor={suggestions.length > 0 ? theme.colors.primary : theme.colors.primary}
+      <Box
+        height={3}
+        borderStyle="single"
+        borderColor={isFocused || suggestions.length > 0 ? theme.colors.primary : theme.colors.border}
         paddingX={1}
         width={width}
       >

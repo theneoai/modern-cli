@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { platform } from 'os';
 import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
 
@@ -47,7 +48,7 @@ export function HelpOverlay({ width, height, onClose }: HelpOverlayProps) {
     >
       {/* Title + tabs */}
       <Box height={1} paddingX={2} alignItems="center">
-        <Text color={theme.colors.primary} bold>⌨  NEO 使用指南</Text>
+        <Text color={theme.colors.primary} bold>◆  NEO 使用指南</Text>
         <Box flexGrow={1} />
         <TabBtn label="1:快捷键" active={tab === 'keys'} />
         <Text color={theme.colors.muted}> </Text>
@@ -84,21 +85,21 @@ function KeysTab({ height: _height, width }: { height: number; width: number }) 
           ['?',            '此帮助面板 (内容聚焦时)'],
           ['Tab',          '输入栏 ↔ 内容面板 切换'],
           ['ESC',          '返回输入栏 / 取消'],
-          ['Ctrl+1',       '切换到 CHAT 对话'],
-          ['Ctrl+2',       '切换到 TASKS 任务'],
-          ['Ctrl+3',       '切换到 NOTES 笔记'],
-          ['Ctrl+4',       '切换到 AGENTS'],
+          ['Alt+1',        '切换到 CHAT 对话'],
+          ['Alt+2',        '切换到 TASKS 任务'],
+          ['Alt+3',        '切换到 NOTES 笔记'],
+          ['Alt+4',        '切换到 AGENTS'],
           ['Ctrl+N',       '新建对话'],
           ['Ctrl+L',       '清空当前视图'],
         ]} />
         <Section title="▤ 窗口布局" items={[
           ['Ctrl+B',       '显示 / 隐藏侧栏'],
-          ['Alt+[',        '侧栏收窄 -2 列'],
-          ['Alt+]',        '侧栏展宽 +2 列'],
+          ['Alt+-',        '侧栏收窄 -2 列'],
+          ['Alt+=',        '侧栏展宽 +2 列'],
           ['Alt+L',        '循环切换布局预设'],
           ['/layout',      '查看 / 应用布局预设'],
         ]} />
-        <Section title="💬 对话 CHAT" items={[
+        <Section title="◆ 对话 CHAT" items={[
           ['Enter',        '发送消息 / 触发 AI'],
           ['↑↓ 历史',      '浏览输入历史记录'],
           ['Tab → j/k',    '聚焦后上下滚动消息'],
@@ -110,6 +111,7 @@ function KeysTab({ height: _height, width }: { height: number; width: number }) 
         ]} />
       </Box>
       <Box flexDirection="column" width={col}>
+        <MacSetupNote />
         <Section title="✓ 任务 TASKS" items={[
           ['j / k',        '上下移动光标'],
           ['Space / Enter', '切换完成状态'],
@@ -119,7 +121,7 @@ function KeysTab({ height: _height, width }: { height: number; width: number }) 
           ['v',            '显示/隐藏已完成'],
           ['gg / G',       '跳到顶 / 底'],
         ]} />
-        <Section title="📝 笔记 NOTES" items={[
+        <Section title="✎ 笔记 NOTES" items={[
           ['j / k',        '导航笔记列表'],
           ['Enter / Space', '展开/收起笔记'],
           ['p',            '置顶笔记'],
@@ -286,6 +288,32 @@ function CommandsTab({ width }: { height: number; width: number }) {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
+
+/**
+ * MacSetupNote — shown on both macOS and Linux.
+ * Alt+N shortcuts require the terminal to forward Option/Alt as ESC-prefix.
+ * Without this config, Alt combos type special characters instead of switching modes.
+ */
+function MacSetupNote() {
+  const isMac = platform() === 'darwin';
+  return (
+    <Box flexDirection="column" marginBottom={1} borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
+      <Text color={theme.colors.warning} bold>
+        {isMac ? '◆ macOS 终端配置 (Alt 快捷键必读)' : '◆ 终端配置 (Alt 快捷键)'}
+      </Text>
+      {isMac ? (
+        <>
+          <Text color={theme.colors.muted}>iTerm2 :  Profiles → Keys → Left Option: <Text color={theme.colors.primary}>Esc+</Text></Text>
+          <Text color={theme.colors.muted}>Terminal: 偏好 → 描述文件 → 键盘 → <Text color={theme.colors.primary}>将 Option 键用作 Meta 键</Text></Text>
+          <Text color={theme.colors.muted}>WezTerm : send_composed_key_when_left_alt_is_pressed = <Text color={theme.colors.primary}>false</Text></Text>
+        </>
+      ) : (
+        <Text color={theme.colors.muted}>确保终端将 Alt 作为 Meta key 转发 (发送 ESC 前缀)</Text>
+      )}
+      <Text color={theme.colors.muted}>未配置时 Alt+1-6 无效，可改用 <Text color={theme.colors.primary}>Ctrl+K</Text> 打开命令面板切换视图</Text>
+    </Box>
+  );
+}
 
 function TabBtn({ label, active }: { label: string; active: boolean }) {
   return (
