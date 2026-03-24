@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Box, Text, useInput, useStdout } from 'ink';
+import { useState, useCallback, useEffect, useReducer } from 'react';
+import { Box, Text, useInput } from 'ink';
 import { tuiTheme as theme, icons, layout } from '../../theme/index.js';
 import { useInputHistory } from '../hooks/useTasks.js';
 
@@ -29,14 +29,58 @@ const commandSuggestions: Suggestion[] = [
   { command: '/exit', description: 'Exit' },
 ];
 
+// ── Ctrl-key helper ────────────────────────────────────────────────────────────
+// Ink 5.x passes the RAW control character as `input` (e.g. '\x01' for Ctrl+A).
+// Handle both that and the normalised-letter form used by Ink 4.x.
+function isCtrlKey(ch: string, key: { ctrl: boolean }, letter: string): boolean {
+  if (!key.ctrl) return false;
+  const raw = String.fromCharCode(letter.toLowerCase().charCodeAt(0) & 0x1f);
+  return ch === letter.toLowerCase() || ch === letter.toUpperCase() || ch === raw;
+}
+
+// ── Input reducer — atomic updates, no stale-closure bugs ──────────────────────
+interface InputState { value: string; cursor: number }
+
+type InputAction =
+  | { type: 'insert'; ch: string }
+  | { type: 'backspace' }
+  | { type: 'delete_fwd' }
+  | { type: 'cursor_left' }
+  | { type: 'cursor_right' }
+  | { type: 'cursor_home' }
+  | { type: 'cursor_end' }
+  | { type: 'clear' }
+  | { type: 'set_value'; value: string };
+
+function inputReducer(state: InputState, action: InputAction): InputState {
+  const { value, cursor } = state;
+  switch (action.type) {
+    case 'backspace':
+      if (cursor > 0) return { value: value.slice(0, cursor - 1) + value.slice(cursor), cursor: cursor - 1 };
+      return state;
+    case 'delete_fwd':
+      if (cursor < value.length) return { value: value.slice(0, cursor) + value.slice(cursor + 1), cursor };
+      return state;
+    case 'insert': {
+      const nv = value.slice(0, cursor) + action.ch + value.slice(cursor);
+      return nv.length <= layout.maxInputLength ? { value: nv, cursor: cursor + action.ch.length } : state;
+    }
+    case 'cursor_left':  return { value, cursor: Math.max(0, cursor - 1) };
+    case 'cursor_right': return { value, cursor: Math.min(value.length, cursor + 1) };
+    case 'cursor_home':  return { value, cursor: 0 };
+    case 'cursor_end':   return { value, cursor: value.length };
+    case 'clear':        return { value: '', cursor: 0 };
+    case 'set_value':    return { value: action.value, cursor: action.value.length };
+  }
+}
+
 export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarProps) {
-  const [input, setInput] = useState('');
-  const [cursorPosition, setCursorPosition] = useState(0);
-  const [placeholder] = useState('Type a message... (Tab for commands)');
+  const [inputState, dispatch] = useReducer(inputReducer, { value: '', cursor: 0 });
+  const { value: input, cursor: cursorPosition } = inputState;
+
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
-  useStdout();
-  
+
   const { addToHistory, navigateHistory, resetHistoryIndex } = useInputHistory();
 
   const handleSubmit = useCallback(() => {
@@ -44,8 +88,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
       onSubmit(input);
       addToHistory(input);
       resetHistoryIndex();
-      setInput('');
-      setCursorPosition(0);
+      dispatch({ type: 'clear' });
       setSuggestions([]);
     }
   }, [input, onSubmit, addToHistory, resetHistoryIndex]);
@@ -53,7 +96,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
   // Update suggestions when input changes
   useEffect(() => {
     if (input.startsWith('/') && input.length > 0) {
-      const filtered = commandSuggestions.filter(s => 
+      const filtered = commandSuggestions.filter(s =>
         s.command.startsWith(input.toLowerCase()) && s.command !== input.toLowerCase()
       );
       setSuggestions(filtered.slice(0, 5));
@@ -65,158 +108,92 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
 
   useInput((value, key) => {
     const extKey = key as typeof key & { home?: boolean; end?: boolean };
-    
+
     // Handle suggestion navigation
     if (suggestions.length > 0) {
-      if (key.downArrow) {
-        setSelectedSuggestion(prev => Math.min(suggestions.length - 1, prev + 1));
-        return;
-      }
-      if (key.upArrow) {
-        setSelectedSuggestion(prev => Math.max(0, prev - 1));
-        return;
-      }
+      if (key.downArrow) { setSelectedSuggestion(prev => Math.min(suggestions.length - 1, prev + 1)); return; }
+      if (key.upArrow)   { setSelectedSuggestion(prev => Math.max(0, prev - 1)); return; }
       if (key.tab || (key.return && suggestions[selectedSuggestion])) {
         const suggestion = suggestions[selectedSuggestion];
-        setInput(suggestion.command + ' ');
-        setCursorPosition(suggestion.command.length + 1);
+        dispatch({ type: 'set_value', value: suggestion.command + ' ' });
         setSuggestions([]);
         return;
       }
     }
 
-    // ESC clears input when text is present; otherwise lets App handle exit
+    // ESC clears input when text is present
     if (key.escape) {
-      if (input.length > 0) {
-        setInput('');
-        setCursorPosition(0);
-        setSuggestions([]);
-      }
+      if (input.length > 0) { dispatch({ type: 'clear' }); setSuggestions([]); }
       return;
     }
 
-    if (key.return) {
-      handleSubmit();
-      return;
-    }
+    if (key.return) { handleSubmit(); return; }
 
     // History navigation
     if (key.upArrow && suggestions.length === 0) {
       const { newInput, newIndex } = navigateHistory('up', input);
-      if (newIndex !== -1) {
-        setInput(newInput);
-        setCursorPosition(newInput.length);
-      }
+      if (newIndex !== -1) dispatch({ type: 'set_value', value: newInput });
       return;
     }
-
     if (key.downArrow && suggestions.length === 0) {
       const { newInput } = navigateHistory('down', input);
-      setInput(newInput);
-      setCursorPosition(newInput.length);
+      dispatch({ type: 'set_value', value: newInput });
       return;
     }
 
     // Cursor movement
-    if (key.leftArrow) {
-      setCursorPosition(prev => Math.max(0, prev - 1));
-      return;
-    }
+    if (key.leftArrow)  { dispatch({ type: 'cursor_left' });  return; }
+    if (key.rightArrow) { dispatch({ type: 'cursor_right' }); return; }
+    if (extKey.home)    { dispatch({ type: 'cursor_home' });  return; }
+    if (extKey.end)     { dispatch({ type: 'cursor_end' });   return; }
 
-    if (key.rightArrow) {
-      setCursorPosition(prev => Math.min(input.length, prev + 1));
-      return;
-    }
-
-    if (extKey.home) {
-      setCursorPosition(0);
-      return;
-    }
-
-    if (extKey.end) {
-      setCursorPosition(input.length);
-      return;
-    }
+    // Ctrl shortcuts (handle both Ink 5.x raw chars and Ink 4.x normalised letters)
+    if (isCtrlKey(value, key, 'a')) { dispatch({ type: 'cursor_home' }); return; }
+    if (isCtrlKey(value, key, 'e')) { dispatch({ type: 'cursor_end' });  return; }
+    if (isCtrlKey(value, key, 'u')) { dispatch({ type: 'clear' }); setSuggestions([]); return; }
 
     // Deletion
     if (key.delete) {
-      if (cursorPosition < input.length) {
-        const newInput = input.slice(0, cursorPosition) + input.slice(cursorPosition + 1);
-        setInput(newInput);
-      }
+      dispatch({ type: 'delete_fwd' });
+      return;
+    }
+    // Backspace: macOS Terminal sends \x7f (DEL byte); some terminals send \x08 (BS)
+    if (key.backspace || value === '\x7f' || value === '\x08') {
+      dispatch({ type: 'backspace' });
       return;
     }
 
-    if (key.backspace || value === '\x7f') {
-      if (cursorPosition > 0) {
-        const newInput = input.slice(0, cursorPosition - 1) + input.slice(cursorPosition);
-        setInput(newInput);
-        setCursorPosition(cursorPosition - 1);
-      }
-      return;
-    }
-
-    // Character input - handle one character at a time
+    // Character input
     if (value && !key.ctrl && !key.meta) {
-      // Filter out backspace bytes and any raw ESC bytes (unhandled escape sequences)
-      if (value === '\x7f' || value === '\b') return;
-      if (value.includes('\x1b')) return;
-      const cleanValue = value;
-      
-      const char = cleanValue[0];
-      const newInput = input.slice(0, cursorPosition) + char + input.slice(cursorPosition);
-      if (newInput.length <= layout.maxInputLength) {
-        setInput(newInput);
-        setCursorPosition(cursorPosition + 1);
-      }
-    }
-
-    // Ctrl+U: clear line
-    if (key.ctrl && value === 'u') {
-      setInput('');
-      setCursorPosition(0);
-      setSuggestions([]);
-      return;
-    }
-
-    // Ctrl+C: interrupt (handled by parent)
-    if (key.ctrl && value === 'c') {
-      return;
+      if (value === '\x7f' || value === '\x08' || value === '\b') return;
+      if (value.charCodeAt(0) < 0x20) return;   // drop remaining ASCII control bytes
+      if (value.includes('\x1b')) return;        // drop raw ESC sequences
+      dispatch({ type: 'insert', ch: value[0]! });
     }
   }, { isActive: isFocused });
 
   // Calculate visible portion of input (for very long lines)
   const maxVisibleChars = width - 15;
-  let visibleInput = input;
-  let cursorOffset = 0;
-  
-  if (input.length > maxVisibleChars) {
-    const start = Math.max(0, Math.min(cursorPosition - Math.floor(maxVisibleChars / 2), input.length - maxVisibleChars));
-    const end = Math.min(input.length, start + maxVisibleChars);
-    visibleInput = input.slice(start, end);
-    cursorOffset = start;
-  }
-
-  const actualCursorPos = cursorPosition - cursorOffset;
+  const start = input.length > maxVisibleChars
+    ? Math.max(0, Math.min(cursorPosition - Math.floor(maxVisibleChars / 2), input.length - maxVisibleChars))
+    : 0;
+  const visibleInput = input.slice(start, start + maxVisibleChars);
+  const actualCursorPos = cursorPosition - start;
 
   return (
-    <Box 
-      flexDirection="column"
-      width={width}
-    >
+    <Box flexDirection="column" width={width}>
       {/* Suggestions dropdown */}
       {suggestions.length > 0 && (
-        <Box 
-          flexDirection="column" 
-          borderStyle="single" 
+        <Box
+          flexDirection="column"
+          borderStyle="single"
           borderColor={theme.colors.border}
-          backgroundColor={theme.colors.surface}
           marginBottom={1}
           paddingX={1}
         >
           {suggestions.map((suggestion, index) => (
             <Box key={suggestion.command} paddingY={0.5}>
-              <Text 
+              <Text
                 color={index === selectedSuggestion ? theme.colors.primary : theme.colors.text}
                 backgroundColor={index === selectedSuggestion ? theme.colors.surfaceLight : undefined}
               >
@@ -228,7 +205,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
           ))}
         </Box>
       )}
-      
+
       {/* Input bar */}
       <Box
         height={3}
@@ -243,11 +220,11 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
             {mode === 'command' ? '>' : icons.chat}
           </Text>
         </Box>
-        
+
         {/* Input area */}
         <Box flexGrow={1} flexDirection="column">
           {input.length === 0 ? (
-            <Text color={theme.colors.muted}>{placeholder}</Text>
+            <Text color={theme.colors.muted}>Type a message... (Tab for commands)</Text>
           ) : (
             <Box>
               <Text color={theme.colors.text}>{visibleInput.slice(0, actualCursorPos)}</Text>
@@ -257,7 +234,7 @@ export function InputBar({ onSubmit, mode, width, isFocused = true }: InputBarPr
               <Text color={theme.colors.text}>{visibleInput.slice(actualCursorPos + 1)}</Text>
             </Box>
           )}
-          
+
           {/* Character count for long inputs */}
           {input.length > 100 && (
             <Text color={input.length > 900 ? theme.colors.warning : theme.colors.muted}>

@@ -45,6 +45,15 @@ import { useIntel } from './hooks/useIntel.js';
 import { layoutManager, LAYOUT_PRESETS } from './utils/layoutManager.js';
 import { InfoSidebar } from './views/InfoSidebar.js';
 
+// ── Ctrl-key helper ───────────────────────────────────────────────────────────
+// Ink 5.x passes the RAW control character as `input` (e.g. '\x01' for Ctrl+A).
+// Ink 4.x passed the normalised letter ('a').  Support both forms.
+function isCtrl(ch: string, key: { ctrl: boolean }, letter: string): boolean {
+  if (!key.ctrl) return false;
+  const raw = String.fromCharCode(letter.toLowerCase().charCodeAt(0) & 0x1f);
+  return ch === letter.toLowerCase() || ch === letter.toUpperCase() || ch === raw;
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type AppMode = 'chat' | 'tasks' | 'notes' | 'agents' | 'plugins';
@@ -869,16 +878,16 @@ export default function FlowApp() {
         setCapture(null);
         return;
       }
-      if (key.backspace || ch === '\x7f') { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
-      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
+      if (key.backspace || ch === '\x7f' || ch === '\x08') { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
+      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\x08' && ch !== '\b' && ch.charCodeAt(0) >= 0x20) { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
       return;
     }
 
     // Block global shortcuts while any overlay is open; let overlays handle their own keys.
     if (showPalette || showHelp || showModelSelector || showCompanionDash) return;
 
-    if (key.ctrl && ch === 'k') { setShowPalette(true); return; }
-    if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
+    if (isCtrl(ch, key, 'k')) { setShowPalette(true); return; }
+    if (isCtrl(ch, key, 'm')) { setShowModelSelector(true); return; }
     if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
 
     // Mode switching via Alt+1-6 (key.meta).
@@ -893,29 +902,29 @@ export default function FlowApp() {
     if ((key.ctrl || key.meta) && ch === '5') { setMode('plugins'); return; }
     if ((key.ctrl || key.meta) && ch === '6') { setShowCompanionDash(p => !p); return; }
     // Ctrl+V — toggle voice
-    if (key.ctrl && ch === 'v') {
+    if (isCtrl(ch, key, 'v')) {
       const on = voiceEngine.toggle();
       sysMsg(on ? `🔊 语音已开启` : '🔇 语音已关闭');
       return;
     }
 
     // Quick capture: Ctrl+T = task
-    if (key.ctrl && ch === 't') { setCapture({ mode: 'task', text: '' }); return; }
+    if (isCtrl(ch, key, 't')) { setCapture({ mode: 'task', text: '' }); return; }
 
-    if (key.ctrl && ch === 'n') {
+    if (isCtrl(ch, key, 'n')) {
       setMessages([]);
       conversationRef.current = [];
       setMode('chat');
       return;
     }
-    if (key.ctrl && ch === 'l') {
+    if (isCtrl(ch, key, 'l')) {
       setMessages([]);
       conversationRef.current = [];
       return;
     }
 
     // Layout shortcuts
-    if (key.ctrl && ch === 'b') {
+    if (isCtrl(ch, key, 'b')) {
       setLayoutState(layoutManager.toggleSidebar());
       return;
     }

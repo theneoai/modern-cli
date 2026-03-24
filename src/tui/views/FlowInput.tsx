@@ -219,6 +219,17 @@ function inputReducer(state: InputState, action: InputAction): InputState {
   }
 }
 
+// ── Ctrl-key helper ──────────────────────────────────────────────────────────
+// Ink 5.x passes the RAW control character as `input` (e.g. '\x01' for Ctrl+A).
+// Ink 4.x passed the normalised letter ('a').  Support both so the code works
+// regardless of Ink version and terminal emulator.
+function isCtrlKey(ch: string, key: { ctrl: boolean }, letter: string): boolean {
+  if (!key.ctrl) return false;
+  // Raw control character: Ctrl+letter = letter.charCodeAt & 0x1f
+  const raw = String.fromCharCode(letter.toLowerCase().charCodeAt(0) & 0x1f);
+  return ch === letter.toLowerCase() || ch === letter.toUpperCase() || ch === raw;
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface FlowInputProps {
@@ -316,11 +327,11 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     // Cursor movement
     if (key.leftArrow)  { dispatch({ type: 'cursor_left' });  return; }
     if (key.rightArrow) { dispatch({ type: 'cursor_right' }); return; }
-    if (key.ctrl && ch === 'a') { dispatch({ type: 'cursor_home' }); return; }
-    if (key.ctrl && ch === 'e') { dispatch({ type: 'cursor_end' });  return; }
+    if (isCtrlKey(ch, key, 'a')) { dispatch({ type: 'cursor_home' }); return; }
+    if (isCtrlKey(ch, key, 'e')) { dispatch({ type: 'cursor_end' });  return; }
 
-    // Deletion — handle both key.backspace and raw \x7f (DEL sent by many terminals)
-    if (key.backspace || ch === '\x7f') {
+    // Deletion — handle both key.backspace and raw \x7f / \x08 (DEL/BS sent by macOS terminals)
+    if (key.backspace || ch === '\x7f' || ch === '\x08') {
       dispatch({ type: 'backspace' });
       return;
     }
@@ -330,8 +341,8 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     }
 
     // Ctrl shortcuts
-    if (key.ctrl && ch === 'u') { dispatch({ type: 'clear' }); setSuggestions([]); setHistIdx(-1); return; }
-    if (key.ctrl && ch === 'w') { dispatch({ type: 'delete_word' }); return; }
+    if (isCtrlKey(ch, key, 'u')) { dispatch({ type: 'clear' }); setSuggestions([]); setHistIdx(-1); return; }
+    if (isCtrlKey(ch, key, 'w')) { dispatch({ type: 'delete_word' }); return; }
 
     // Tab — focus content (no suggestions)
     if (key.tab) { onFocusContent(); return; }
@@ -341,8 +352,9 @@ export function FlowInput({ onSubmit, mode, isFocused, isStreaming, width, onFoc
     // guard above already blocks alt sequences.  The regex below is a safety
     // net for any escape bytes that slip through (e.g. unrecognised terminals).
     if (ch && !key.ctrl && !key.meta && !key.escape) {
-      // Filter DEL (\x7f) and BS (\b) that weren't caught above
-      if (ch === '\x7f' || ch === '\b') return;
+      // Filter DEL (\x7f), BS (\x08/\b) and any control chars that weren't caught above
+      if (ch === '\x7f' || ch === '\x08' || ch === '\b') return;
+      if (ch.charCodeAt(0) < 0x20) return;   // drop any remaining ASCII control bytes
       // Drop anything still containing a raw ESC byte (CSI, OSC, bare alt-seq…)
       if (ch.includes('\x1b')) return;
       dispatch({ type: 'insert', ch });
