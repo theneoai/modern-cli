@@ -100,7 +100,6 @@ export function CompactFooter({ message = 'NEO' }: CompactFooterProps) {
     <Box
       height={1}
       paddingX={1}
-      backgroundColor={theme.colors.border}
     >
       <Text color={theme.colors.muted}>
         {message}

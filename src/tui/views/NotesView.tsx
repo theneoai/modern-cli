@@ -13,8 +13,9 @@
  */
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 
 export interface Note {
   id: string;
@@ -84,40 +85,39 @@ export function NotesView({
   const listWidth = Math.floor(width * 0.38);
   const listHeight = height - 4;
 
-  useInput((ch, key) => {
+  useRawInput((key) => {
     if (isFiltering) {
       if (key.escape || key.return) { setIsFiltering(false); return; }
-      if (key.backspace || ch === '\x7f') { setFilterQuery(prev => prev.slice(0, -1)); return; }
-      if (ch && !key.ctrl && ch !== '\x7f' && ch !== '\b') { setFilterQuery(prev => prev + ch); }
+      if (key.backspace) { setFilterQuery(prev => prev.slice(0, -1)); return; }
+      if (key.char && !key.ctrl && !key.meta) { setFilterQuery(prev => prev + key.char); }
       return;
     }
 
-    if (key.upArrow || ch === 'k') {
+    if (key.up || key.char === 'k') {
       setCursor(prev => Math.max(0, prev - 1));
       setExpanded(null);
-    } else if (key.downArrow || ch === 'j') {
+    } else if (key.down || key.char === 'j') {
       setCursor(prev => Math.min(displayNotes.length - 1, prev + 1));
       setExpanded(null);
-    } else if (key.return || ch === ' ') {
+    } else if (key.return || key.space) {
       if (selectedNote) {
         setExpanded(prev => prev === selectedNote.id ? null : selectedNote.id);
       }
-    } else if (ch === 'd' && selectedNote) {
+    } else if (key.char === 'd' && !key.ctrl && selectedNote) {
       onDelete(selectedNote.id);
       setCursor(prev => Math.max(0, prev - 1));
       notify('🗑 已删除');
-    } else if (ch === 'p' && selectedNote) {
+    } else if (key.char === 'p' && !key.ctrl && selectedNote) {
       onPin(selectedNote.id);
       notify(selectedNote.pinned ? '取消置顶' : '📌 已置顶');
-    } else if (ch === '/') {
-      setIsFiltering(true);
-      setFilterQuery('');
-    } else if (ch === 'g') {
+    } else if (key.char === '/' && !key.ctrl) {
+      setIsFiltering(true); setFilterQuery('');
+    } else if (key.char === 'g' && !key.ctrl) {
       setCursor(0);
-    } else if (ch === 'G') {
+    } else if (key.char === 'G' && !key.ctrl) {
       setCursor(Math.max(0, displayNotes.length - 1));
     }
-  }, { isActive: isFocused });
+  }, isFocused);
 
   return (
     <Box
@@ -142,7 +142,7 @@ export function NotesView({
         <Box height={1} flexShrink={0} paddingX={1}>
           <Text color={theme.colors.primary}>/ </Text>
           <Text color={theme.colors.text}>{filterQuery}</Text>
-          <Text backgroundColor={theme.colors.primary} color={theme.colors.background}> </Text>
+          <Text color={theme.colors.background}> </Text>
         </Box>
       )}
 
@@ -176,7 +176,7 @@ export function NotesView({
                 <Box
                   key={note.id}
                   paddingX={isSelected ? 1 : 0}
-                  backgroundColor={isSelected ? theme.colors.surfaceLight : undefined}
+                 
                 >
                   <Text color={isSelected ? theme.colors.primary : 'transparent'}>
                     {isSelected ? '❯ ' : '  '}

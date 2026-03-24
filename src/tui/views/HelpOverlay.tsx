@@ -5,8 +5,9 @@
 
 import { useState } from 'react';
 import { platform } from 'os';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 
 type HelpTab = 'keys' | 'workflows' | 'commands';
 
@@ -19,17 +20,13 @@ interface HelpOverlayProps {
 export function HelpOverlay({ width, height, onClose }: HelpOverlayProps) {
   const [tab, setTab] = useState<HelpTab>('keys');
 
-  useInput((ch, key) => {
-    if (key.escape || ch === 'q' || ch === '?') { onClose(); return; }
-    if (ch === '1') setTab('keys');
-    if (ch === '2') setTab('workflows');
-    if (ch === '3') setTab('commands');
-    if (key.leftArrow) {
-      setTab(prev => prev === 'keys' ? 'commands' : prev === 'workflows' ? 'keys' : 'workflows');
-    }
-    if (key.rightArrow) {
-      setTab(prev => prev === 'keys' ? 'workflows' : prev === 'workflows' ? 'commands' : 'keys');
-    }
+  useRawInput((key) => {
+    if (key.escape || key.char === 'q' || key.char === '?') { onClose(); return; }
+    if (key.char === '1') setTab('keys');
+    if (key.char === '2') setTab('workflows');
+    if (key.char === '3') setTab('commands');
+    if (key.left) setTab(prev => prev === 'keys' ? 'commands' : prev === 'workflows' ? 'keys' : 'workflows');
+    if (key.right) setTab(prev => prev === 'keys' ? 'workflows' : prev === 'workflows' ? 'commands' : 'keys');
   });
 
   const contentHeight = height - 4;
@@ -44,7 +41,6 @@ export function HelpOverlay({ width, height, onClose }: HelpOverlayProps) {
       flexDirection="column"
       borderStyle="double"
       borderColor={theme.colors.primary}
-      backgroundColor={theme.colors.surface}
     >
       {/* Title + tabs */}
       <Box height={1} paddingX={2} alignItems="center">

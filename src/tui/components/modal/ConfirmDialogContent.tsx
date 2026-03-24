@@ -103,7 +103,6 @@ export function ConfirmDialog({ title, message, onConfirm, onCancel }: ConfirmDi
       height={10}
       borderStyle="double"
       borderColor={theme.colors.warning}
-      backgroundColor={theme.colors.surface}
       flexDirection="column"
       padding={1}
     >

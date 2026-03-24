@@ -89,14 +89,9 @@ export function Focusable({
     return isActive ? theme.colors.primary : (borderColor || theme.colors.border);
   }, [isActive, showIndicator, indicatorStyle, borderColor]);
   
-  // Calculate background color based on focus state
-  const effectiveBackgroundColor = useMemo(() => {
-    if (!showIndicator || indicatorStyle !== 'background') {
-      return backgroundColor;
-    }
-    return isActive ? theme.colors.surfaceLight : backgroundColor;
-  }, [isActive, showIndicator, indicatorStyle, backgroundColor]);
-  
+  // backgroundColor removed: Ink 5.x Box does not support this prop
+  void backgroundColor;
+
   return (
     <Box
       width={width}
@@ -111,7 +106,7 @@ export function Focusable({
       justifyContent={justifyContent}
       borderStyle={borderStyle}
       borderColor={effectiveBorderColor}
-      backgroundColor={effectiveBackgroundColor}
+     
     >
       {indicatorStyle === 'arrow' && isActive && (
         <Box marginRight={1}>
@@ -153,7 +148,7 @@ export function FocusIndicator({ isFocused, style = 'arrow', children }: FocusIn
           <Text 
             color={isFocused ? theme.colors.primary : theme.colors.text}
             bold={isFocused}
-            backgroundColor={isFocused ? theme.colors.surfaceLight : undefined}
+           
           >
             {children}
           </Text>

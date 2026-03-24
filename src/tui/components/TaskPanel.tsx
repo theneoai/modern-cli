@@ -163,7 +163,6 @@ function TaskItem({ task, isSelected, showHints }: TaskItemProps) {
   return (
     <Box 
       marginY={0.5}
-      backgroundColor={isSelected ? theme.colors.surfaceLight : undefined}
       paddingX={isSelected ? 1 : 0}
     >
       <Text color={statusColor}>{statusIcon} </Text>

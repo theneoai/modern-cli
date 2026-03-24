@@ -115,7 +115,6 @@ export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: C
       height={height}
       borderStyle="double"
       borderColor={theme.colors.primary}
-      backgroundColor={theme.colors.surface}
       flexDirection="column"
       padding={1}
     >
@@ -145,7 +144,6 @@ export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: C
         ) : (
           visibleCommands.map((cmd, index) => {
             const isSelected = index === selectedIndex;
-            const bgColor = isSelected ? theme.colors.primary : undefined;
             const textColor = isSelected ? theme.colors.background : theme.colors.text;
             const descColor = isSelected ? theme.colors.background : theme.colors.muted;
             
@@ -154,7 +152,6 @@ export function CommandPalette({ onSelect, onClose, width = 60, height = 20 }: C
                 key={cmd.value}
                 paddingY={0.5}
                 paddingX={1}
-                backgroundColor={bgColor}
               >
                 <Text color={textColor}>
                   {cmd.icon} {' '}

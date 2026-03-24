@@ -21,8 +21,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import { PROVIDERS, type ProviderDef, type ModelDef } from '../../ai/providers/registry.js';
 import { keyStore } from '../../ai/keystore.js';
 import { getConfig } from '../../utils/config.js';
@@ -62,18 +63,18 @@ export function ModelSelector({ width, height, onSelect, onClose }: ModelSelecto
     }
   }, [providerCursor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useInput((ch, key) => {
-    if (key.escape || ch === 'q') { onClose(); return; }
+  useRawInput((key) => {
+    if (key.escape || key.char === 'q') { onClose(); return; }
     if (key.tab) { setPane(p => p === 'providers' ? 'models' : 'providers'); return; }
 
     if (pane === 'providers') {
-      if (key.upArrow || ch === 'k') setProviderCursor(p => Math.max(0, p - 1));
-      else if (key.downArrow || ch === 'j') setProviderCursor(p => Math.min(providers.length - 1, p + 1));
-      else if (key.return || key.rightArrow) setPane('models');
+      if (key.up || key.char === 'k') setProviderCursor(p => Math.max(0, p - 1));
+      else if (key.down || key.char === 'j') setProviderCursor(p => Math.min(providers.length - 1, p + 1));
+      else if (key.return || key.right) setPane('models');
     } else {
-      if (key.upArrow || ch === 'k') setModelCursor(p => Math.max(0, p - 1));
-      else if (key.downArrow || ch === 'j') setModelCursor(p => Math.min(models.length - 1, p + 1));
-      else if (key.leftArrow) setPane('providers');
+      if (key.up || key.char === 'k') setModelCursor(p => Math.max(0, p - 1));
+      else if (key.down || key.char === 'j') setModelCursor(p => Math.min(models.length - 1, p + 1));
+      else if (key.left) setPane('providers');
       else if (key.return) {
         const m = models[modelCursor];
         if (m && selectedProvider) {
@@ -124,7 +125,7 @@ export function ModelSelector({ width, height, onSelect, onClose }: ModelSelecto
             const isSel = i === providerCursor && pane === 'providers';
             return (
               <Box key={p.id}
-                backgroundColor={isSel ? theme.colors.surfaceLight : undefined}
+               
                 paddingX={isSel ? 1 : 0}
               >
                 <Text color={isActive ? theme.colors.primary : isSel ? theme.colors.text : theme.colors.muted} bold={isActive || isSel}>
@@ -236,7 +237,7 @@ function ModelRow({ model, isSelected, isActive, width: _width }: {
   return (
     <Box
       paddingX={isSelected ? 1 : 0}
-      backgroundColor={isSelected ? theme.colors.surfaceLight : undefined}
+     
     >
       <Text color={isActive ? theme.colors.primary : isSelected ? theme.colors.text : theme.colors.muted}
         bold={isActive || isSelected}>

@@ -65,7 +65,6 @@ export function MainPanel({ messages, height, width, isFocused = true }: MainPan
       height={height}
       borderStyle="single"
       borderColor={theme.colors.border}
-      backgroundColor={theme.colors.background}
     >
       {/* Header with scroll indicators */}
       <Box height={2} paddingX={1} flexShrink={0}>

@@ -13,8 +13,9 @@
  */
 
 import React, { useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import { companionMemory } from '../companion/CompanionMemory.js';
 import { voiceEngine, EDGE_VOICES } from '../companion/voice/VoiceEngine.js';
 import { intelEngine } from '../intel/IntelEngine.js';
@@ -41,7 +42,7 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
   const e = data.emotional;
   const p = data.persona;
 
-  useInput((ch, key) => {
+  useRawInput((key) => {
     if (key.escape) {
       if (configField) { setConfigField(null); setConfigInput(''); return; }
       onClose();
@@ -68,12 +69,12 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
         return;
       }
       if (key.backspace) { setConfigInput(s => s.slice(0, -1)); return; }
-      if (ch && !key.ctrl && !key.meta) { setConfigInput(s => s + ch); return; }
+      if (key.char && !key.ctrl && !key.meta) { setConfigInput(s => s + key.char); return; }
       return;
     }
 
     // Chat input mode
-    if (chatInput.length > 0 || ch === '@') {
+    if (chatInput.length > 0 || key.char === '@') {
       if (key.return && chatInput.trim()) {
         const text = chatInput.trim();
         setChatInput('');
@@ -81,26 +82,26 @@ export function CompanionDashboard({ width, height, onClose, onChat }: Companion
         return;
       }
       if (key.backspace) { setChatInput(s => s.slice(0, -1)); return; }
-      if (ch && !key.ctrl && !key.meta && !key.escape) { setChatInput(s => s + ch); return; }
+      if (key.char && !key.ctrl && !key.meta) { setChatInput(s => s + key.char); return; }
       return;
     }
 
     // Tab switching
-    if (ch === 's') { setTab('stats');  return; }
-    if (ch === 'c') { setTab('config'); return; }
-    if (ch === 'i') { setTab('intel');  return; }
-    if (ch === 'v') { setTab('voice');  return; }
+    if (key.char === 's' && !key.ctrl) { setTab('stats');  return; }
+    if (key.char === 'c' && !key.ctrl) { setTab('config'); return; }
+    if (key.char === 'i' && !key.ctrl) { setTab('intel');  return; }
+    if (key.char === 'v' && !key.ctrl) { setTab('voice');  return; }
 
     // Config shortcuts in config tab
     if (tab === 'config') {
-      if (ch === '1') { setConfigField('name'); setConfigInput(''); return; }
-      if (ch === '2') { setConfigField('title'); setConfigInput(''); return; }
-      if (ch === '3') { setConfigField('personality'); setConfigInput(''); return; }
+      if (key.char === '1') { setConfigField('name'); setConfigInput(''); return; }
+      if (key.char === '2') { setConfigField('title'); setConfigInput(''); return; }
+      if (key.char === '3') { setConfigField('personality'); setConfigInput(''); return; }
     }
 
     // Start chatting
-    if (ch && !key.ctrl && !key.meta) {
-      setChatInput(ch);
+    if (key.char && !key.ctrl && !key.meta) {
+      setChatInput(key.char);
       return;
     }
   });

@@ -37,7 +37,6 @@ export function Toast({ type, content }: ToastProps) {
     <Box 
       borderStyle="round" 
       borderColor={config.color}
-      backgroundColor={config.bgColor}
       paddingX={1}
       paddingY={0}
     >

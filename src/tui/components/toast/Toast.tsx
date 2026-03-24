@@ -35,7 +35,6 @@ export function Toast({ toast }: ToastProps) {
       paddingY={1}
       borderStyle="round"
       borderColor={config.color}
-      backgroundColor={tuiTheme.colors.surface}
     >
       <Text color={config.color} bold>
         {config.icon}

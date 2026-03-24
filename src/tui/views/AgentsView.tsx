@@ -18,8 +18,9 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import {
   autonomousEngine,
   type AutonomousTask,
@@ -68,7 +69,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
   const selectedAgent = taskAgents[agentCursor];
   const selectedTask = autoTasks[taskCursor];
 
-  useInput((ch, key) => {
+  useRawInput((key) => {
     // Text input mode
     if (inputMode !== 'none') {
       if (key.escape) { setInputMode('none'); setGoalInput(''); return; }
@@ -99,8 +100,8 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
         setGoalInput('');
         return;
       }
-      if (key.backspace || key.delete || ch === '\x7f') { setGoalInput(prev => prev.slice(0, -1)); return; }
-      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setGoalInput(prev => prev + ch); }
+      if (key.backspace || key.delete) { setGoalInput(prev => prev.slice(0, -1)); return; }
+      if (key.char && !key.ctrl && !key.meta) { setGoalInput(prev => prev + key.char); }
       return;
     }
 
@@ -109,45 +110,45 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
 
     if (pane === 'agents') {
       if (taskAgents.length === 0) return;
-      if (key.upArrow || ch === 'k') setAgentCursor(p => Math.max(0, p - 1));
-      else if (key.downArrow || ch === 'j') setAgentCursor(p => Math.min(taskAgents.length - 1, p + 1));
-      else if (key.return || ch === ' ') {
+      if (key.up || key.char === 'k') setAgentCursor(p => Math.max(0, p - 1));
+      else if (key.down || key.char === 'j') setAgentCursor(p => Math.min(taskAgents.length - 1, p + 1));
+      else if (key.return || key.space) {
         if (selectedAgent) {
           onRunAgent(selectedAgent.persona.role, selectedAgent.persona.description);
           notify(`▶ ${selectedAgent.persona.name} 已启动`);
         }
       }
-      else if (ch === 'i') { setInputMode('goal'); setGoalInput(''); }
-      else if (ch === 'n') { setInputMode('newtask'); setGoalInput(''); }
-      else if (ch === 'f') { setFreeRoam(p => !p); notify(freeRoam ? '自由漫游: 关' : '自由漫游: 开'); }
+      else if (key.char === 'i' && !key.ctrl) { setInputMode('goal'); setGoalInput(''); }
+      else if (key.char === 'n' && !key.ctrl) { setInputMode('newtask'); setGoalInput(''); }
+      else if (key.char === 'f' && !key.ctrl) { setFreeRoam(p => !p); notify(freeRoam ? '自由漫游: 关' : '自由漫游: 开'); }
     } else {
-      if (key.upArrow || ch === 'k') setTaskCursor(p => Math.max(0, p - 1));
-      else if (key.downArrow || ch === 'j') setTaskCursor(p => Math.min(autoTasks.length - 1, p + 1));
+      if (key.up || key.char === 'k') setTaskCursor(p => Math.max(0, p - 1));
+      else if (key.down || key.char === 'j') setTaskCursor(p => Math.min(autoTasks.length - 1, p + 1));
       else if (key.return && selectedTask) {
         if (selectedTask.status === 'idle') autonomousEngine.start(selectedTask.id);
         else if (selectedTask.status === 'paused') autonomousEngine.resume(selectedTask.id);
         setAutoTasks(autonomousEngine.list());
         notify('▶ 已启动');
       }
-      else if (ch === 'p' && selectedTask) {
+      else if (key.char === 'p' && !key.ctrl && selectedTask) {
         if (selectedTask.status === 'running') autonomousEngine.pause(selectedTask.id);
         else if (selectedTask.status === 'paused') autonomousEngine.resume(selectedTask.id);
         setAutoTasks(autonomousEngine.list());
       }
-      else if (ch === 's' && selectedTask) {
+      else if (key.char === 's' && !key.ctrl && selectedTask) {
         autonomousEngine.stop(selectedTask.id);
         setAutoTasks(autonomousEngine.list());
         notify('⏹ 已停止');
       }
-      else if (ch === 'd' && selectedTask) {
+      else if (key.char === 'd' && !key.ctrl && selectedTask) {
         autonomousEngine.remove(selectedTask.id);
         setAutoTasks(autonomousEngine.list());
         setTaskCursor(p => Math.max(0, p - 1));
         notify('🗑 已删除');
       }
-      else if (ch === 'n') { setPane('agents'); setInputMode('newtask'); setGoalInput(''); }
+      else if (key.char === 'n' && !key.ctrl) { setPane('agents'); setInputMode('newtask'); setGoalInput(''); }
     }
-  }, { isActive: isFocused });
+  }, isFocused);
 
   const leftWidth = Math.floor(width * 0.40);
   const rightWidth = width - leftWidth - 3;
@@ -180,7 +181,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
             {inputMode === 'goal' ? `${selectedAgent?.persona.avatar ?? '🤖'} 目标: ` : '🤖 自主任务: '}
           </Text>
           <Text color={theme.colors.text}>{goalInput}</Text>
-          <Text color={theme.colors.primary} backgroundColor={theme.colors.primary}> </Text>
+          <Text color={theme.colors.primary}> </Text>
           <Text color={theme.colors.muted}> Enter确认 ESC取消</Text>
         </Box>
       )}
@@ -201,7 +202,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
             const sel = pane === 'agents' && isFocused && idx === agentCursor;
             return (
               <Box key={agent.id} paddingX={sel ? 1 : 0}
-                backgroundColor={sel ? theme.colors.surfaceLight : undefined}
+               
                 marginBottom={0}
               >
                 <Text color={sel ? theme.colors.primary : theme.colors.muted} bold={sel}>
@@ -233,7 +234,7 @@ export function AgentsView({ height, width, isFocused, onRunAgent, onAutoTask }:
               return (
                 <Box key={t.id} flexDirection="column"
                   paddingX={sel ? 1 : 0}
-                  backgroundColor={sel ? theme.colors.surfaceLight : undefined}
+                 
                   marginBottom={sel ? 1 : 0}
                 >
                   <Box>

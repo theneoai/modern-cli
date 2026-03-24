@@ -27,7 +27,6 @@ export function ConfirmDialog({ title, message, onConfirm, onCancel }: ConfirmDi
       height={message ? 8 : 6}
       borderStyle="double"
       borderColor={theme.colors.warning}
-      backgroundColor={theme.colors.surface}
       flexDirection="column"
       padding={1}
     >

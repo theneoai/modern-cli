@@ -4,8 +4,9 @@
  */
 
 import { useState, useMemo } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import type { AppMode } from '../FlowApp.js';
 
 interface PaletteItem {
@@ -86,17 +87,17 @@ export function CommandPaletteOverlay({
   const scrollStart = Math.max(0, safeCursor - Math.floor(listHeight / 2));
   const visible = filtered.slice(scrollStart, scrollStart + listHeight);
 
-  useInput((ch, key) => {
+  useRawInput((key) => {
     if (key.escape) { onClose(); return; }
-    if (key.upArrow) { setCursor(prev => Math.max(0, prev - 1)); return; }
-    if (key.downArrow) { setCursor(prev => Math.min(filtered.length - 1, prev + 1)); return; }
+    if (key.up) { setCursor(prev => Math.max(0, prev - 1)); return; }
+    if (key.down) { setCursor(prev => Math.min(filtered.length - 1, prev + 1)); return; }
     if (key.return) {
       const item = filtered[safeCursor];
       if (item) onSelect(item.value);
       return;
     }
-    if (key.backspace || ch === '\x7f') { setQuery(prev => prev.slice(0, -1)); setCursor(0); return; }
-    if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setQuery(prev => prev + ch); setCursor(0); }
+    if (key.backspace) { setQuery(prev => prev.slice(0, -1)); setCursor(0); return; }
+    if (key.char && !key.ctrl && !key.meta) { setQuery(prev => prev + key.char); setCursor(0); }
   });
 
   // Collect unique categories for display
@@ -112,7 +113,7 @@ export function CommandPaletteOverlay({
       flexDirection="column"
       borderStyle="double"
       borderColor={theme.colors.primary}
-      backgroundColor={theme.colors.surface}
+     
     >
       {/* Title bar */}
       <Box height={1} paddingX={2} alignItems="center">
@@ -138,7 +139,7 @@ export function CommandPaletteOverlay({
         ) : (
           <>
             <Text color={theme.colors.text}>{query}</Text>
-            <Text color={theme.colors.background} backgroundColor={theme.colors.primary}> </Text>
+            <Text color={theme.colors.background}> </Text>
           </>
         )}
       </Box>
@@ -157,7 +158,7 @@ export function CommandPaletteOverlay({
               <Box
                 key={`${item.value}-${item.label}`}
                 paddingX={1}
-                backgroundColor={isSel ? theme.colors.primary : undefined}
+               
               >
                 <Text color={isSel ? theme.colors.background : theme.colors.muted}>
                   {item.icon}
