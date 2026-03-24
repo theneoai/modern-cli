@@ -248,7 +248,7 @@ export function SelectableItem({
       case 'highlight':
         return (
           <Box 
-            backgroundColor={isSelected ? theme.colors.surfaceLight : undefined}
+           
             paddingX={isSelected ? 1 : 0}
           >
             <Text 

@@ -14,7 +14,8 @@
 
 import { randomUUID } from 'crypto';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Box, Text, useInput, useApp, useStdout } from 'ink';
+import { Box, Text, useApp, useStdout } from 'ink';
+import { useRawInput } from './hooks/useRawInput.js';
 import { sendMessageStream, resetClient } from '../ai/client.js';
 import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js';
 import { tuiTheme as theme } from '../theme/index.js';
@@ -120,7 +121,7 @@ export default function FlowApp() {
         role: 'system',
         content:
           '⚙  首次使用 — 请先配置 AI 服务商和 API 密钥:\n' +
-          '  1. 按 Ctrl+M 或输入 /model  → 选择服务商和模型\n' +
+          '  1. 按 Alt+M 或输入 /model  → 选择服务商和模型\n' +
           '  2. 输入 /key add <provider> <api-key>  → 添加密钥\n' +
           '     例如: /key add anthropic sk-ant-xxxxxxxx\n' +
           '     例如: /key add openai sk-xxxxxxxx\n' +
@@ -851,8 +852,9 @@ export default function FlowApp() {
     await sendToAI(input);
   }, [addNote, addTask, exit, mode, sysMsg, sendToAI, tasks, makePluginCtx]);
 
-  // ── Global Keyboard ───────────────────────────────────────────────────────
-  useInput((ch, key) => {
+  // ── Global Keyboard (POSIX raw stdin) ────────────────────────────────────
+  // 直接解析 stdin 字节，不依赖 Ink useInput 或 readline 的归一化层。
+  useRawInput((key) => {
     // Quick capture modal keyboard
     if (capture) {
       if (key.escape) { setCapture(null); return; }
@@ -869,70 +871,56 @@ export default function FlowApp() {
         setCapture(null);
         return;
       }
-      if (key.backspace || ch === '\x7f') { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
-      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') { setCapture(p => p ? { ...p, text: p.text + ch } : null); return; }
+      if (key.backspace) { setCapture(p => p ? { ...p, text: p.text.slice(0, -1) } : null); return; }
+      if (key.char && !key.ctrl && !key.meta) { setCapture(p => p ? { ...p, text: p.text + key.char } : null); return; }
       return;
     }
 
-    // Block global shortcuts while any overlay is open; let overlays handle their own keys.
+    // Block global shortcuts while any overlay is open
     if (showPalette || showHelp || showModelSelector || showCompanionDash) return;
 
-    if (key.ctrl && ch === 'k') { setShowPalette(true); return; }
-    if (key.ctrl && ch === 'm') { setShowModelSelector(true); return; }
-    if (ch === '?' && !focusOnInput) { setShowHelp(true); return; }
+    if (key.ctrl && key.char === 'k') { setShowPalette(true); return; }
+    // Ctrl+M = 0x0d = Enter 在 POSIX 层无法区分，改用 Alt+M
+    if (key.meta && key.char === 'm') { setShowModelSelector(true); return; }
+    if (key.char === '?' && !focusOnInput) { setShowHelp(true); return; }
 
-    // Mode switching via Alt+1-6 (key.meta).
-    // On macOS: requires Option key configured as "Esc+" in terminal settings.
-    //   iTerm2: Profiles → Keys → Left Option key → Esc+
-    //   Terminal.app: Preferences → Profiles → Keyboard → Use Option as Meta Key
-    // Ctrl+digit (key.ctrl) works in kitty/foot/WezTerm with Kitty protocol enabled.
-    if ((key.ctrl || key.meta) && ch === '1') { setMode('chat');    return; }
-    if ((key.ctrl || key.meta) && ch === '2') { setMode('tasks');   return; }
-    if ((key.ctrl || key.meta) && ch === '3') { setMode('notes');   return; }
-    if ((key.ctrl || key.meta) && ch === '4') { setMode('agents');  return; }
-    if ((key.ctrl || key.meta) && ch === '5') { setMode('plugins'); return; }
-    if ((key.ctrl || key.meta) && ch === '6') { setShowCompanionDash(p => !p); return; }
+    // Mode switching: Alt+1-6
+    // macOS Terminal.app: 需要在「偏好设置 → 描述文件 → 键盘」中勾选「将 Option 键用作 Meta 键」
+    // iTerm2: Profiles → Keys → Left Option → Esc+
+    if (key.meta && key.char === '1') { setMode('chat');    return; }
+    if (key.meta && key.char === '2') { setMode('tasks');   return; }
+    if (key.meta && key.char === '3') { setMode('notes');   return; }
+    if (key.meta && key.char === '4') { setMode('agents');  return; }
+    if (key.meta && key.char === '5') { setMode('plugins'); return; }
+    if (key.meta && key.char === '6') { setShowCompanionDash(p => !p); return; }
+
     // Ctrl+V — toggle voice
-    if (key.ctrl && ch === 'v') {
+    if (key.ctrl && key.char === 'v') {
       const on = voiceEngine.toggle();
       sysMsg(on ? `🔊 语音已开启` : '🔇 语音已关闭');
       return;
     }
 
-    // Quick capture: Ctrl+T = task
-    if (key.ctrl && ch === 't') { setCapture({ mode: 'task', text: '' }); return; }
+    // Ctrl+T — quick capture task
+    if (key.ctrl && key.char === 't') { setCapture({ mode: 'task', text: '' }); return; }
 
-    if (key.ctrl && ch === 'n') {
+    if (key.ctrl && key.char === 'n') {
       setMessages([]);
       conversationRef.current = [];
       setMode('chat');
       return;
     }
-    if (key.ctrl && ch === 'l') {
+    if (key.ctrl && key.char === 'l') {
       setMessages([]);
       conversationRef.current = [];
       return;
     }
 
     // Layout shortcuts
-    if (key.ctrl && ch === 'b') {
-      setLayoutState(layoutManager.toggleSidebar());
-      return;
-    }
-    // Alt+- — shrink sidebar, Alt+= — expand sidebar
-    // NOTE: Alt+[ / Alt+] are intentionally avoided: on macOS with Option-as-Meta,
-    // they produce \x1b[ (CSI) and \x1b] (OSC) which are ANSI control prefixes and
-    // will NOT be delivered as key events by most terminal parsers.
-    if (key.meta && ch === '-') {
-      setLayoutState(layoutManager.resizeSidebar(-2, mode));
-      return;
-    }
-    if (key.meta && ch === '=') {
-      setLayoutState(layoutManager.resizeSidebar(2, mode));
-      return;
-    }
-    // Alt+L — cycle through layout presets
-    if (key.meta && ch === 'l') {
+    if (key.ctrl && key.char === 'b') { setLayoutState(layoutManager.toggleSidebar()); return; }
+    if (key.meta && key.char === '-') { setLayoutState(layoutManager.resizeSidebar(-2, mode)); return; }
+    if (key.meta && key.char === '=') { setLayoutState(layoutManager.resizeSidebar(2, mode)); return; }
+    if (key.meta && key.char === 'l') {
       const { state, preset } = layoutManager.cyclePreset();
       setLayoutState(state);
       sysMsg(`${preset.icon} 布局: ${preset.name}`);
@@ -940,8 +928,6 @@ export default function FlowApp() {
     }
 
     if (key.escape && !focusOnInput) { setFocusOnInput(true); return; }
-    // Tab: only toggle focus when content is focused; when input is focused,
-    // FlowInput's own useInput handles Tab (completion or focus-content).
     if (key.tab && !focusOnInput) { setFocusOnInput(true); return; }
   });
 
@@ -1051,7 +1037,7 @@ export default function FlowApp() {
           {/* Provider/Model + context-sensitive hints */}
           <Text color={isStreaming ? theme.colors.warning : theme.colors.success}>●</Text>
           {focusOnInput ? (
-            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  ^M:模型  ?:帮助</Text>
+            <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  ^K:命令  Alt+M:模型  ?:帮助</Text>
           ) : (
             <Text color={theme.colors.muted}> {activeProvider}/{activeModel}  <Text color={theme.colors.accent}>内容模式</Text>  ESC:返回  ?:帮助  Alt+1-5:切视图</Text>
           )}

@@ -121,12 +121,10 @@ export function InputBar({
   }, [onSubmit, showInfo]);
   
   const maxVisibleChars = layout.layoutSizes.width - 20;
-  let visibleInput = input;
-
-  if (input.length > maxVisibleChars) {
-    const start = Math.max(0, input.length - maxVisibleChars);
-    visibleInput = input.slice(start);
-  }
+  const _visibleInput = input.length > maxVisibleChars
+    ? input.slice(Math.max(0, input.length - maxVisibleChars))
+    : input;
+  void _visibleInput; // computed but display not implemented in this legacy component
   
   return (
     <Box flexDirection="column" width={layout.layoutSizes.width}>
@@ -136,7 +134,6 @@ export function InputBar({
           flexDirection="column"
           borderStyle="single"
           borderColor={theme.colors.border}
-          backgroundColor={theme.colors.surface}
           marginBottom={1}
           paddingX={1}
         >

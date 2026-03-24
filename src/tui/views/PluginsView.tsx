@@ -17,8 +17,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import type { LoadedPlugin, StatusContext } from '../../sdk/plugin.js';
 
 interface PluginsViewProps {
@@ -47,20 +48,17 @@ export function PluginsView({
   const listWidth = Math.min(28, Math.floor(width * 0.30));
   const listHeight = height - 4;
 
-  useInput((ch, key) => {
-    if (!isFocused) return;
-
+  useRawInput((key) => {
     if (key.tab) {
       setFocusPane(prev => prev === 'list' ? 'content' : 'list');
       return;
     }
-
     if (focusPane === 'list') {
-      if (key.upArrow || ch === 'k') {
+      if (key.up || key.char === 'k') {
         setCursor(prev => Math.max(0, prev - 1));
-      } else if (key.downArrow || ch === 'j') {
+      } else if (key.down || key.char === 'j') {
         setCursor(prev => Math.min(plugins.length - 1, prev + 1));
-      } else if (key.return || ch === ' ') {
+      } else if (key.return || key.space) {
         if (selectedPlugin) {
           void onToggle(selectedPlugin.def.id).then(() => {
             notify(selectedPlugin.enabled ? '○ 已禁用' : '● 已启用');
@@ -68,7 +66,7 @@ export function PluginsView({
         }
       }
     }
-  });
+  }, isFocused);
 
   // Get view lines from selected plugin
   const viewLines = selectedPlugin?.enabled && selectedPlugin.def.viewLines
@@ -118,7 +116,7 @@ export function PluginsView({
                 <Box
                   key={p.def.id}
                   paddingX={isSel ? 1 : 0}
-                  backgroundColor={isSel ? theme.colors.surfaceLight : undefined}
+                 
                 >
                   <Text color={p.enabled ? theme.colors.success : theme.colors.muted}>
                     {p.enabled ? '●' : '○'}{' '}

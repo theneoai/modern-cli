@@ -105,7 +105,6 @@ export function CompactHeader({
     <Box
       height={1}
       paddingX={1}
-      backgroundColor={theme.colors.primary}
     >
       <Text color={theme.colors.background} bold>
         {icons.logo} {title}

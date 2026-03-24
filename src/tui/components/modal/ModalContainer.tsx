@@ -29,12 +29,12 @@ export function ModalContainer() {
   return (
     <>
       {/* Render all modals in order */}
-      {modals.map((modal, index) => (
+      {modals.map((modal, _index) => (
         <ModalWindow 
           key={modal.id} 
           modal={modal} 
           isActive={modal.id === activeModal?.id}
-          zIndex={index}
+         
         />
       ))}
     </>
@@ -48,10 +48,9 @@ export function ModalContainer() {
 interface ModalWindowProps {
   modal: ModalState;
   isActive: boolean;
-  zIndex: number;
 }
 
-function ModalWindow({ modal, isActive, zIndex }: ModalWindowProps) {
+function ModalWindow({ modal, isActive }: ModalWindowProps) {
   const { closeModal } = useModal();
   
   const positionStyles = useMemo(() => {
@@ -90,9 +89,8 @@ function ModalWindow({ modal, isActive, zIndex }: ModalWindowProps) {
         height={height}
         borderStyle="double"
         borderColor={isActive ? theme.colors.primary : theme.colors.border}
-        backgroundColor={theme.colors.surface}
         flexDirection="column"
-        zIndex={zIndex + 10}
+       
       >
         {/* Title bar */}
         {modal.title && (
@@ -131,11 +129,10 @@ function Overlay({ onClick: _onClick }: OverlayProps) {
   return (
     <Box 
       position="absolute"
-      top={0}
-      left={0}
-      right={0}
-      bottom={0}
-      backgroundColor={theme.colors.background}
+     
+     
+     
+     
     >
       {/* In terminal, we can't do true transparency, so we just render nothing */}
     </Box>

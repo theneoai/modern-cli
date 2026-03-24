@@ -12,8 +12,9 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import type { Message } from '../FlowApp.js';
 
 interface ChatViewProps {
@@ -60,14 +61,14 @@ export function ChatView({ messages, height, width, isFocused, streamingId }: Ch
     }
   }, [messages.length, streamingId, maxScroll]);
 
-  useInput((ch, key) => {
-    if (key.upArrow   || ch === 'k') setScrollOffset(p => Math.max(0, p - 1));
-    else if (key.downArrow  || ch === 'j') setScrollOffset(p => Math.min(maxScroll, p + 1));
-    else if (key.pageUp     || (key.ctrl && ch === 'u')) setScrollOffset(p => Math.max(0, p - Math.floor(usableHeight / 2)));
-    else if (key.pageDown   || (key.ctrl && ch === 'd')) setScrollOffset(p => Math.min(maxScroll, p + Math.floor(usableHeight / 2)));
-    else if (ch === 'g') setScrollOffset(0);
-    else if (ch === 'G') setScrollOffset(maxScroll);
-  }, { isActive: isFocused });
+  useRawInput((key) => {
+    if (key.up   || key.char === 'k') setScrollOffset(p => Math.max(0, p - 1));
+    else if (key.down  || key.char === 'j') setScrollOffset(p => Math.min(maxScroll, p + 1));
+    else if (key.pageUp     || (key.ctrl && key.char === 'u')) setScrollOffset(p => Math.max(0, p - Math.floor(usableHeight / 2)));
+    else if (key.pageDown   || (key.ctrl && key.char === 'd')) setScrollOffset(p => Math.min(maxScroll, p + Math.floor(usableHeight / 2)));
+    else if (key.char === 'g' && !key.ctrl && !key.meta) setScrollOffset(0);
+    else if (key.char === 'G' && !key.ctrl && !key.meta) setScrollOffset(maxScroll);
+  }, isFocused);
 
   const visible = lines.slice(scrollOffset, scrollOffset + usableHeight);
   const atBottom = scrollOffset >= maxScroll;

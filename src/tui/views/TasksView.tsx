@@ -14,8 +14,9 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { tuiTheme as theme } from '../../theme/index.js';
+import { useRawInput } from '../hooks/useRawInput.js';
 import type { Task } from '../FlowApp.js';
 
 interface TasksViewProps {
@@ -71,69 +72,39 @@ export function TasksView({
   const scrollStart = Math.max(0, safeIdx - Math.floor(listAreaHeight / 2));
   const visibleTasks = displayTasks.slice(scrollStart, scrollStart + listAreaHeight);
 
-  useInput((ch, key) => {
+  useRawInput((key) => {
     // Filter mode
     if (isFiltering) {
-      if (key.escape || key.return) {
-        setIsFiltering(false);
-        return;
-      }
-      if (key.backspace || ch === '\x7f') {
-        setFilterQuery(prev => prev.slice(0, -1));
-        return;
-      }
-      if (ch && !key.ctrl && !key.meta && ch !== '\x7f' && ch !== '\b') {
-        setFilterQuery(prev => prev + ch);
-      }
+      if (key.escape || key.return) { setIsFiltering(false); return; }
+      if (key.backspace) { setFilterQuery(prev => prev.slice(0, -1)); return; }
+      if (key.char && !key.ctrl && !key.meta) { setFilterQuery(prev => prev + key.char); }
       return;
     }
 
     // Normal mode shortcuts
-    if (key.upArrow || ch === 'k') {
-      setCursor(prev => Math.max(0, prev - 1));
-      return;
-    }
-    if (key.downArrow || ch === 'j') {
-      setCursor(prev => Math.min(displayTasks.length - 1, prev + 1));
-      return;
-    }
+    if (key.up || key.char === 'k') { setCursor(prev => Math.max(0, prev - 1)); return; }
+    if (key.down || key.char === 'j') { setCursor(prev => Math.min(displayTasks.length - 1, prev + 1)); return; }
 
-    // gg (double g) → top
-    if (ch === 'g') {
-      if (lastKey === 'g') {
-        setCursor(0);
-        setLastKey('');
-      } else {
-        setLastKey('g');
-        setTimeout(() => setLastKey(''), 500);
-      }
+    if (key.char === 'g' && !key.ctrl && !key.meta) {
+      if (lastKey === 'g') { setCursor(0); setLastKey(''); }
+      else { setLastKey('g'); setTimeout(() => setLastKey(''), 500); }
       return;
     }
+    if (key.char === 'G' && !key.ctrl && !key.meta) { setCursor(Math.max(0, displayTasks.length - 1)); return; }
 
-    // G → bottom
-    if (ch === 'G') {
-      setCursor(Math.max(0, displayTasks.length - 1));
-      return;
-    }
-
-    // Space / Enter → toggle done
-    if ((ch === ' ' || key.return) && displayTasks[safeIdx]) {
+    if ((key.space || key.return) && displayTasks[safeIdx]) {
       onToggle(displayTasks[safeIdx].id);
       notify(displayTasks[safeIdx].status === 'done' ? '↩ 恢复待处理' : '✓ 标记完成');
       return;
     }
-
-    // d → delete
-    if (ch === 'd' && displayTasks[safeIdx]) {
+    if (key.char === 'd' && !key.ctrl && displayTasks[safeIdx]) {
       const title = displayTasks[safeIdx].title;
       onDelete(displayTasks[safeIdx].id);
       setCursor(prev => Math.max(0, prev - 1));
       notify(`🗑 已删除: ${title.slice(0, 20)}`);
       return;
     }
-
-    // p → cycle priority
-    if (ch === 'p' && displayTasks[safeIdx]) {
+    if (key.char === 'p' && !key.ctrl && displayTasks[safeIdx]) {
       const task = displayTasks[safeIdx];
       const priorities: Task['priority'][] = ['low', 'normal', 'high'];
       const next = priorities[(priorities.indexOf(task.priority) + 1) % priorities.length] ?? 'normal';
@@ -141,9 +112,7 @@ export function TasksView({
       notify(`优先级: ${next}`);
       return;
     }
-
-    // s → cycle status
-    if (ch === 's' && displayTasks[safeIdx]) {
+    if (key.char === 's' && !key.ctrl && displayTasks[safeIdx]) {
       const task = displayTasks[safeIdx];
       const statuses: Task['status'][] = ['pending', 'in_progress', 'done'];
       const next = statuses[(statuses.indexOf(task.status) + 1) % 3];
@@ -151,22 +120,13 @@ export function TasksView({
       notify(`状态: ${statusLabel(next)}`);
       return;
     }
-
-    // / → filter mode
-    if (ch === '/') {
-      setIsFiltering(true);
-      setFilterQuery('');
-      return;
-    }
-
-    // v → toggle show done
-    if (ch === 'v') {
-      setShowDone(prev => !prev);
-      setCursor(0);
+    if (key.char === '/' && !key.ctrl) { setIsFiltering(true); setFilterQuery(''); return; }
+    if (key.char === 'v' && !key.ctrl) {
+      setShowDone(prev => !prev); setCursor(0);
       notify(showDone ? '隐藏已完成' : '显示已完成');
       return;
     }
-  }, { isActive: isFocused });
+  }, isFocused);
 
   const stats = {
     total: tasks.length,
@@ -204,7 +164,7 @@ export function TasksView({
         <Box height={1} flexShrink={0} paddingX={1}>
           <Text color={theme.colors.primary}>/ </Text>
           <Text color={theme.colors.text}>{filterQuery}</Text>
-          <Text color={theme.colors.primary} backgroundColor={theme.colors.primary}> </Text>
+          <Text color={theme.colors.primary}> </Text>
           <Text color={theme.colors.muted}> Enter/ESC 确认</Text>
         </Box>
       )}
@@ -291,7 +251,7 @@ function TaskRow({ task, isSelected, width }: { task: Task; isSelected: boolean;
   return (
     <Box
       paddingX={isSelected ? 1 : 0}
-      backgroundColor={isSelected ? theme.colors.surfaceLight : undefined}
+     
     >
       {/* Selection indicator */}
       <Text color={isSelected ? theme.colors.primary : 'transparent'}>

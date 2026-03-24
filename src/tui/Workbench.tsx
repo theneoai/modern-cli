@@ -336,7 +336,7 @@ function TopBar({ currentUser, currentTeam, mainView, unreadCount, onViewChange:
   );
 }
 
-function LeftNav({ mainView, onViewChange, taskStats }: any) {
+function LeftNav({ mainView, onViewChange: _onViewChange, taskStats }: any) {
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: icons.stats, shortcut: '1' },
     { id: 'messages', label: 'Messages', icon: icons.chat, shortcut: '2', badge: 3 },
@@ -348,7 +348,7 @@ function LeftNav({ mainView, onViewChange, taskStats }: any) {
   
   return (
     <Box flexDirection="column" width={20} borderStyle="single" borderColor={theme.colors.border} paddingY={1}>
-      <Box paddingX={1} marginBottom={1}>
+      <Box paddingX={1}>
         <Text color={theme.colors.muted} bold>MENU</Text>
       </Box>
       {items.map(item => (
@@ -356,12 +356,11 @@ function LeftNav({ mainView, onViewChange, taskStats }: any) {
           key={item.id} 
           paddingX={1} 
           paddingY={0.5}
-          backgroundColor={mainView === item.id ? theme.colors.surfaceLight : undefined}
         >
           <Text 
             color={mainView === item.id ? theme.colors.primary : theme.colors.text}
             bold={mainView === item.id}
-            onPress={() => onViewChange(item.id)}
+           
           >
             {item.icon} {item.label}
             {item.badge ? ` ${item.badge}` : ''}
@@ -386,12 +385,12 @@ function DashboardView({ tasks, messages, workflows, members, onTaskToggle: _onT
   return (
     <Box flexDirection="column" padding={1}>
       {/* 欢迎语 */}
-      <Box marginBottom={1}>
+      <Box>
         <Text color={theme.colors.primary} bold>{greeting}, Alex! 👋</Text>
       </Box>
       
       {/* 概览卡片 */}
-      <Box flexDirection="row" marginBottom={1}>
+      <Box flexDirection="row">
         <DashboardCard title="Today's Tasks" icon={icons.check} color={theme.colors.warning}>
           <Text color={theme.colors.text} bold>{todayTasks.length} pending</Text>
           <Text color={theme.colors.muted}>3 high priority</Text>
@@ -407,8 +406,8 @@ function DashboardView({ tasks, messages, workflows, members, onTaskToggle: _onT
       </Box>
       
       {/* 今日待办 */}
-      <Box borderStyle="single" borderColor={theme.colors.border} padding={1} marginBottom={1}>
-        <Text color={theme.colors.primary} bold marginBottom={1}>📋 Today's Focus</Text>
+      <Box borderStyle="single" borderColor={theme.colors.border} padding={1}>
+        <Text color={theme.colors.primary} bold>📋 Today's Focus</Text>
         {todayTasks.slice(0, 5).map((task: any) => (
           <Box key={task.id} flexDirection="row" marginY={0.5}>
             <Text color={task.completed ? theme.colors.success : theme.colors.muted}>
@@ -425,7 +424,7 @@ function DashboardView({ tasks, messages, workflows, members, onTaskToggle: _onT
       
       {/* 最近动态 */}
       <Box borderStyle="single" borderColor={theme.colors.border} padding={1}>
-        <Text color={theme.colors.primary} bold marginBottom={1}>💬 Recent Activity</Text>
+        <Text color={theme.colors.primary} bold>💬 Recent Activity</Text>
         {recentMessages.map((msg: any) => (
           <Box key={msg.id} marginY={0.5}>
             <Text color={theme.colors.muted}>{msg.authorName}:</Text>
@@ -453,7 +452,7 @@ function DashboardCard({ title, icon, color, children }: any) {
   );
 }
 
-function MessagesView({ channels, messages, selectedChannel, onChannelSelect, currentUser: _currentUser }: any) {
+function MessagesView({ channels, messages, selectedChannel, onChannelSelect: _onChannelSelect, currentUser: _currentUser }: any) {
   const channelMessages = messages.filter((m: any) => m.channelId === selectedChannel);
   
   return (
@@ -471,7 +470,7 @@ function MessagesView({ channels, messages, selectedChannel, onChannelSelect, cu
             <Text 
               color={selectedChannel === ch.id ? theme.colors.primary : theme.colors.muted}
               bold={selectedChannel === ch.id}
-              onPress={() => onChannelSelect(ch.id)}
+             
             >
               {ch.displayName}
             </Text>
@@ -502,16 +501,16 @@ function MessagesView({ channels, messages, selectedChannel, onChannelSelect, cu
   );
 }
 
-function TasksView({ tasks, onTaskToggle }: any) {
+function TasksView({ tasks, onTaskToggle: _onTaskToggle }: any) {
   const categories = ['work', 'personal', 'team'] as const;
   
   return (
     <Box flexDirection="column" padding={1}>
-      <Text color={theme.colors.primary} bold marginBottom={1}>📋 All Tasks</Text>
+      <Text color={theme.colors.primary} bold>📋 All Tasks</Text>
       {categories.map(cat => {
         const catTasks = tasks.filter((t: any) => t.category === cat);
         return (
-          <Box key={cat} flexDirection="column" marginBottom={1}>
+          <Box key={cat} flexDirection="column">
             <Text color={theme.colors.accent} bold>
               {cat === 'work' && '💼 Work'}
               {cat === 'personal' && '🏠 Personal'}
@@ -521,7 +520,7 @@ function TasksView({ tasks, onTaskToggle }: any) {
               <Box key={task.id} flexDirection="row" marginY={0.5} paddingX={2}>
                 <Text 
                   color={task.completed ? theme.colors.success : theme.colors.muted}
-                  onPress={() => onTaskToggle(task.id)}
+                 
                 >
                   {task.completed ? icons.checkHeavy : icons.pending}
                 </Text>
@@ -543,7 +542,7 @@ function TasksView({ tasks, onTaskToggle }: any) {
 function WorkflowsView({ workflows }: any) {
   return (
     <Box flexDirection="column" padding={1}>
-      <Text color={theme.colors.primary} bold marginBottom={1}>⚡ Team Workflows</Text>
+      <Text color={theme.colors.primary} bold>⚡ Team Workflows</Text>
       {workflows.map((wf: any) => (
         <Box key={wf.id} borderStyle="single" borderColor={theme.colors.border} padding={1} marginY={0.5}>
           <Box flexDirection="row" justifyContent="space-between">
@@ -563,7 +562,7 @@ function WorkflowsView({ workflows }: any) {
 function TeamView({ members }: any) {
   return (
     <Box flexDirection="column" padding={1}>
-      <Text color={theme.colors.primary} bold marginBottom={1}>👥 Team Members</Text>
+      <Text color={theme.colors.primary} bold>👥 Team Members</Text>
       {members.map((member: any) => (
         <Box key={member.id} flexDirection="row" marginY={0.5} paddingX={1}>
           <Text color={member.presence === 'online' ? theme.colors.success : theme.colors.muted}>
@@ -588,13 +587,13 @@ function RightSidebar({ view: _view, notifications, members, workflows: _workflo
       paddingY={1}
     >
       {/* 侧边栏切换 */}
-      <Box flexDirection="row" justifyContent="center" marginBottom={1}>
+      <Box flexDirection="row" justifyContent="center">
         <Text color={theme.colors.muted}>F1:Act F2:Members</Text>
       </Box>
       
       {/* 活动内容 */}
       <Box paddingX={1}>
-        <Text color={theme.colors.primary} bold marginBottom={1}>📊 Activity</Text>
+        <Text color={theme.colors.primary} bold>📊 Activity</Text>
         {notifications.slice(0, 5).map((n: any) => (
           <Box key={n.id} flexDirection="column" marginY={0.5}>
             <Text color={n.read ? theme.colors.muted : theme.colors.text} bold={!n.read}>
@@ -612,7 +611,7 @@ function RightSidebar({ view: _view, notifications, members, workflows: _workflo
       
       {/* 在线成员 */}
       <Box paddingX={1}>
-        <Text color={theme.colors.primary} bold marginBottom={1}>● Online ({members.filter((m: any) => m.presence === 'online').length})</Text>
+        <Text color={theme.colors.primary} bold>● Online ({members.filter((m: any) => m.presence === 'online').length})</Text>
         {members.filter((m: any) => m.presence === 'online').map((m: any) => (
           <Box key={m.id} marginY={0.5}>
             <Text color={theme.colors.text}>{m.userName} {m.isAgent && '🤖'}</Text>
@@ -661,10 +660,9 @@ function CommandPalette(_: any) {
       height={15}
       borderStyle="double"
       borderColor={theme.colors.primary}
-      backgroundColor={theme.colors.surface}
       padding={1}
     >
-      <Text color={theme.colors.primary} bold marginBottom={1}>⌘ Command Palette</Text>
+      <Text color={theme.colors.primary} bold>⌘ Command Palette</Text>
       {commands.map(cmd => (
         <Box key={cmd.id} marginY={0.5}>
           <Text color={theme.colors.text}>{cmd.label}</Text>
@@ -686,10 +684,9 @@ function NotificationsPanel({ notifications, onClose: _onClose, onMarkRead: _onM
       height={20}
       borderStyle="double"
       borderColor={theme.colors.warning}
-      backgroundColor={theme.colors.surface}
       padding={1}
     >
-      <Text color={theme.colors.warning} bold marginBottom={1}>🔔 Notifications</Text>
+      <Text color={theme.colors.warning} bold>🔔 Notifications</Text>
       {notifications.map((n: any) => (
         <Box key={n.id} marginY={0.5} flexDirection="column">
           <Text color={n.read ? theme.colors.muted : theme.colors.text} bold={!n.read}>

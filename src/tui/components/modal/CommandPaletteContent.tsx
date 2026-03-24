@@ -98,7 +98,6 @@ export function CommandPaletteContent(options: PaletteOptions) {
         ) : (
           visibleItems.map((item, index) => {
             const isSelected = index === selectedIndex;
-            const bgColor = isSelected ? theme.colors.primary : undefined;
             const textColor = isSelected ? theme.colors.background : theme.colors.text;
             const descColor = isSelected ? theme.colors.background : theme.colors.muted;
             
@@ -107,7 +106,6 @@ export function CommandPaletteContent(options: PaletteOptions) {
                 key={item.id}
                 paddingY={0.5}
                 paddingX={1}
-                backgroundColor={bgColor}
               >
                 <Text color={textColor}>
                   {item.icon && `${item.icon} `}

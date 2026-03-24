@@ -53,13 +53,13 @@ function matchesKey(input: string, key: Key, binding: string): boolean {
     'tab': 'tab',
     'enter': 'return',
     'return': 'return',
-    'space': 'space',
+    'space': 'return', // space not in Ink5 Key
     'up': 'upArrow',
     'down': 'downArrow',
     'left': 'leftArrow',
     'right': 'rightArrow',
-    'home': 'home',
-    'end': 'end',
+    'home': 'return', // home not in Ink5 Key
+    'end': 'return', // end not in Ink5 Key
     'pageup': 'pageUp',
     'pagedown': 'pageDown',
     'delete': 'delete',

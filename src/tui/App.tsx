@@ -307,7 +307,7 @@ export default function App() {
     return (
       <FullScreen>
         <Box flexDirection="column" width={layoutSizes.width} height={layoutSizes.height}>
-          <Box height={1} backgroundColor={theme.colors.error} justifyContent="center">
+          <Box height={1} justifyContent="center">
             <Text color={theme.colors.text} bold>
               Terminal too small! Min: {layout.minWidth}x{layout.minHeight}
             </Text>
