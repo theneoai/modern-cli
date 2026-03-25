@@ -376,7 +376,7 @@ class RawInputEngine {
     const restore = () => {
       try {
         if (process.stdin.isTTY) process.stdin.setRawMode(false);
-      } catch (_) { /* 忽略，进程已在退出路径 */ }
+      } catch { /* ignore, process is exiting */ }
     };
     process.once('exit',   restore);
     process.once('SIGINT',  () => { restore(); process.exit(0); });
@@ -487,7 +487,7 @@ class RawInputEngine {
   private emit(key: RawKey): void {
     for (const listener of this.listeners) {
       try { listener(key); }
-      catch (_) { /* 单个 listener 出错不影响其他 */ }
+      catch { /* single listener error doesn't affect others */ }
     }
   }
 }

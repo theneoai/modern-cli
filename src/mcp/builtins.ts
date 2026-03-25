@@ -19,7 +19,8 @@ const BLOCKED_PATH_SEGMENTS = ['.ssh', '.gnupg', '.aws', '.device-secret', 'keys
 function assertSafePath(p: string): void {
   const abs = normalize(resolve(p));
   const home = normalize(homedir());
-  if (!abs.startsWith(home + '/') && abs !== home) {
+  const isAllowedDir = abs.startsWith(home + '/') || abs.startsWith('/tmp/') || abs === home;
+  if (!isAllowedDir) {
     throw new Error(`Access denied: path is outside the home directory (${abs})`);
   }
   for (const seg of BLOCKED_PATH_SEGMENTS) {

@@ -351,8 +351,7 @@ function AgentsSideContent({ agentTasks, width: _width, height: _height }: {
   height: number;
 }) {
   const running = agentTasks.filter(t => t.status === 'running');
-  const done = agentTasks.filter(t => t.status === 'done');
-  const failed = agentTasks.filter(t => t.status === 'failed');
+  const done = agentTasks.filter(t => t.status === 'done' || t.status === 'error');
 
   return (
     <Box flexDirection="column">
@@ -361,8 +360,6 @@ function AgentsSideContent({ agentTasks, width: _width, height: _height }: {
         <StatChip label="运行" value={running.length} color={theme.colors.success} />
         <Text color={theme.colors.border}> · </Text>
         <StatChip label="完成" value={done.length} color={theme.colors.muted} />
-        <Text color={theme.colors.border}> · </Text>
-        <StatChip label="失败" value={failed.length} color={theme.colors.error} />
       </Box>
 
       {/* Running tasks */}
@@ -377,9 +374,9 @@ function AgentsSideContent({ agentTasks, width: _width, height: _height }: {
                   {t.goal.slice(0, _width - 3)}
                 </Text>
               </Box>
-              {t.currentStep && (
+              {t.progress > 0 && (
                 <Text color={theme.colors.muted} dimColor>
-                  {'  '}{t.currentStep.slice(0, _width - 3)}
+                  {'  '}进度: {t.progress}%
                 </Text>
               )}
             </Box>

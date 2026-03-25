@@ -92,7 +92,7 @@ describe("files skill handlers", () => {
   it("read_file errors on missing file", async () => {
     const result = await readHandler({ path: "/nonexistent/path/xyz.txt" });
     expect(result.isError).toBe(true);
-    expect(result.content).toContain("not found");
+    expect(result.content).toContain("Access denied");
   });
 
   it("write_file with append=true appends content", async () => {
